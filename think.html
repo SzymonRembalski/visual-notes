@@ -1,0 +1,21 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Visual Notes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="think-page">
+    <div id="toolbar">
+        <input id="projectTitleInput" class="projectTitleInput" type="text" placeholder="Project title" oninput="updateProjectTitle(this.value)">
+        <button onclick="createNote()">New Note</button>
+        <button id="removeBtn" onclick="toggleRemoveMode()">Remove Connections</button>
+        <button id="addBtn" onclick="toggleAddMode()">Add Connections</button>
+        <button id="colorBtn" onclick="toggleColorMode()">Color Mode</button>
+        <a href="projects.html" class="button button-link">Back to Projects</a>
+    </div>
+    <svg id="connections"></svg>
+    <div id="canvas"></div>
+    <script src="task.js"></script>
+</body>
+</html>

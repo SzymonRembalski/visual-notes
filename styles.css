@@ -1,0 +1,563 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #1b1b1b;
+    color: white;
+}
+
+button,
+.button {
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    background: #388e3c;
+    color: white;
+    font-size: 0.95rem;
+    transition: filter 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+button:hover,
+.button:hover {
+    filter: brightness(1.15);
+    transform: translateY(-1px);
+}
+
+button:focus-visible,
+.button:focus-visible,
+a:focus-visible {
+    outline: 2px solid #6ddc75;
+    outline-offset: 2px;
+}
+
+a.button-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+body.menu-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #1e1e1e;
+}
+
+.menu-container {
+    text-align: center;
+    padding: 40px;
+}
+
+.menu-container h1 {
+    font-size: 48px;
+    margin-bottom: 48px;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+}
+
+.menu-button {
+    min-width: 180px;
+    font-size: 1rem;
+}
+
+body.task-page {
+    min-height: 100vh;
+    margin: 30px;
+    background: #1e1e1e;
+}
+
+body.task-page h1 {
+    margin-top: 0;
+}
+
+body.task-page #controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+body.task-page table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+body.task-page th,
+body.task-page td {
+    padding: 10px;
+    border: 1px solid #555;
+}
+
+body.task-page th {
+    background: #333;
+    text-align: left;
+}
+
+body.task-page .drag {
+    cursor: grab;
+    width: 40px;
+    text-align: center;
+}
+
+body.task-page .taskName {
+    cursor: pointer;
+}
+
+body.task-page .steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+body.task-page .step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #333;
+}
+
+body.task-page .dragHandle {
+    cursor: grab;
+    padding: 0 6px;
+    background: #555;
+    border-radius: 6px;
+    user-select: none;
+}
+
+body.task-page .addStep,
+body.task-page .removeStep,
+body.task-page .delete,
+body.task-page .smallButton {
+    padding: 8px 12px;
+}
+
+body.task-page .addStep {
+    background: #1565c0;
+}
+
+body.task-page .smallButton {
+    min-width: 32px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    background: #555;
+}
+
+body.task-page .smallButton:hover {
+    background: #666;
+}
+
+body.task-page .removeStep,
+body.task-page .delete {
+    background: #b71c1c;
+}
+
+body.task-page input,
+body.task-page textarea,
+body.task-page select {
+    width: 100%;
+    background: #252525;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+body.task-page textarea {
+    resize: vertical;
+}
+
+body.task-page .note {
+    background: #222;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 10px;
+    display: none;
+}
+
+body.task-page .category {
+    background: #444;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+body.task-page .categoryHeader {
+    background: #444;
+    font-weight: bold;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 10px;
+}
+
+body.task-page .categoryColor {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+body.task-page tr.dragging {
+    opacity: 0.5;
+}
+
+body.task-page .star {
+    cursor: pointer;
+    font-size: 20px;
+    margin-right: 8px;
+}
+
+body.task-page .completed {
+    opacity: 0.65;
+}
+
+body.task-page .hidden {
+    display: none;
+}
+
+body.task-page .completeMessage {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #333;
+    padding: 30px;
+    border-radius: 15px;
+    font-size: 28px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 1000;
+}
+
+body.think-page {
+    margin: 0;
+    overflow: hidden;
+    background: #1b1b1b;
+}
+
+body.think-page #toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50px;
+    background: #252525;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    z-index: 1000;
+}
+
+body.think-page #toolbar button,
+body.think-page #toolbar .button-link {
+    white-space: nowrap;
+}
+
+body.think-page #projectTitleInput {
+    flex: 1;
+    min-width: 220px;
+    background: #1e1e1e;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 1rem;
+}
+
+body.projects-page {
+    min-height: 100vh;
+    margin: 0;
+    padding: 30px;
+    background: #1e1e1e;
+}
+
+body.projects-page .projects-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+body.projects-page .projects-toolbar h1 {
+    margin: 0;
+    font-size: 2rem;
+}
+
+body.projects-page .project-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+}
+
+body.projects-page .project-card {
+    background: #252525;
+    border: 1px solid #444;
+    border-radius: 16px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+body.projects-page .project-card h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+body.projects-page .project-card .project-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+body.projects-page .deleteProjectButton {
+    background: #b71c1c;
+}
+
+body.think-page #canvas {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    width: 10000px;
+    height: 10000px;
+    pointer-events: none;
+    z-index: 950;
+}
+
+body.think-page .note {
+    position: absolute;
+    width: 220px;
+    min-height: 140px;
+    height: auto;
+    background: var(--note-bg, #333);
+    border-radius: 10px;
+    padding: 12px;
+    cursor: move;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 950;
+    overflow: hidden;
+}
+
+body.think-page .resizeHandle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    background: #4caf50;
+    cursor: se-resize;
+    border-radius: 0 0 5px 0;
+    pointer-events: auto;
+}
+
+body.think-page .noteHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    color: white;
+}
+
+body.think-page .noteTitle {
+    display: inline-block;
+    width: auto;
+    flex: none;
+    min-width: 40px;
+    white-space: nowrap;
+    background: transparent;
+    color: white;
+    padding: 0 4px;
+    font-size: 1rem;
+    font-weight: bold;
+    outline: none;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+}
+
+body.think-page .noteTitleInput {
+    display: inline-block;
+    width: auto;
+    min-width: 40px;
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 0 4px;
+    font-size: 1rem;
+    font-weight: bold;
+    outline: none;
+}
+
+body.remove-mode-active,
+body.remove-mode-active * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+body.think-page .note textarea {
+    width: 100%;
+    flex: 1;
+    resize: none;
+    background: #222;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 8px;
+    margin-top: 0;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+body.think-page .noteImage {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+body.think-page .noteImage img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    max-width: 100%;
+}
+
+body.think-page .imageButton {
+    background: #1565c0;
+    padding: 6px 10px;
+}
+
+body.think-page .note.selected {
+    box-shadow: 0 0 0 2px #4caf50, 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.colorPanel {
+    position: fixed;
+    top: 60px;
+    right: 24px;
+    background: rgba(28,28,28,0.95);
+    border: 1px solid #444;
+    padding: 10px;
+    border-radius: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 2100;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+}
+
+.colorPanel input[type="color"] {
+    width: 38px;
+    height: 38px;
+    border: none;
+    padding: 0;
+    background: transparent;
+}
+
+.colorPanel button.applyColorBtn {
+    background: #4caf50;
+    padding: 8px 12px;
+}
+
+.note.addition-highlight {
+    box-shadow: 0 0 0 2px #8bc34a, 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.selectionBox {
+    position: fixed;
+    pointer-events: none;
+    border: 2px dashed #4caf50;
+    background: rgba(76, 175, 80, 0.12);
+    z-index: 2000;
+}
+
+body.think-page .delete {
+    background: #b71c1c;
+    padding: 6px 10px;
+}
+
+body.think-page .connectMode {
+    background: #1565c0;
+}
+
+body.think-page svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: auto;
+    height: auto;
+    pointer-events: none;
+    z-index: 900;
+}
+
+body.think-page .removeLine {
+    stroke: #f44336;
+    stroke-width: 4;
+    stroke-dasharray: 8 6;
+    stroke-linecap: round;
+    pointer-events: none;
+}
+
+body.think-page .line.removal-highlight {
+    stroke: #f44336;
+    stroke-width: 4;
+}
+
+body.think-page .line {
+    stroke: #aaa;
+    stroke-width: 2;
+    stroke-linecap: round;
+    cursor: pointer;
+    pointer-events: all;
+    transition: stroke 0.15s ease, stroke-width 0.15s ease;
+}
+
+body.think-page svg.remove-mode-active .line:hover {
+    stroke: #f44336;
+}
+
+body.add-mode-active,
+body.add-mode-active * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+body.think-page .addLine {
+    stroke: #8bc34a;
+    stroke-width: 4;
+    stroke-dasharray: 6 6;
+    stroke-linecap: round;
+    pointer-events: none;
+}
+
+body.think-page .line.addition-highlight {
+    stroke: #4caf50;
+    stroke-width: 4;
+}
+
+body.think-page .note.addition-highlight {
+    box-shadow: 0 0 0 2px #8bc34a, 0 5px 15px rgba(0,0,0,0.5);
+}
+
