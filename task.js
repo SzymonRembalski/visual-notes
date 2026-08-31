@@ -322,16 +322,17 @@ const ProjectManager = {
         const projects = this.loadProjects();
         return projects.find(project => String(project.id) === String(id)) || null;
     },
-    createProject({ title, notes, connections, panX, panY, zoom }) {
+    createProject({ title, notes, connections, panX, panY, zoom, coordinateVersion }) {
         const projects = this.loadProjects();
         const project = {
             id: Date.now().toString(),
             title: title || "Untitled Project",
             notes: notes || [],
             connections: connections || [],
-            panX: typeof panX === "number" ? panX : 0,
-            panY: typeof panY === "number" ? panY : 0,
+            panX: typeof panX === "number" ? panX : null,
+            panY: typeof panY === "number" ? panY : null,
             zoom: typeof zoom === "number" ? zoom : 1,
+            coordinateVersion: coordinateVersion || 2,
             createdAt: Date.now(),
             modifiedAt: Date.now()
         };
@@ -354,7 +355,7 @@ const ProjectsPage = {
         if (newButton) {
             newButton.onclick = () => {
                 const title = prompt("Project title:", "New Project") || "New Project";
-                const project = ProjectManager.createProject({ title, notes: [], connections: [], panX: 0, panY: 0, zoom: 1 });
+                const project = ProjectManager.createProject({ title, notes: [], connections: [], zoom: 1 });
                 window.location.href = `think.html?projectId=${project.id}`;
             };
         }
@@ -419,6 +420,138 @@ const VisualNotes = {
     selectBoxStart: { x: 0, y: 0 },
     selectBoxStartScreen: { x: 0, y: 0 },
     selectionBoxElement: null,
+    coordinateVersion: 2,
+    needsInitialCenter: false,
+    canvasBounds: { left: -800, top: -500, right: 800, bottom: 500 },
+    canvasPadding: 360,
+    canvasResizeStep: 250,
+    getViewportBounds() {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = Math.max(1, window.innerHeight - 50);
+        return {
+            left: -this.panX / this.zoom,
+            top: -this.panY / this.zoom,
+            right: (viewportWidth - this.panX) / this.zoom,
+            bottom: (viewportHeight - this.panY) / this.zoom
+        };
+    },
+    calculateCanvasBounds() {
+        const viewport = this.getViewportBounds();
+        let left = viewport.left;
+        let top = viewport.top;
+        let right = viewport.right;
+        let bottom = viewport.bottom;
+
+        if (this.notes.length) {
+            this.notes.forEach(note => {
+                left = Math.min(left, note.x);
+                top = Math.min(top, note.y);
+                right = Math.max(right, note.x + (note.width || 220));
+                bottom = Math.max(bottom, note.y + (note.height || 140));
+            });
+        } else {
+            // Until the first note exists, the logical origin keeps exploratory
+            // panning reversible: moving away grows the board; returning shrinks it.
+            left = Math.min(left, 0);
+            top = Math.min(top, 0);
+            right = Math.max(right, 0);
+            bottom = Math.max(bottom, 0);
+        }
+
+        const padding = this.canvasPadding;
+        left -= padding;
+        top -= padding;
+        right += padding;
+        bottom += padding;
+
+        const viewportWidth = viewport.right - viewport.left;
+        const viewportHeight = viewport.bottom - viewport.top;
+        const minimumWidth = Math.max(1200, viewportWidth + padding * 2);
+        const minimumHeight = Math.max(800, viewportHeight + padding * 2);
+
+        if (right - left < minimumWidth) {
+            const extra = (minimumWidth - (right - left)) / 2;
+            left -= extra;
+            right += extra;
+        }
+        if (bottom - top < minimumHeight) {
+            const extra = (minimumHeight - (bottom - top)) / 2;
+            top -= extra;
+            bottom += extra;
+        }
+
+        const step = this.canvasResizeStep;
+        return {
+            left: Math.floor(left / step) * step,
+            top: Math.floor(top / step) * step,
+            right: Math.ceil(right / step) * step,
+            bottom: Math.ceil(bottom / step) * step
+        };
+    },
+    updateCanvasBounds() {
+        const next = this.calculateCanvasBounds();
+        this.canvasBounds = next;
+        const width = next.right - next.left;
+        const height = next.bottom - next.top;
+        const canvas = document.getElementById("canvas");
+        const svg = document.getElementById("connections");
+
+        if (canvas) {
+            canvas.style.width = width + "px";
+            canvas.style.height = height + "px";
+            canvas.querySelectorAll(".note").forEach(element => {
+                const note = this.notes.find(item => String(item.id) === element.dataset.noteId);
+                if (!note) return;
+                element.style.left = (note.x - next.left) + "px";
+                element.style.top = (note.y - next.top) + "px";
+            });
+            const grid = canvas.querySelector(".gridBackground");
+            if (grid) {
+                grid.style.width = width + "px";
+                grid.style.height = height + "px";
+                grid.style.backgroundPosition = `${-next.left % 30}px ${-next.top % 30}px`;
+            }
+        }
+        if (svg) {
+            svg.style.left = "0px";
+            svg.style.top = "50px";
+            svg.setAttribute("width", width);
+            svg.setAttribute("height", height);
+            svg.setAttribute("viewBox", `${next.left} ${next.top} ${width} ${height}`);
+        }
+    },
+    centerCameraOnOrigin() {
+        this.panX = window.innerWidth / 2;
+        this.panY = Math.max(1, window.innerHeight - 50) / 2;
+    },
+    establishFirstNoteOrigin(note) {
+        const originX = note.x + (note.width || 220) / 2;
+        const originY = note.y + (note.height || 140) / 2;
+        note.x -= originX;
+        note.y -= originY;
+        this.panX += originX * this.zoom;
+        this.panY += originY * this.zoom;
+    },
+    migrateLegacyCoordinates(preserveView) {
+        if (!this.notes.length) return;
+        const firstNote = this.notes[0];
+        const originX = firstNote.x + (firstNote.width || 220) / 2;
+        const originY = firstNote.y + (firstNote.height || 140) / 2;
+        this.notes.forEach(note => {
+            note.x -= originX;
+            note.y -= originY;
+        });
+        if (preserveView) {
+            this.panX += originX * this.zoom;
+            this.panY += originY * this.zoom;
+        } else {
+            this.centerCameraOnOrigin();
+        }
+    },
+    isPointInsideCanvas(x, y) {
+        const bounds = this.canvasBounds;
+        return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+    },
     saveBoard() {
         if (this.projectId) {
             const projects = ProjectManager.loadProjects();
@@ -431,6 +564,7 @@ const VisualNotes = {
                 panX: this.panX,
                 panY: this.panY,
                 zoom: this.zoom,
+                coordinateVersion: this.coordinateVersion,
                 modifiedAt: Date.now()
             };
             if (projectIndex >= 0) {
@@ -446,6 +580,10 @@ const VisualNotes = {
             localStorage.setItem("visualNotes", JSON.stringify(this.notes));
             localStorage.setItem("visualConnections", JSON.stringify(this.connections));
             localStorage.setItem("visualTitle", this.projectTitle);
+            localStorage.setItem("visualCoordinateVersion", String(this.coordinateVersion));
+            localStorage.setItem("visualPanX", String(this.panX));
+            localStorage.setItem("visualPanY", String(this.panY));
+            localStorage.setItem("visualZoom", String(this.zoom));
         }
     },
     saveProject() {
@@ -461,7 +599,8 @@ const VisualNotes = {
                 connections: this.connections,
                 panX: this.panX,
                 panY: this.panY,
-                zoom: this.zoom
+                zoom: this.zoom,
+                coordinateVersion: this.coordinateVersion
             });
             this.projectId = project.id;
             history.replaceState(null, "", `think.html?projectId=${project.id}`);
@@ -472,9 +611,10 @@ const VisualNotes = {
     },
     createNote() {
         const { x, y } = this.getVisibleCenter();
-        this.createNoteAt(x, y);
+        this.createNoteAt(x - 110, y - 70);
     },
     createNoteAt(x, y, options = {}) {
+        const isFirstNote = this.notes.length === 0;
         const note = {
             id: Date.now(),
             x,
@@ -488,7 +628,11 @@ const VisualNotes = {
             aspectRatio: typeof options.aspectRatio === 'number' ? options.aspectRatio : null,
             color: options.color || null
         };
+        if (isFirstNote) {
+            this.establishFirstNoteOrigin(note);
+        }
         this.notes.push(note);
+        this.updateCanvasBounds();
         this.saveBoard();
         this.render();
         return note;
@@ -578,6 +722,7 @@ const VisualNotes = {
         const projectId = params.get("projectId");
         this.projectId = projectId;
         let project = null;
+        let boardNeedsUpgrade = false;
 
         if (projectId) {
             project = ProjectManager.getProjectById(projectId);
@@ -587,19 +732,55 @@ const VisualNotes = {
             this.projectTitle = project.title || "Untitled Project";
             this.notes = project.notes || [];
             this.connections = project.connections || [];
+            this.needsInitialCenter = typeof project.panX !== "number" || typeof project.panY !== "number";
             this.panX = typeof project.panX === "number" ? project.panX : 0;
             this.panY = typeof project.panY === "number" ? project.panY : 0;
             this.zoom = typeof project.zoom === "number" ? project.zoom : 1;
+            if ((project.coordinateVersion || 1) < this.coordinateVersion && this.notes.length) {
+                this.migrateLegacyCoordinates(true);
+                boardNeedsUpgrade = true;
+            } else if ((project.coordinateVersion || 1) < this.coordinateVersion && !this.notes.length) {
+                this.needsInitialCenter = true;
+                boardNeedsUpgrade = true;
+            }
         } else if (!projectId) {
             const loadedNotes = JSON.parse(localStorage.getItem("visualNotes")) || [];
             const loadedConnections = JSON.parse(localStorage.getItem("visualConnections")) || [];
             this.notes = loadedNotes;
             this.connections = loadedConnections;
             this.projectTitle = localStorage.getItem("visualTitle") || "Untitled Project";
+            const storedCoordinateVersion = Number(localStorage.getItem("visualCoordinateVersion")) || 1;
+            if (storedCoordinateVersion < this.coordinateVersion && this.notes.length) {
+                this.migrateLegacyCoordinates(false);
+                boardNeedsUpgrade = true;
+            } else {
+                const storedPanX = Number(localStorage.getItem("visualPanX"));
+                const storedPanY = Number(localStorage.getItem("visualPanY"));
+                const storedZoom = Number(localStorage.getItem("visualZoom"));
+                const hasStoredView = Number.isFinite(storedPanX) && Number.isFinite(storedPanY) &&
+                    localStorage.getItem("visualPanX") !== null && localStorage.getItem("visualPanY") !== null;
+                if (hasStoredView) {
+                    this.panX = storedPanX;
+                    this.panY = storedPanY;
+                    this.zoom = Number.isFinite(storedZoom) && storedZoom > 0 ? storedZoom : 1;
+                } else {
+                    this.needsInitialCenter = true;
+                }
+                boardNeedsUpgrade = storedCoordinateVersion < this.coordinateVersion;
+            }
         } else {
             this.notes = [];
             this.connections = [];
             this.projectTitle = "Untitled Project";
+            this.needsInitialCenter = true;
+        }
+
+        if (this.needsInitialCenter) {
+            this.centerCameraOnOrigin();
+            this.needsInitialCenter = false;
+        }
+        if (boardNeedsUpgrade) {
+            this.saveBoard();
         }
 
         const titleInput = document.getElementById("projectTitleInput");
@@ -609,12 +790,10 @@ const VisualNotes = {
         this.render();
     },
     getVisibleCenter() {
-        const viewportX = window.innerWidth / 2;
-        const viewportY = 50 + (window.innerHeight - 50) / 2;
-        return {
-            x: (viewportX - this.panX) / this.zoom,
-            y: (viewportY - this.panY) / this.zoom
-        };
+        return this.screenToCanvas(
+            window.innerWidth / 2,
+            50 + (window.innerHeight - 50) / 2
+        );
     },
     escapeHtml(value) {
         return String(value)
@@ -868,14 +1047,8 @@ const VisualNotes = {
         const svg = document.getElementById("connections");
         if (!svg) return;
         this.clearRemoveDrag();
-        const canvas = document.getElementById("canvas");
-        if (canvas) {
-            // Position both SVG and canvas at the same place; transforms will sync them
-            svg.style.left = canvas.style.left || '0px';
-            svg.style.top = canvas.style.top || '50px';
-            svg.setAttribute("width", canvas.offsetWidth);
-            svg.setAttribute("height", canvas.offsetHeight);
-        }
+        this.updateCanvasBounds();
+        this.applyTransform();
         svg.innerHTML = "";
 
         // defs for gradients
@@ -1284,6 +1457,17 @@ const VisualNotes = {
         if (!canvas) return;
         const notes = this.notes;
         const self = this;
+        notes.forEach(note => {
+            const minWidth = self.getMinNoteWidth(note);
+            if ((note.width || 220) < minWidth) {
+                note.width = minWidth;
+            }
+            const minHeight = note.type === 'image' ? note.height || 140 : self.getMinNoteHeight(note);
+            if ((note.height || 140) < minHeight) {
+                note.height = minHeight;
+            }
+        });
+        this.updateCanvasBounds();
         
         // Create grid background once
         let gridContainer = canvas.querySelector(".gridBackground");
@@ -1293,14 +1477,18 @@ const VisualNotes = {
             grid.style.position = "absolute";
             grid.style.top = "0";
             grid.style.left = "0";
-            grid.style.width = "10000px";
-            grid.style.height = "10000px";
             grid.style.pointerEvents = "none";
             grid.style.zIndex = "1";
             grid.style.backgroundImage = 'radial-gradient(circle, #555 1.5px, transparent 1.5px)';
             grid.style.backgroundSize = '30px 30px';
             canvas.appendChild(grid);
         }
+        const boundsWidth = this.canvasBounds.right - this.canvasBounds.left;
+        const boundsHeight = this.canvasBounds.bottom - this.canvasBounds.top;
+        gridContainer = canvas.querySelector(".gridBackground");
+        gridContainer.style.width = boundsWidth + "px";
+        gridContainer.style.height = boundsHeight + "px";
+        gridContainer.style.backgroundPosition = `${-this.canvasBounds.left % 30}px ${-this.canvasBounds.top % 30}px`;
         
         // Remove all notes (but keep grid)
         const allNotes = canvas.querySelectorAll(".note");
@@ -1313,16 +1501,8 @@ const VisualNotes = {
             if (this.selectedNotes.includes(note.id)) {
                 div.classList.add("selected");
             }
-            div.style.left = note.x + "px";
-            div.style.top = note.y + "px";
-            const minNoteWidth = self.getMinNoteWidth(note);
-            if ((note.width || 220) < minNoteWidth) {
-                note.width = minNoteWidth;
-            }
-            const minNoteHeight = note.type === 'image' ? note.height || 140 : self.getMinNoteHeight(note);
-            if ((note.height || 140) < minNoteHeight) {
-                note.height = minNoteHeight;
-            }
+            div.style.left = (note.x - this.canvasBounds.left) + "px";
+            div.style.top = (note.y - this.canvasBounds.top) + "px";
             div.style.width = (note.width || 220) + "px";
             div.style.height = (note.height || 140) + "px";
             // apply custom background color if present
@@ -1479,7 +1659,8 @@ const VisualNotes = {
     applyTransform() {
         const canvas = document.getElementById("canvas");
         const svg = document.getElementById("connections");
-        const transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+        const bounds = this.canvasBounds;
+        const transform = `translate(${this.panX + bounds.left * this.zoom}px, ${this.panY + bounds.top * this.zoom}px) scale(${this.zoom})`;
         if (canvas) {
             canvas.style.transform = transform;
             canvas.style.transformOrigin = "0 0";
@@ -1506,12 +1687,16 @@ const VisualNotes = {
         const deltaY = event.clientY - this.panStartY;
         this.panX = this.panStartPanX + deltaX;
         this.panY = this.panStartPanY + deltaY;
+        this.updateCanvasBounds();
         this.applyTransform();
     },
     stopPan() {
         this.panning = false;
         document.onmousemove = null;
         document.onmouseup = null;
+        this.updateCanvasBounds();
+        this.applyTransform();
+        this.saveBoard();
     },
     handleZoom(event) {
         event.preventDefault();
@@ -1521,13 +1706,14 @@ const VisualNotes = {
         if (newZoom === this.zoom) return;
         
         const viewportCenterX = window.innerWidth / 2;
-        const viewportCenterY = 50 + (window.innerHeight - 50) / 2;
+        const viewportCenterY = (window.innerHeight - 50) / 2;
         const worldX = (viewportCenterX - this.panX) / this.zoom;
         const worldY = (viewportCenterY - this.panY) / this.zoom;
         
         this.panX = viewportCenterX - worldX * newZoom;
         this.panY = viewportCenterY - worldY * newZoom;
         this.zoom = newZoom;
+        this.updateCanvasBounds();
         this.applyTransform();
     },
     init() {
@@ -1559,14 +1745,6 @@ const VisualNotes = {
                 this.colorApplyButton.onclick = () => this.applyColor();
             }
             
-            // Center camera on 10000x10000 canvas only when the project did not already set pan/zoom
-            if (this.projectId === null && this.panX === 0 && this.panY === 0 && this.zoom === 1) {
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight - 50; // subtract toolbar
-                this.panX = viewportWidth / 2 - (10000 * this.zoom) / 2;
-                this.panY = viewportHeight / 2 - (10000 * this.zoom) / 2;
-            }
-
             // Canvas background click for drag-select - check coordinates against note positions
             document.addEventListener("mousedown", e => {
                 if (e.button !== 0) return; // Only left click
@@ -1591,8 +1769,8 @@ const VisualNotes = {
                 self.selectedNotes = [];
                 self.render();
 
-                // Check if click is within canvas bounds
-                if (unzoomedX < 0 || unzoomedX > 10000 || unzoomedY < 0 || unzoomedY > 10000) {
+                // The adaptive bounds always cover the camera and all notes.
+                if (!self.isPointInsideCanvas(unzoomedX, unzoomedY)) {
                     return;
                 }
 
@@ -1684,6 +1862,11 @@ const VisualNotes = {
                 if (document.visibilityState === "hidden") {
                     self.saveBoard();
                 }
+            });
+            window.addEventListener("resize", () => {
+                self.updateCanvasBounds();
+                self.render();
+                self.applyTransform();
             });
             
             const preventDragDefault = e => {

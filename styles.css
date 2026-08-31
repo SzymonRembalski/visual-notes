@@ -336,8 +336,8 @@ body.think-page #canvas {
     position: absolute;
     top: 50px;
     left: 0;
-    width: 10000px;
-    height: 10000px;
+    width: 1600px;
+    height: 1000px;
     pointer-events: none;
     z-index: 950;
 }
