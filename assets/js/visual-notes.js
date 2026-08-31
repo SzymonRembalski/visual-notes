@@ -155,7 +155,7 @@ const VisualNotes = {
                 coordinateVersion: this.coordinateVersion
             });
             this.projectId = project.id;
-            history.replaceState(null, "", `canvas.html?projectId=${project.id}`);
+            history.replaceState(null, "", `visual-notes.html?projectId=${project.id}`);
         }
 
         this.saveBoard();

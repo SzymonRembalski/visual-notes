@@ -20,7 +20,7 @@ const ProjectsPage = {
                     connections: [],
                     zoom: 1
                 });
-                window.location.href = `canvas.html?projectId=${project.id}`;
+                window.location.href = `visual-notes.html?projectId=${project.id}`;
             };
         }
         this.render();
@@ -48,7 +48,7 @@ const ProjectsPage = {
         listContainer.querySelectorAll(".openProjectButton").forEach(button => {
             button.onclick = event => {
                 const id = event.currentTarget.dataset.id;
-                window.location.href = `canvas.html?projectId=${id}`;
+                window.location.href = `visual-notes.html?projectId=${id}`;
             };
         });
 

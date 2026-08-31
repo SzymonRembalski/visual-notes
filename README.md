@@ -88,7 +88,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 visual-notes/
 ├── index.html                # Main navigation
 ├── projects.html             # Visual project library
-├── canvas.html               # Visual notes workspace
+├── visual-notes.html         # Visual notes workspace
 ├── tasks.html                # Task tracker
 └── assets/
     ├── css/
