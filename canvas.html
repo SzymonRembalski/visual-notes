@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visual Notes</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
 </head>
-<body class="think-page">
+<body class="canvas-page">
     <div id="toolbar">
         <input id="projectTitleInput" class="projectTitleInput" type="text" placeholder="Project title" oninput="updateProjectTitle(this.value)">
         <button onclick="createNote()">New Note</button>
@@ -16,6 +17,9 @@
     </div>
     <svg id="connections"></svg>
     <div id="canvas"></div>
-    <script src="task.js"></script>
+    <script src="assets/js/project-manager.js"></script>
+    <script src="assets/js/canvas-utils.js"></script>
+    <script src="assets/js/visual-notes.js"></script>
+    <script src="assets/js/app.js"></script>
 </body>
 </html>

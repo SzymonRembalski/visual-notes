@@ -45,7 +45,7 @@ Your projects and tasks are saved in the browser with `localStorage`. Visual Not
 flowchart LR
     A[Main Menu] --> B[Task Tracker]
     A --> C[Visual Notes Projects]
-    C --> D[Infinite Canvas]
+    C --> D[Adaptive Canvas]
     D --> E[Notes]
     D --> F[Connections]
     D --> G[Colors & Groups]
@@ -56,7 +56,7 @@ flowchart LR
 ## Run it
 
 1. Download or clone this repository.
-2. Open `menu.html` in a modern browser.
+2. Open `index.html` in a modern browser.
 3. Start mapping ideas or tracking tasks.
 
 ```bash
@@ -64,7 +64,7 @@ git clone https://github.com/SzymonRembalski/visual-notes.git
 cd visual-notes
 ```
 
-Then open `menu.html`. There is nothing to install and no build command to run.
+Then open `index.html`. There is nothing to install and no build command to run.
 
 > [!IMPORTANT]
 > Data belongs to the browser profile and origin where you created it. Clearing browser site data may remove saved projects and tasks.
@@ -86,12 +86,20 @@ Then open `menu.html`. There is nothing to install and no build command to run.
 
 ```text
 visual-notes/
-├── menu.html       # Main navigation
-├── projects.html   # Visual project library
-├── think.html      # Visual notes canvas
-├── task.html       # Task tracker
-├── task.js         # Application behavior and local persistence
-└── styles.css      # Shared dark interface
+├── index.html                # Main navigation
+├── projects.html             # Visual project library
+├── canvas.html               # Visual notes workspace
+├── tasks.html                # Task tracker
+└── assets/
+    ├── css/
+    │   └── styles.css        # Shared dark interface
+    └── js/
+        ├── app.js            # Page initialization and action bindings
+        ├── canvas-utils.js   # Canvas coordinates, bounds, and geometry
+        ├── project-manager.js # Project persistence
+        ├── projects-page.js  # Project library interface
+        ├── task-tracker.js   # Task tracker behavior
+        └── visual-notes.js   # Canvas and note interactions
 ```
 
 ## Built with

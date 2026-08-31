@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Tracker</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body class="task-page">
     <h1>Task Tracker</h1>
     <div id="controls">
         <button onclick="addTask()">+ New Task</button>
         <button onclick="addCategory()">+ Category</button>
-        <a href="menu.html" class="button button-link">Back to Menu</a>
+        <a href="index.html" class="button button-link">Back to Menu</a>
     </div>
     <table>
         <thead>
@@ -25,6 +26,7 @@
         </thead>
         <tbody id="tableBody"></tbody>
     </table>
-    <script src="task.js"></script>
+    <script src="assets/js/task-tracker.js"></script>
+    <script src="assets/js/app.js"></script>
 </body>
 </html>

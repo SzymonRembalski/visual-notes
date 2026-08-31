@@ -245,13 +245,13 @@ body.task-page .completeMessage {
     z-index: 1000;
 }
 
-body.think-page {
+body.canvas-page {
     margin: 0;
     overflow: hidden;
     background: #1b1b1b;
 }
 
-body.think-page #toolbar {
+body.canvas-page #toolbar {
     position: fixed;
     top: 0;
     left: 0;
@@ -265,12 +265,12 @@ body.think-page #toolbar {
     z-index: 1000;
 }
 
-body.think-page #toolbar button,
-body.think-page #toolbar .button-link {
+body.canvas-page #toolbar button,
+body.canvas-page #toolbar .button-link {
     white-space: nowrap;
 }
 
-body.think-page #projectTitleInput {
+body.canvas-page #projectTitleInput {
     flex: 1;
     min-width: 220px;
     background: #1e1e1e;
@@ -332,7 +332,7 @@ body.projects-page .deleteProjectButton {
     background: #b71c1c;
 }
 
-body.think-page #canvas {
+body.canvas-page #canvas {
     position: absolute;
     top: 50px;
     left: 0;
@@ -342,7 +342,7 @@ body.think-page #canvas {
     z-index: 950;
 }
 
-body.think-page .note {
+body.canvas-page .note {
     position: absolute;
     width: 220px;
     min-height: 140px;
@@ -360,7 +360,7 @@ body.think-page .note {
     overflow: hidden;
 }
 
-body.think-page .resizeHandle {
+body.canvas-page .resizeHandle {
     position: absolute;
     bottom: 0;
     right: 0;
@@ -372,7 +372,7 @@ body.think-page .resizeHandle {
     pointer-events: auto;
 }
 
-body.think-page .noteHeader {
+body.canvas-page .noteHeader {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -380,7 +380,7 @@ body.think-page .noteHeader {
     color: white;
 }
 
-body.think-page .noteTitle {
+body.canvas-page .noteTitle {
     display: inline-block;
     width: auto;
     flex: none;
@@ -397,7 +397,7 @@ body.think-page .noteTitle {
     cursor: text;
 }
 
-body.think-page .noteTitleInput {
+body.canvas-page .noteTitleInput {
     display: inline-block;
     width: auto;
     min-width: 40px;
@@ -416,7 +416,7 @@ body.remove-mode-active * {
     -webkit-user-select: none !important;
 }
 
-body.think-page .note textarea {
+body.canvas-page .note textarea {
     width: 100%;
     flex: 1;
     resize: none;
@@ -430,13 +430,13 @@ body.think-page .note textarea {
     -webkit-user-select: text;
 }
 
-body.think-page .noteImage {
+body.canvas-page .noteImage {
     width: 100%;
     overflow: hidden;
     border-radius: 10px;
 }
 
-body.think-page .noteImage img {
+body.canvas-page .noteImage img {
     width: 100%;
     height: auto;
     display: block;
@@ -444,12 +444,12 @@ body.think-page .noteImage img {
     max-width: 100%;
 }
 
-body.think-page .imageButton {
+body.canvas-page .imageButton {
     background: #1565c0;
     padding: 6px 10px;
 }
 
-body.think-page .note.selected {
+body.canvas-page .note.selected {
     box-shadow: 0 0 0 2px #4caf50, 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
@@ -493,16 +493,16 @@ body.think-page .note.selected {
     z-index: 2000;
 }
 
-body.think-page .delete {
+body.canvas-page .delete {
     background: #b71c1c;
     padding: 6px 10px;
 }
 
-body.think-page .connectMode {
+body.canvas-page .connectMode {
     background: #1565c0;
 }
 
-body.think-page svg {
+body.canvas-page svg {
     position: absolute;
     top: 0;
     left: 0;
@@ -512,7 +512,7 @@ body.think-page svg {
     z-index: 900;
 }
 
-body.think-page .removeLine {
+body.canvas-page .removeLine {
     stroke: #f44336;
     stroke-width: 4;
     stroke-dasharray: 8 6;
@@ -520,12 +520,12 @@ body.think-page .removeLine {
     pointer-events: none;
 }
 
-body.think-page .line.removal-highlight {
+body.canvas-page .line.removal-highlight {
     stroke: #f44336;
     stroke-width: 4;
 }
 
-body.think-page .line {
+body.canvas-page .line {
     stroke: #aaa;
     stroke-width: 2;
     stroke-linecap: round;
@@ -534,7 +534,7 @@ body.think-page .line {
     transition: stroke 0.15s ease, stroke-width 0.15s ease;
 }
 
-body.think-page svg.remove-mode-active .line:hover {
+body.canvas-page svg.remove-mode-active .line:hover {
     stroke: #f44336;
 }
 
@@ -544,7 +544,7 @@ body.add-mode-active * {
     -webkit-user-select: none !important;
 }
 
-body.think-page .addLine {
+body.canvas-page .addLine {
     stroke: #8bc34a;
     stroke-width: 4;
     stroke-dasharray: 6 6;
@@ -552,12 +552,12 @@ body.think-page .addLine {
     pointer-events: none;
 }
 
-body.think-page .line.addition-highlight {
+body.canvas-page .line.addition-highlight {
     stroke: #4caf50;
     stroke-width: 4;
 }
 
-body.think-page .note.addition-highlight {
+body.canvas-page .note.addition-highlight {
     box-shadow: 0 0 0 2px #8bc34a, 0 5px 15px rgba(0,0,0,0.5);
 }
 

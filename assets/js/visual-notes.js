@@ -1,404 +1,3 @@
-
-
-const TaskTracker = {
-    tasks: [],
-    categories: [
-        {
-            id: 1,
-            name: "GENERAL",
-            color: "#555"
-        }
-    ],
-    draggedIndex: null,
-    draggedStep: null,
-    save() {
-        localStorage.setItem("tasksV2", JSON.stringify(this.tasks));
-        localStorage.setItem("categoriesV2", JSON.stringify(this.categories));
-    },
-    load() {
-        try {
-            let tasks = JSON.parse(localStorage.getItem("tasksV2"));
-            if (!Array.isArray(tasks)) {
-                tasks = JSON.parse(localStorage.getItem("tasks"));
-            }
-            if (Array.isArray(tasks)) {
-                this.tasks = tasks;
-            }
-        } catch (error) {
-            this.tasks = [];
-        }
-
-        try {
-            let categories = JSON.parse(localStorage.getItem("categoriesV2"));
-            if (!Array.isArray(categories) || !categories.length) {
-                categories = JSON.parse(localStorage.getItem("categories"));
-            }
-            if (Array.isArray(categories) && categories.length) {
-                this.categories = categories;
-            }
-        } catch (error) {
-            this.categories = [
-                {
-                    id: 1,
-                    name: "GENERAL",
-                    color: "#555"
-                }
-            ];
-        }
-    },
-    addTask(afterIndex = null) {
-        const task = {
-            id: Date.now(),
-            name: "New Task",
-            category: "GENERAL",
-            pinned: false,
-            notes: "",
-            expanded: false,
-            steps: [
-                {
-                    text: "Step 1",
-                    done: false
-                }
-            ]
-        };
-
-        if (afterIndex === null) {
-            this.tasks.unshift(task);
-        } else {
-            this.tasks.splice(afterIndex + 1, 0, task);
-        }
-
-        this.save();
-        this.render();
-    },
-    addCategory() {
-        const name = prompt("Category name:");
-        if (!name) return;
-
-        this.categories.push({
-            id: Date.now(),
-            name: name,
-            color: "#444"
-        });
-
-        this.save();
-        this.render();
-    },
-    deleteTask(index) {
-        if (confirm("Delete task?")) {
-            this.tasks.splice(index, 1);
-            this.save();
-            this.render();
-        }
-    },
-    toggleStep(taskIndex, stepIndex) {
-        const step = this.tasks[taskIndex].steps[stepIndex];
-        step.done = !step.done;
-        this.save();
-        this.render();
-    },
-    addStep(index) {
-        this.tasks[index].steps.push({
-            text: "Step " + (this.tasks[index].steps.length + 1),
-            done: false
-        });
-        this.save();
-        this.render();
-    },
-    removeStep(index) {
-        if (this.tasks[index].steps.length <= 1) return;
-        this.tasks[index].steps.pop();
-        this.save();
-        this.render();
-    },
-    editTask(index) {
-        const newName = prompt("Task name:", this.tasks[index].name);
-        if (!newName) return;
-        this.tasks[index].name = newName;
-        this.save();
-        this.render();
-    },
-    editStep(taskIndex, stepIndex) {
-        const value = prompt("Step name:", this.tasks[taskIndex].steps[stepIndex].text);
-        if (!value) return;
-        this.tasks[taskIndex].steps[stepIndex].text = value;
-        this.save();
-        this.render();
-    },
-    moveStepUp(taskIndex, stepIndex) {
-        if (stepIndex <= 0) return;
-        const steps = this.tasks[taskIndex].steps;
-        [steps[stepIndex - 1], steps[stepIndex]] = [steps[stepIndex], steps[stepIndex - 1]];
-        this.save();
-        this.render();
-    },
-    moveStepDown(taskIndex, stepIndex) {
-        const steps = this.tasks[taskIndex].steps;
-        if (stepIndex >= steps.length - 1) return;
-        [steps[stepIndex], steps[stepIndex + 1]] = [steps[stepIndex + 1], steps[stepIndex]];
-        this.save();
-        this.render();
-    },
-    startStepDrag(taskIndex, stepIndex, event) {
-        event.stopPropagation();
-        this.draggedStep = { taskIndex, stepIndex };
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', `${taskIndex}:${stepIndex}`);
-    },
-    dropStep(taskIndex, stepIndex, event) {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!this.draggedStep) return;
-        const { taskIndex: sourceTask, stepIndex: sourceIndex } = this.draggedStep;
-        if (sourceTask !== taskIndex) {
-            this.draggedStep = null;
-            return;
-        }
-        if (sourceIndex === stepIndex) {
-            this.draggedStep = null;
-            return;
-        }
-
-        const steps = this.tasks[taskIndex].steps;
-        const [moved] = steps.splice(sourceIndex, 1);
-        const insertIndex = sourceIndex < stepIndex ? stepIndex + 1 : stepIndex;
-        steps.splice(insertIndex, 0, moved);
-        this.draggedStep = null;
-        this.save();
-        this.render();
-    },
-    toggleNotes(index) {
-        this.tasks[index].expanded = !this.tasks[index].expanded;
-        this.save();
-        this.render();
-    },
-    updateNotes(index, text) {
-        this.tasks[index].notes = text;
-        this.save();
-    },
-    togglePinned(index) {
-        this.tasks[index].pinned = !this.tasks[index].pinned;
-        this.save();
-        this.render();
-    },
-    calculateProgress(task) {
-        const total = task.steps.length;
-        const done = task.steps.filter(s => s.done).length;
-        return {
-            done,
-            total,
-            percent: Math.round(done / total * 100)
-        };
-    },
-    escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    },
-    updateDashboard() {
-        // Dashboard removed - progress shown per-task in table
-    },
-    checkCompletion() {
-        let total = 0;
-        let done = 0;
-
-        this.tasks.forEach(task => {
-            total += task.steps.length;
-            done += task.steps.filter(s => s.done).length;
-        });
-
-        if (total > 0 && total === done) {
-            const box = document.getElementById("completeMessage");
-            if (!box) return;
-            box.style.display = "block";
-            setTimeout(() => {
-                box.style.display = "none";
-            }, 3000);
-        }
-    },
-    render() {
-        const body = document.getElementById("tableBody");
-        if (!body) return;
-
-        body.innerHTML = "";
-        const tracker = this;
-
-        this.tasks.forEach((task, index) => {
-            const p = tracker.calculateProgress(task);
-            const tr = document.createElement("tr");
-            tr.draggable = true;
-            tr.dataset.index = index;
-
-            if (p.percent === 100) {
-                tr.classList.add("completed");
-            }
-
-            tr.innerHTML = `
-<td class="drag">≡</td>
-<td>
-    <span class="star" onclick="togglePinned(${index})">${task.pinned ? "★" : "☆"}</span>
-    <span class="taskName" onclick="editTask(${index})">${this.escapeHtml(task.name)}</span>
-    <br>
-    <button onclick="toggleNotes(${index})">📝 Notes</button>
-    <button onclick="addTask(${index})" title="Insert after this task">+</button>
-    <div class="note" style="display:${task.expanded ? "block" : "none"}">
-        <textarea rows="3" style="width:95%" onchange="updateNotes(${index},this.value)">${this.escapeHtml(task.notes)}</textarea>
-    </div>
-</td>
-<td>
-    <div class="steps">
-        ${task.steps.map((step, j) => `
-            <div class="step" draggable="true" ondragstart="startStepDrag(${index},${j},event)" ondragover="event.preventDefault(); event.stopPropagation()" ondrop="dropStep(${index},${j},event); event.stopPropagation()">
-                <span class="dragHandle" title="Drag to reorder">☰</span>
-                <input type="checkbox" ${step.done ? "checked" : ""} onclick="toggleStep(${index},${j})">
-                <span onclick="editStep(${index},${j})">${this.escapeHtml(step.text)}</span>
-            </div>
-        `).join("")}
-    </div>
-    <br>
-    <button class="addStep" onclick="addStep(${index})" title="Add step">+ Step</button>
-    <button class="removeStep" onclick="removeStep(${index})" title="Remove step">- Step</button>
-</td>
-<td>${p.done}/${p.total}</td>
-<td>${p.percent}%</td>
-<td><button class="delete" onclick="deleteTask(${index})" title="Delete task">Delete</button></td>
-`;
-
-            body.appendChild(tr);
-
-            tr.addEventListener("dragstart", event => {
-                if (event.target.closest('.step')) return;
-                tracker.draggedIndex = index;
-                tr.classList.add("dragging");
-            });
-
-            tr.addEventListener("dragend", () => {
-                tr.classList.remove("dragging");
-            });
-
-            tr.addEventListener("dragover", e => {
-                e.preventDefault();
-            });
-
-            tr.addEventListener("drop", event => {
-                if (event.target.closest('.step')) return;
-                if (tracker.draggedIndex === null || tracker.draggedIndex === index) return;
-                const moved = tracker.tasks.splice(tracker.draggedIndex, 1)[0];
-                tracker.tasks.splice(index, 0, moved);
-                tracker.save();
-                tracker.render();
-            });
-        });
-
-        tracker.updateDashboard();
-    },
-    init() {
-        if (document.getElementById("tableBody")) {
-            this.load();
-            this.render();
-            this.checkCompletion();
-        }
-    }
-};
-
-const ProjectManager = {
-    storageKey: "visualProjects",
-    loadProjects() {
-        try {
-            const raw = localStorage.getItem(this.storageKey);
-            const projects = JSON.parse(raw);
-            return Array.isArray(projects) ? projects : [];
-        } catch (error) {
-            return [];
-        }
-    },
-    saveProjects(projects) {
-        localStorage.setItem(this.storageKey, JSON.stringify(projects));
-    },
-    getProjectById(id) {
-        if (!id) return null;
-        const projects = this.loadProjects();
-        return projects.find(project => String(project.id) === String(id)) || null;
-    },
-    createProject({ title, notes, connections, panX, panY, zoom, coordinateVersion }) {
-        const projects = this.loadProjects();
-        const project = {
-            id: Date.now().toString(),
-            title: title || "Untitled Project",
-            notes: notes || [],
-            connections: connections || [],
-            panX: typeof panX === "number" ? panX : null,
-            panY: typeof panY === "number" ? panY : null,
-            zoom: typeof zoom === "number" ? zoom : 1,
-            coordinateVersion: coordinateVersion || 2,
-            createdAt: Date.now(),
-            modifiedAt: Date.now()
-        };
-        projects.unshift(project);
-        this.saveProjects(projects);
-        return project;
-    },
-    deleteProject(id) {
-        const projects = this.loadProjects();
-        const filtered = projects.filter(p => String(p.id) !== String(id));
-        this.saveProjects(filtered);
-    }
-};
-
-const ProjectsPage = {
-    init() {
-        const listContainer = document.getElementById("projectList");
-        if (!listContainer) return;
-        const newButton = document.getElementById("newProjectButton");
-        if (newButton) {
-            newButton.onclick = () => {
-                const title = prompt("Project title:", "New Project") || "New Project";
-                const project = ProjectManager.createProject({ title, notes: [], connections: [], zoom: 1 });
-                window.location.href = `think.html?projectId=${project.id}`;
-            };
-        }
-        this.render();
-    },
-    render() {
-        const listContainer = document.getElementById("projectList");
-        if (!listContainer) return;
-        const projects = ProjectManager.loadProjects();
-        listContainer.innerHTML = projects.map(project => {
-            const title = project.title || "Untitled Project";
-            const modified = new Date(project.modifiedAt || project.createdAt || Date.now()).toLocaleString();
-            return `
-                <div class="project-card" data-id="${project.id}">
-                    <h2>${TaskTracker.escapeHtml(title)}</h2>
-                    <div>Saved: ${TaskTracker.escapeHtml(modified)}</div>
-                    <div class="project-actions">
-                        <button class="button openProjectButton" data-id="${project.id}">Open</button>
-                        <button class="button deleteProjectButton" data-id="${project.id}">Delete</button>
-                    </div>
-                </div>
-            `;
-        }).join("") || `<div>No projects yet. Create one to start.</div>`;
-
-        listContainer.querySelectorAll(".openProjectButton").forEach(button => {
-            button.onclick = event => {
-                const id = event.currentTarget.dataset.id;
-                window.location.href = `think.html?projectId=${id}`;
-            };
-        });
-
-        listContainer.querySelectorAll(".deleteProjectButton").forEach(button => {
-            button.onclick = event => {
-                const id = event.currentTarget.dataset.id;
-                if (confirm("Delete this project?")) {
-                    ProjectManager.deleteProject(id);
-                    this.render();
-                }
-            };
-        });
-    }
-};
-
 const VisualNotes = {
     notes: JSON.parse(localStorage.getItem("visualNotes")) || [],
     connections: JSON.parse(localStorage.getItem("visualConnections")) || [],
@@ -426,67 +25,21 @@ const VisualNotes = {
     canvasPadding: 360,
     canvasResizeStep: 250,
     getViewportBounds() {
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = Math.max(1, window.innerHeight - 50);
-        return {
-            left: -this.panX / this.zoom,
-            top: -this.panY / this.zoom,
-            right: (viewportWidth - this.panX) / this.zoom,
-            bottom: (viewportHeight - this.panY) / this.zoom
-        };
+        return CanvasUtils.getViewportBounds(
+            this.panX,
+            this.panY,
+            this.zoom,
+            window.innerWidth,
+            window.innerHeight
+        );
     },
     calculateCanvasBounds() {
-        const viewport = this.getViewportBounds();
-        let left = viewport.left;
-        let top = viewport.top;
-        let right = viewport.right;
-        let bottom = viewport.bottom;
-
-        if (this.notes.length) {
-            this.notes.forEach(note => {
-                left = Math.min(left, note.x);
-                top = Math.min(top, note.y);
-                right = Math.max(right, note.x + (note.width || 220));
-                bottom = Math.max(bottom, note.y + (note.height || 140));
-            });
-        } else {
-            // Until the first note exists, the logical origin keeps exploratory
-            // panning reversible: moving away grows the board; returning shrinks it.
-            left = Math.min(left, 0);
-            top = Math.min(top, 0);
-            right = Math.max(right, 0);
-            bottom = Math.max(bottom, 0);
-        }
-
-        const padding = this.canvasPadding;
-        left -= padding;
-        top -= padding;
-        right += padding;
-        bottom += padding;
-
-        const viewportWidth = viewport.right - viewport.left;
-        const viewportHeight = viewport.bottom - viewport.top;
-        const minimumWidth = Math.max(1200, viewportWidth + padding * 2);
-        const minimumHeight = Math.max(800, viewportHeight + padding * 2);
-
-        if (right - left < minimumWidth) {
-            const extra = (minimumWidth - (right - left)) / 2;
-            left -= extra;
-            right += extra;
-        }
-        if (bottom - top < minimumHeight) {
-            const extra = (minimumHeight - (bottom - top)) / 2;
-            top -= extra;
-            bottom += extra;
-        }
-
-        const step = this.canvasResizeStep;
-        return {
-            left: Math.floor(left / step) * step,
-            top: Math.floor(top / step) * step,
-            right: Math.ceil(right / step) * step,
-            bottom: Math.ceil(bottom / step) * step
-        };
+        return CanvasUtils.calculateCanvasBounds(
+            this.notes,
+            this.getViewportBounds(),
+            this.canvasPadding,
+            this.canvasResizeStep
+        );
     },
     updateCanvasBounds() {
         const next = this.calculateCanvasBounds();
@@ -521,32 +74,31 @@ const VisualNotes = {
         }
     },
     centerCameraOnOrigin() {
-        this.panX = window.innerWidth / 2;
-        this.panY = Math.max(1, window.innerHeight - 50) / 2;
+        const view = CanvasUtils.centeredCamera(window.innerWidth, window.innerHeight);
+        this.panX = view.panX;
+        this.panY = view.panY;
     },
     establishFirstNoteOrigin(note) {
-        const originX = note.x + (note.width || 220) / 2;
-        const originY = note.y + (note.height || 140) / 2;
-        note.x -= originX;
-        note.y -= originY;
-        this.panX += originX * this.zoom;
-        this.panY += originY * this.zoom;
+        const view = CanvasUtils.rebaseNotesAroundFirst(
+            [note],
+            { panX: this.panX, panY: this.panY, zoom: this.zoom },
+            true,
+            window.innerWidth,
+            window.innerHeight
+        );
+        this.panX = view.panX;
+        this.panY = view.panY;
     },
     migrateLegacyCoordinates(preserveView) {
-        if (!this.notes.length) return;
-        const firstNote = this.notes[0];
-        const originX = firstNote.x + (firstNote.width || 220) / 2;
-        const originY = firstNote.y + (firstNote.height || 140) / 2;
-        this.notes.forEach(note => {
-            note.x -= originX;
-            note.y -= originY;
-        });
-        if (preserveView) {
-            this.panX += originX * this.zoom;
-            this.panY += originY * this.zoom;
-        } else {
-            this.centerCameraOnOrigin();
-        }
+        const view = CanvasUtils.rebaseNotesAroundFirst(
+            this.notes,
+            { panX: this.panX, panY: this.panY, zoom: this.zoom },
+            preserveView,
+            window.innerWidth,
+            window.innerHeight
+        );
+        this.panX = view.panX;
+        this.panY = view.panY;
     },
     isPointInsideCanvas(x, y) {
         const bounds = this.canvasBounds;
@@ -603,7 +155,7 @@ const VisualNotes = {
                 coordinateVersion: this.coordinateVersion
             });
             this.projectId = project.id;
-            history.replaceState(null, "", `think.html?projectId=${project.id}`);
+            history.replaceState(null, "", `canvas.html?projectId=${project.id}`);
         }
 
         this.saveBoard();
@@ -1303,36 +855,16 @@ const VisualNotes = {
         });
     },
     screenToCanvas(clientX, clientY) {
-        const canvasOffsetTop = 50;
-        const viewportX = clientX;
-        const viewportY = clientY - canvasOffsetTop;
-        return {
-            x: (viewportX - this.panX) / this.zoom,
-            y: (viewportY - this.panY) / this.zoom
-        };
+        return CanvasUtils.screenToCanvas(
+            clientX,
+            clientY,
+            this.panX,
+            this.panY,
+            this.zoom
+        );
     },
     lineIntersects(a, b, c) {
-        const d = { x1: c.x1, y1: c.y1, x2: c.x2, y2: c.y2 };
-        const orientation = (p, q, r) => {
-            return (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
-        };
-        const onSegment = (p, q, r) => {
-            return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) &&
-                q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
-        };
-        const p1 = { x: a.x, y: a.y };
-        const q1 = { x: b.x, y: b.y };
-        const p2 = { x: d.x1, y: d.y1 };
-        const q2 = { x: d.x2, y: d.y2 };
-        const o1 = orientation(p1, q1, p2);
-        const o2 = orientation(p1, q1, q2);
-        const o3 = orientation(p2, q2, p1);
-        const o4 = orientation(p2, q2, q1);
-        if (o1 === 0 && onSegment(p1, p2, q1)) return true;
-        if (o2 === 0 && onSegment(p1, q2, q1)) return true;
-        if (o3 === 0 && onSegment(p2, p1, q2)) return true;
-        if (o4 === 0 && onSegment(p2, q1, q2)) return true;
-        return o1 * o2 < 0 && o3 * o4 < 0;
+        return CanvasUtils.lineIntersects(a, b, c);
     },
     stopMove() {
         if (this.selectedNote) {
@@ -1918,36 +1450,4 @@ const VisualNotes = {
     }
 };
 
-window.addTask = TaskTracker.addTask.bind(TaskTracker);
-window.addCategory = TaskTracker.addCategory.bind(TaskTracker);
-window.deleteTask = TaskTracker.deleteTask.bind(TaskTracker);
-window.toggleStep = TaskTracker.toggleStep.bind(TaskTracker);
-window.addStep = TaskTracker.addStep.bind(TaskTracker);
-window.removeStep = TaskTracker.removeStep.bind(TaskTracker);
-window.editTask = TaskTracker.editTask.bind(TaskTracker);
-window.editStep = TaskTracker.editStep.bind(TaskTracker);
-window.moveStepUp = TaskTracker.moveStepUp.bind(TaskTracker);
-window.moveStepDown = TaskTracker.moveStepDown.bind(TaskTracker);
-window.toggleNotes = TaskTracker.toggleNotes.bind(TaskTracker);
-window.updateNotes = TaskTracker.updateNotes.bind(TaskTracker);
-window.togglePinned = TaskTracker.togglePinned.bind(TaskTracker);
-window.startStepDrag = TaskTracker.startStepDrag.bind(TaskTracker);
-window.dropStep = TaskTracker.dropStep.bind(TaskTracker);
-
-window.createNote = VisualNotes.createNote.bind(VisualNotes);
-window.saveBoard = VisualNotes.saveBoard.bind(VisualNotes);
-window.saveProject = VisualNotes.saveProject.bind(VisualNotes);
-window.updateProjectTitle = VisualNotes.updateProjectTitle.bind(VisualNotes);
-window.deleteNote = VisualNotes.deleteNote.bind(VisualNotes);
-window.toggleRemoveMode = VisualNotes.toggleRemoveMode.bind(VisualNotes);
-window.toggleAddMode = VisualNotes.toggleAddMode.bind(VisualNotes);
-window.toggleColorMode = VisualNotes.toggleColorMode.bind(VisualNotes);
-window.applyColor = VisualNotes.applyColor.bind(VisualNotes);
-
-window.addEventListener("DOMContentLoaded", () => {
-    TaskTracker.init();
-    VisualNotes.init();
-    if (typeof ProjectsPage !== "undefined") {
-        ProjectsPage.init();
-    }
-});
+window.VisualNotes = VisualNotes;
