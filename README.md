@@ -78,6 +78,8 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Zoom | Mouse wheel |
 | Select several notes | Drag on empty canvas or `Ctrl` + click |
 | Delete selected notes | `Delete` |
+| Undo the last change | `Ctrl` + `Z` |
+| Redo an undone change | `Ctrl` + `Shift` + `Z` |
 | Connect notes | Turn on **Add Connections**, then draw through notes |
 | Remove links | Turn on **Remove Connections**, then draw through connections |
 | Color notes | Select notes, enable **Color Mode**, choose a color, and apply |
@@ -96,6 +98,7 @@ visual-notes/
     └── js/
         ├── app.js            # Page initialization and action bindings
         ├── canvas-utils.js   # Canvas coordinates, bounds, and geometry
+        ├── history-manager.js # 30-step undo and redo history
         ├── project-manager.js # Project persistence
         ├── projects-page.js  # Project library interface
         ├── task-tracker.js   # Task tracker behavior

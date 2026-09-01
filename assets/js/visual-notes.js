@@ -24,6 +24,63 @@ const VisualNotes = {
     canvasBounds: { left: -800, top: -500, right: 800, bottom: 500 },
     canvasPadding: 360,
     canvasResizeStep: 250,
+    historyManager: new HistoryManager(30),
+    historyTransaction: null,
+    captureHistoryState() {
+        return {
+            notes: this.notes,
+            connections: this.connections,
+            projectTitle: this.projectTitle
+        };
+    },
+    beginHistoryTransaction() {
+        if (this.historyTransaction) return;
+        this.historyTransaction = this.historyManager.clone(this.captureHistoryState());
+    },
+    commitHistoryTransaction() {
+        if (!this.historyTransaction) return false;
+        const before = this.historyTransaction;
+        const after = this.captureHistoryState();
+        this.historyTransaction = null;
+        if (JSON.stringify(before) === JSON.stringify(after)) return false;
+        this.historyManager.record(before);
+        return true;
+    },
+    performHistoryChange(change) {
+        const ownsTransaction = !this.historyTransaction;
+        if (ownsTransaction) this.beginHistoryTransaction();
+        change();
+        if (ownsTransaction) this.commitHistoryTransaction();
+    },
+    restoreHistoryState(state) {
+        this.notes = state.notes || [];
+        this.connections = state.connections || [];
+        this.projectTitle = state.projectTitle || "Untitled Project";
+        this.selectedNote = null;
+        this.selectedNotes = [];
+        this.historyTransaction = null;
+
+        const titleInput = document.getElementById("projectTitleInput");
+        if (titleInput) titleInput.value = this.projectTitle;
+        this.updateCanvasBounds();
+        this.saveBoard();
+        this.render();
+        this.applyTransform();
+    },
+    undo() {
+        this.commitHistoryTransaction();
+        const state = this.historyManager.undo(this.captureHistoryState());
+        if (!state) return false;
+        this.restoreHistoryState(state);
+        return true;
+    },
+    redo() {
+        this.commitHistoryTransaction();
+        const state = this.historyManager.redo(this.captureHistoryState());
+        if (!state) return false;
+        this.restoreHistoryState(state);
+        return true;
+    },
     getViewportBounds() {
         return CanvasUtils.getViewportBounds(
             this.panX,
@@ -166,41 +223,52 @@ const VisualNotes = {
         this.createNoteAt(x - 110, y - 70);
     },
     createNoteAt(x, y, options = {}) {
-        const isFirstNote = this.notes.length === 0;
-        const note = {
-            id: Date.now(),
-            x,
-            y,
-            width: typeof options.width === 'number' ? options.width : 220,
-            height: typeof options.height === 'number' ? options.height : 140,
-            title: options.title || "New note",
-            text: options.text || "",
-            imageSrc: options.imageSrc || null,
-            type: options.type || (options.imageSrc ? 'image' : 'text'),
-            aspectRatio: typeof options.aspectRatio === 'number' ? options.aspectRatio : null,
-            color: options.color || null
-        };
-        if (isFirstNote) {
-            this.establishFirstNoteOrigin(note);
-        }
-        this.notes.push(note);
+        let note = null;
+        this.performHistoryChange(() => {
+            const isFirstNote = this.notes.length === 0;
+            note = {
+                id: Date.now(),
+                x,
+                y,
+                width: typeof options.width === 'number' ? options.width : 220,
+                height: typeof options.height === 'number' ? options.height : 140,
+                title: options.title || "New note",
+                text: options.text || "",
+                imageSrc: options.imageSrc || null,
+                type: options.type || (options.imageSrc ? 'image' : 'text'),
+                aspectRatio: typeof options.aspectRatio === 'number' ? options.aspectRatio : null,
+                color: options.color || null
+            };
+            if (isFirstNote) {
+                this.establishFirstNoteOrigin(note);
+            }
+            this.notes.push(note);
+        });
         this.updateCanvasBounds();
         this.saveBoard();
         this.render();
         return note;
     },
     deleteNote(id) {
-        this.notes = this.notes.filter(n => n.id !== id);
+        if (!this.notes.some(note => note.id === id)) return;
+        this.performHistoryChange(() => {
+            this.notes = this.notes.filter(note => note.id !== id);
+            this.connections = this.connections.filter(connection => connection.a !== id && connection.b !== id);
+        });
         this.saveBoard();
         this.render();
     },
     updateText(id, value) {
         const note = this.notes.find(n => n.id === id);
         if (!note) return;
+        if (note.text === value) return;
+        this.beginHistoryTransaction();
         note.text = value;
         this.saveBoard();
     },
     updateProjectTitle(title) {
+        if (this.projectTitle === title) return;
+        this.beginHistoryTransaction();
         this.projectTitle = title;
         const input = document.getElementById("projectTitleInput");
         if (input) {
@@ -216,14 +284,18 @@ const VisualNotes = {
 
         const imageUrl = prompt("Enter image URL, or leave blank to upload a local file:", note.imageSrc || "");
         if (imageUrl) {
-            note.imageSrc = imageUrl;
-            note.type = 'image';
+            this.performHistoryChange(() => {
+                note.imageSrc = imageUrl;
+                note.type = 'image';
+            });
             // Try to get aspect ratio via Image
             const img = new Image();
             img.onload = () => {
-                note.aspectRatio = img.naturalHeight / img.naturalWidth;
-                note.width = Math.min(400, img.naturalWidth);
-                note.height = Math.max(80, Math.round(note.width * note.aspectRatio));
+                this.performHistoryChange(() => {
+                    note.aspectRatio = img.naturalHeight / img.naturalWidth;
+                    note.width = Math.min(400, img.naturalWidth);
+                    note.height = Math.max(80, Math.round(note.width * note.aspectRatio));
+                });
                 this.saveBoard();
                 this.render();
             };
@@ -242,7 +314,10 @@ const VisualNotes = {
             if (!file) return;
             const reader = new FileReader();
             reader.onload = () => {
-                note.imageSrc = reader.result;
+                this.performHistoryChange(() => {
+                    note.imageSrc = reader.result;
+                    note.type = 'image';
+                });
                 this.saveBoard();
                 this.render();
             };
@@ -357,7 +432,10 @@ const VisualNotes = {
     updateTitle(id, value) {
         const note = this.notes.find(n => n.id === id);
         if (!note) return;
-        note.title = value;
+        if (note.title === value) return;
+        this.performHistoryChange(() => {
+            note.title = value;
+        });
         this.saveBoard();
     },
 
@@ -415,6 +493,7 @@ const VisualNotes = {
     },
 
     startTitleEdit(note, titleElement) {
+        this.beginHistoryTransaction();
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'noteTitleInput';
@@ -435,6 +514,7 @@ const VisualNotes = {
         input.addEventListener('blur', () => {
             note.title = input.value.trim() || 'Untitled';
             note.width = Math.max(note.width || 220, this.getMinNoteWidth(note));
+            this.commitHistoryTransaction();
             this.saveBoard();
             this.render();
         });
@@ -444,7 +524,13 @@ const VisualNotes = {
     },
     deleteSelectedNotes() {
         if (!this.selectedNotes.length) return;
-        this.notes = this.notes.filter(note => !this.selectedNotes.includes(note.id));
+        const deletedIds = new Set(this.selectedNotes);
+        this.performHistoryChange(() => {
+            this.notes = this.notes.filter(note => !deletedIds.has(note.id));
+            this.connections = this.connections.filter(connection =>
+                !deletedIds.has(connection.a) && !deletedIds.has(connection.b)
+            );
+        });
         this.selectedNotes = [];
         this.saveBoard();
         this.render();
@@ -455,17 +541,27 @@ const VisualNotes = {
             c => (c.a === a && c.b === b) || (c.a === b && c.b === a)
         );
         if (exists) return;
-        this.connections.push({ a, b });
+        this.performHistoryChange(() => {
+            this.connections.push({ a, b });
+        });
         this.saveBoard();
         this.drawConnections();
     },
     removeConnection(a, b) {
-        this.connections = this.connections.filter(
-            c => !(
-                (c.a === a && c.b === b) ||
-                (c.a === b && c.b === a)
-            )
+        const exists = this.connections.some(
+            connection =>
+                (connection.a === a && connection.b === b) ||
+                (connection.a === b && connection.b === a)
         );
+        if (!exists) return;
+        this.performHistoryChange(() => {
+            this.connections = this.connections.filter(
+                c => !(
+                    (c.a === a && c.b === b) ||
+                    (c.a === b && c.b === a)
+                )
+            );
+        });
         this.saveBoard();
         this.drawConnections();
     },
@@ -586,10 +682,14 @@ const VisualNotes = {
         if (!this.selectedNotes.length) return;
         const color = (this.colorPicker && this.colorPicker.value) ? this.colorPicker.value : null;
         if (!color) return;
-        this.selectedNotes.forEach(id => {
-            const note = this.notes.find(n => n.id === id);
-            if (!note) return;
-            note.color = color;
+        const changedNotes = this.notes.filter(note =>
+            this.selectedNotes.includes(note.id) && note.color !== color
+        );
+        if (!changedNotes.length) return;
+        this.performHistoryChange(() => {
+            changedNotes.forEach(note => {
+                note.color = color;
+            });
         });
         this.saveBoard();
         this.render();
@@ -777,9 +877,11 @@ const VisualNotes = {
             // Connect all touched notes pairwise: connect sequentially as one group (first to others)
             const ids = this.addDragTouchedNotes;
             const base = ids[0];
+            this.beginHistoryTransaction();
             for (let i = 1; i < ids.length; i++) {
                 this.connectNotes(base, ids[i]);
             }
+            this.commitHistoryTransaction();
             this.saveBoard();
             this.drawConnections();
         }
@@ -829,9 +931,11 @@ const VisualNotes = {
         if (!this.removeDragActive) return;
         this.removeDragActive = false;
         if (this.removeDragCrossed.length > 0) {
-            this.connections = this.connections.filter(c => {
-                const key = `${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`;
-                return !this.removeDragCrossed.includes(key);
+            this.performHistoryChange(() => {
+                this.connections = this.connections.filter(c => {
+                    const key = `${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`;
+                    return !this.removeDragCrossed.includes(key);
+                });
             });
             this.saveBoard();
             this.drawConnections();
@@ -868,6 +972,7 @@ const VisualNotes = {
     },
     stopMove() {
         if (this.selectedNote) {
+            this.commitHistoryTransaction();
             this.saveBoard();
         }
         document.body.style.userSelect = this.previousBodyUserSelect || '';
@@ -942,6 +1047,7 @@ const VisualNotes = {
         document.onmouseup = null;
     },
     startResize(note, e) {
+        this.beginHistoryTransaction();
         this.resizingNote = note;
         this.resizeStartX = e.clientX;
         this.resizeStartY = e.clientY;
@@ -975,6 +1081,7 @@ const VisualNotes = {
     },
     stopResize() {
         if (this.resizingNote) {
+            this.commitHistoryTransaction();
             this.saveBoard();
         }
         document.body.style.userSelect = this.previousBodyUserSelect || '';
@@ -1080,6 +1187,11 @@ const VisualNotes = {
                 };
                 textarea.onfocus = e => {
                     e.stopPropagation();
+                    self.beginHistoryTransaction();
+                };
+                textarea.onblur = () => {
+                    self.commitHistoryTransaction();
+                    self.saveBoard();
                 };
             }
 
@@ -1136,6 +1248,7 @@ const VisualNotes = {
                 }
                 e.stopPropagation();
                 e.preventDefault();
+                self.beginHistoryTransaction();
                 const canvasOffsetTop = 50;
                 const viewportX = e.clientX;
                 const viewportY = e.clientY - canvasOffsetTop;
@@ -1251,8 +1364,19 @@ const VisualNotes = {
     init() {
         if (document.getElementById("canvas")) {
             this.loadBoard();
+            this.historyManager.clear();
+            this.historyTransaction = null;
             const canvas = document.getElementById("canvas");
             const self = this;
+
+            const projectTitleInput = document.getElementById("projectTitleInput");
+            if (projectTitleInput) {
+                projectTitleInput.addEventListener("focus", () => self.beginHistoryTransaction());
+                projectTitleInput.addEventListener("blur", () => {
+                    self.commitHistoryTransaction();
+                    self.saveBoard();
+                });
+            }
             
             // Create selection box overlay for drag selection
             const selectionBox = document.createElement("div");
@@ -1325,6 +1449,21 @@ const VisualNotes = {
             
             // Keyboard shortcuts
             document.addEventListener("keydown", e => {
+                const historyShortcut = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z";
+                if (historyShortcut) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.target && e.target.classList && e.target.classList.contains("noteTitleInput")) {
+                        e.target.blur();
+                    }
+                    if (e.shiftKey) {
+                        self.redo();
+                    } else {
+                        self.undo();
+                    }
+                    return;
+                }
+
                 const activeTag = document.activeElement && document.activeElement.tagName;
                 const typing = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement.isContentEditable;
                 if (typing) return;
@@ -1385,9 +1524,11 @@ const VisualNotes = {
             });
 
             window.addEventListener("beforeunload", () => {
+                self.commitHistoryTransaction();
                 self.saveBoard();
             });
             window.addEventListener("pagehide", () => {
+                self.commitHistoryTransaction();
                 self.saveBoard();
             });
             window.addEventListener("visibilitychange", () => {
