@@ -31,11 +31,11 @@ const ProjectsPage = {
 
         const projects = ProjectManager.loadProjects();
         listContainer.innerHTML = projects.map(project => {
-            const title = project.title || "Untitled Project";
+            const title = typeof project.title === "string" ? project.title : "Untitled Project";
             const modified = new Date(project.modifiedAt || project.createdAt || Date.now()).toLocaleString();
             return `
                 <div class="project-card" data-id="${project.id}">
-                    <h2>${this.escapeHtml(title)}</h2>
+                    <h2 data-placeholder="No title">${this.escapeHtml(title)}</h2>
                     <div>Saved: ${this.escapeHtml(modified)}</div>
                     <div class="project-actions">
                         <button class="button openProjectButton" data-id="${project.id}">Open</button>

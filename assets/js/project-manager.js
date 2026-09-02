@@ -21,7 +21,7 @@ const ProjectManager = {
         const projects = this.loadProjects();
         const project = {
             id: Date.now().toString(),
-            title: title || "Untitled Project",
+            title: typeof title === "string" ? title : "Untitled Project",
             notes: notes || [],
             connections: connections || [],
             panX: typeof panX === "number" ? panX : null,

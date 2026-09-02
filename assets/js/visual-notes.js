@@ -2,7 +2,7 @@ const VisualNotes = {
     notes: JSON.parse(localStorage.getItem("visualNotes")) || [],
     connections: JSON.parse(localStorage.getItem("visualConnections")) || [],
     projectId: null,
-    projectTitle: localStorage.getItem("visualTitle") || "Untitled Project",
+    projectTitle: localStorage.getItem("visualTitle") ?? "Untitled Project",
     selectedNote: null,
     selectedNotes: [],
     offsetX: 0,
@@ -55,7 +55,7 @@ const VisualNotes = {
     restoreHistoryState(state) {
         this.notes = state.notes || [];
         this.connections = state.connections || [];
-        this.projectTitle = state.projectTitle || "Untitled Project";
+        this.projectTitle = typeof state.projectTitle === "string" ? state.projectTitle : "Untitled Project";
         this.selectedNote = null;
         this.selectedNotes = [];
         this.historyTransaction = null;
@@ -104,6 +104,7 @@ const VisualNotes = {
         const width = next.right - next.left;
         const height = next.bottom - next.top;
         const canvas = document.getElementById("canvas");
+        const grid = document.getElementById("grid");
         const svg = document.getElementById("connections");
 
         if (canvas) {
@@ -115,12 +116,11 @@ const VisualNotes = {
                 element.style.left = (note.x - next.left) + "px";
                 element.style.top = (note.y - next.top) + "px";
             });
-            const grid = canvas.querySelector(".gridBackground");
-            if (grid) {
-                grid.style.width = width + "px";
-                grid.style.height = height + "px";
-                grid.style.backgroundPosition = `${-next.left % 30}px ${-next.top % 30}px`;
-            }
+        }
+        if (grid) {
+            grid.style.width = width + "px";
+            grid.style.height = height + "px";
+            grid.style.backgroundPosition = `${-next.left % 30}px ${-next.top % 30}px`;
         }
         if (svg) {
             svg.style.left = "0px";
@@ -196,11 +196,6 @@ const VisualNotes = {
         }
     },
     saveProject() {
-        if (!this.projectTitle || this.projectTitle.trim() === "") {
-            this.projectTitle = prompt("Project title:", "New Project") || this.projectTitle;
-        }
-        if (!this.projectTitle) return;
-
         if (!this.projectId) {
             const project = ProjectManager.createProject({
                 title: this.projectTitle,
@@ -356,7 +351,7 @@ const VisualNotes = {
         }
 
         if (project) {
-            this.projectTitle = project.title || "Untitled Project";
+            this.projectTitle = typeof project.title === "string" ? project.title : "Untitled Project";
             this.notes = project.notes || [];
             this.connections = project.connections || [];
             this.needsInitialCenter = typeof project.panX !== "number" || typeof project.panY !== "number";
@@ -375,7 +370,7 @@ const VisualNotes = {
             const loadedConnections = JSON.parse(localStorage.getItem("visualConnections")) || [];
             this.notes = loadedNotes;
             this.connections = loadedConnections;
-            this.projectTitle = localStorage.getItem("visualTitle") || "Untitled Project";
+            this.projectTitle = localStorage.getItem("visualTitle") ?? "Untitled Project";
             const storedCoordinateVersion = Number(localStorage.getItem("visualCoordinateVersion")) || 1;
             if (storedCoordinateVersion < this.coordinateVersion && this.notes.length) {
                 this.migrateLegacyCoordinates(false);
@@ -451,12 +446,12 @@ const VisualNotes = {
             sizer.style.whiteSpace = 'nowrap';
             document.body.appendChild(sizer);
         }
-        sizer.textContent = title || 'Untitled';
+        sizer.textContent = title || 'Add title';
         return sizer.offsetWidth;
     },
 
     getMinNoteWidth(note) {
-        const titleWidth = this.getTitleWidth(note.title || 'Untitled');
+        const titleWidth = this.getTitleWidth(note.title || 'Add title');
         return Math.max(titleWidth + 24, note.type === 'image' ? 80 : 150);
     },
 
@@ -512,7 +507,7 @@ const VisualNotes = {
             }
         });
         input.addEventListener('blur', () => {
-            note.title = input.value.trim() || 'Untitled';
+            note.title = input.value.trim();
             note.width = Math.max(note.width || 220, this.getMinNoteWidth(note));
             this.commitHistoryTransaction();
             this.saveBoard();
@@ -1108,28 +1103,7 @@ const VisualNotes = {
         });
         this.updateCanvasBounds();
         
-        // Create grid background once
-        let gridContainer = canvas.querySelector(".gridBackground");
-        if (!gridContainer) {
-            const grid = document.createElement("div");
-            grid.className = "gridBackground";
-            grid.style.position = "absolute";
-            grid.style.top = "0";
-            grid.style.left = "0";
-            grid.style.pointerEvents = "none";
-            grid.style.zIndex = "1";
-            grid.style.backgroundImage = 'radial-gradient(circle, #555 1.5px, transparent 1.5px)';
-            grid.style.backgroundSize = '30px 30px';
-            canvas.appendChild(grid);
-        }
-        const boundsWidth = this.canvasBounds.right - this.canvasBounds.left;
-        const boundsHeight = this.canvasBounds.bottom - this.canvasBounds.top;
-        gridContainer = canvas.querySelector(".gridBackground");
-        gridContainer.style.width = boundsWidth + "px";
-        gridContainer.style.height = boundsHeight + "px";
-        gridContainer.style.backgroundPosition = `${-this.canvasBounds.left % 30}px ${-this.canvasBounds.top % 30}px`;
-        
-        // Remove all notes (but keep grid)
+        // Remove and rebuild the interactive note layer.
         const allNotes = canvas.querySelectorAll(".note");
         allNotes.forEach(note => note.remove());
 
@@ -1149,7 +1123,7 @@ const VisualNotes = {
             if (note.type === 'image') {
                 div.innerHTML = `
         <div class="noteHeader">
-            <span class="noteTitle">${this.escapeHtml(note.title)}</span>
+            <span class="noteTitle" data-placeholder="Add title">${this.escapeHtml(note.title)}</span>
         </div>
         ${note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image">` +
             `</img></div>` : ""}
@@ -1158,7 +1132,7 @@ const VisualNotes = {
             } else {
                 div.innerHTML = `
         <div class="noteHeader">
-            <span class="noteTitle">${this.escapeHtml(note.title)}</span>
+            <span class="noteTitle" data-placeholder="Add title">${this.escapeHtml(note.title)}</span>
         </div>
         ${note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image"></div>` : ""}
         <textarea>${this.escapeHtml(note.text)}</textarea>
@@ -1303,12 +1277,17 @@ const VisualNotes = {
     },
     applyTransform() {
         const canvas = document.getElementById("canvas");
+        const grid = document.getElementById("grid");
         const svg = document.getElementById("connections");
         const bounds = this.canvasBounds;
         const transform = `translate(${this.panX + bounds.left * this.zoom}px, ${this.panY + bounds.top * this.zoom}px) scale(${this.zoom})`;
         if (canvas) {
             canvas.style.transform = transform;
             canvas.style.transformOrigin = "0 0";
+        }
+        if (grid) {
+            grid.style.transform = transform;
+            grid.style.transformOrigin = "0 0";
         }
         if (svg) {
             svg.style.transform = transform;

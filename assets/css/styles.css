@@ -342,6 +342,25 @@ body.canvas-page #canvas {
     z-index: 950;
 }
 
+body.projects-page .project-card h2:empty::before {
+    content: attr(data-placeholder);
+    color: #777;
+    font-style: italic;
+    font-weight: normal;
+}
+
+body.canvas-page #grid {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    width: 1600px;
+    height: 1000px;
+    background-image: radial-gradient(circle, #555 1.5px, transparent 1.5px);
+    background-size: 30px 30px;
+    pointer-events: none;
+    z-index: 800;
+}
+
 body.canvas-page .note {
     position: absolute;
     width: 220px;
@@ -395,6 +414,13 @@ body.canvas-page .noteTitle {
     user-select: text;
     -webkit-user-select: text;
     cursor: text;
+}
+
+body.canvas-page .noteTitle:empty::before {
+    content: attr(data-placeholder);
+    color: #aaa;
+    font-style: italic;
+    font-weight: normal;
 }
 
 body.canvas-page .noteTitleInput {
