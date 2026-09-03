@@ -355,13 +355,15 @@ body.projects-page .project-card h2:empty::before {
 }
 
 body.canvas-page #grid {
-    position: absolute;
+    position: fixed;
     top: 50px;
     left: 0;
-    width: 1600px;
-    height: 1000px;
-    background-image: radial-gradient(circle, #555 1.5px, transparent 1.5px);
-    background-size: 30px 30px;
+    right: 0;
+    bottom: 0;
+    /* em-sized dots follow zoom, with rem-based limits for visibility and accessibility. */
+    font-size: clamp(0.38rem, calc(0.225rem + 0.775rem * var(--grid-zoom, 1)), 1rem);
+    background-image: radial-gradient(circle, #555 0.075em, transparent 0.09375em);
+    background-size: 45px 45px;
     pointer-events: none;
     z-index: 800;
 }

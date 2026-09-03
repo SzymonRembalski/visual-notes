@@ -110,7 +110,6 @@ const VisualNotes = {
         const height = next.bottom - next.top;
         const canvas = document.getElementById("canvas");
         const shapesLayer = document.getElementById("shapes");
-        const grid = document.getElementById("grid");
         const svg = document.getElementById("connections");
 
         if (canvas) {
@@ -133,11 +132,6 @@ const VisualNotes = {
                 element.style.left = (shape.x - next.left) + "px";
                 element.style.top = (shape.y - next.top) + "px";
             });
-        }
-        if (grid) {
-            grid.style.width = width + "px";
-            grid.style.height = height + "px";
-            grid.style.backgroundPosition = `${-next.left % 30}px ${-next.top % 30}px`;
         }
         if (svg) {
             svg.style.left = "0px";
@@ -1624,8 +1618,12 @@ const VisualNotes = {
             shapesLayer.style.transformOrigin = "0 0";
         }
         if (grid) {
-            grid.style.transform = transform;
-            grid.style.transformOrigin = "0 0";
+            // Paint only the viewport in screen pixels, independent of canvas bounds.
+            // CSS sizes the dots in em; only spacing and camera alignment use pixels.
+            const spacing = 45 * this.zoom;
+            grid.style.backgroundSize = `${spacing}px ${spacing}px`;
+            grid.style.backgroundPosition = `${this.panX % spacing}px ${this.panY % spacing}px`;
+            grid.style.setProperty("--grid-zoom", String(this.zoom));
         }
         if (svg) {
             svg.style.transform = transform;
