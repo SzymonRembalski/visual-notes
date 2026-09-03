@@ -1486,7 +1486,7 @@ const VisualNotes = {
                     div.style.height = note.height + 'px';
                 };
                 textarea.onmousedown = e => {
-                    e.stopPropagation();
+                    if (e.button === 0) e.stopPropagation();
                 };
                 textarea.onfocus = e => {
                     e.stopPropagation();
@@ -1528,6 +1528,7 @@ const VisualNotes = {
 
 
             div.onmousedown = e => {
+                if (e.button !== 0) return;
                 if (self.shapeMode) return;
                 if (self.removeMode) return;
                 if (self.addMode) return;
@@ -1595,6 +1596,7 @@ const VisualNotes = {
             const resizeHandle = div.querySelector(".resizeHandle");
             if (resizeHandle) {
                 resizeHandle.onmousedown = e => {
+                    if (e.button !== 0) return;
                     e.stopPropagation();
                     if (self.shapeMode) return;
                     self.startResize(note, e);
@@ -1846,7 +1848,7 @@ const VisualNotes = {
             document.addEventListener("contextmenu", e => e.preventDefault());
             document.addEventListener("mousedown", e => {
                 if (e.button === 2) {
-                    const ignoreElement = self.isIgnoreElement(e.target);
+                    const ignoreElement = e.target.closest("#toolbar,.colorPanel");
                     if (ignoreElement) return;
                     // Right-click always starts panning (add-mode uses left-click like remove-mode)
                     self.startPan(e);
