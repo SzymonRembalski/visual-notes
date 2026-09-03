@@ -1,10 +1,12 @@
 const VisualNotes = {
     notes: JSON.parse(localStorage.getItem("visualNotes")) || [],
     connections: JSON.parse(localStorage.getItem("visualConnections")) || [],
+    shapes: JSON.parse(localStorage.getItem("visualShapes")) || [],
     projectId: null,
     projectTitle: localStorage.getItem("visualTitle") ?? "Untitled Project",
     selectedNote: null,
     selectedNotes: [],
+    selectedShapeId: null,
     offsetX: 0,
     offsetY: 0,
     zoom: 1,
@@ -30,6 +32,7 @@ const VisualNotes = {
         return {
             notes: this.notes,
             connections: this.connections,
+            shapes: this.shapes,
             projectTitle: this.projectTitle
         };
     },
@@ -55,9 +58,11 @@ const VisualNotes = {
     restoreHistoryState(state) {
         this.notes = state.notes || [];
         this.connections = state.connections || [];
+        this.shapes = state.shapes || [];
         this.projectTitle = typeof state.projectTitle === "string" ? state.projectTitle : "Untitled Project";
         this.selectedNote = null;
         this.selectedNotes = [];
+        this.selectedShapeId = null;
         this.historyTransaction = null;
 
         const titleInput = document.getElementById("projectTitleInput");
@@ -92,7 +97,7 @@ const VisualNotes = {
     },
     calculateCanvasBounds() {
         return CanvasUtils.calculateCanvasBounds(
-            this.notes,
+            [...this.notes, ...this.shapes],
             this.getViewportBounds(),
             this.canvasPadding,
             this.canvasResizeStep
@@ -104,6 +109,7 @@ const VisualNotes = {
         const width = next.right - next.left;
         const height = next.bottom - next.top;
         const canvas = document.getElementById("canvas");
+        const shapesLayer = document.getElementById("shapes");
         const grid = document.getElementById("grid");
         const svg = document.getElementById("connections");
 
@@ -115,6 +121,17 @@ const VisualNotes = {
                 if (!note) return;
                 element.style.left = (note.x - next.left) + "px";
                 element.style.top = (note.y - next.top) + "px";
+            });
+        }
+        if (shapesLayer) {
+            shapesLayer.style.width = width + "px";
+            shapesLayer.style.height = height + "px";
+            shapesLayer.querySelectorAll(".canvasShape").forEach(element => {
+                if (element.classList.contains("shapeDraft")) return;
+                const shape = this.shapes.find(item => String(item.id) === element.dataset.shapeId);
+                if (!shape) return;
+                element.style.left = (shape.x - next.left) + "px";
+                element.style.top = (shape.y - next.top) + "px";
             });
         }
         if (grid) {
@@ -137,7 +154,7 @@ const VisualNotes = {
     },
     establishFirstNoteOrigin(note) {
         const view = CanvasUtils.rebaseNotesAroundFirst(
-            [note],
+            [note, ...this.shapes],
             { panX: this.panX, panY: this.panY, zoom: this.zoom },
             true,
             window.innerWidth,
@@ -170,6 +187,7 @@ const VisualNotes = {
                 title: this.projectTitle,
                 notes: this.notes,
                 connections: this.connections,
+                shapes: this.shapes,
                 panX: this.panX,
                 panY: this.panY,
                 zoom: this.zoom,
@@ -188,6 +206,7 @@ const VisualNotes = {
         } else {
             localStorage.setItem("visualNotes", JSON.stringify(this.notes));
             localStorage.setItem("visualConnections", JSON.stringify(this.connections));
+            localStorage.setItem("visualShapes", JSON.stringify(this.shapes));
             localStorage.setItem("visualTitle", this.projectTitle);
             localStorage.setItem("visualCoordinateVersion", String(this.coordinateVersion));
             localStorage.setItem("visualPanX", String(this.panX));
@@ -201,6 +220,7 @@ const VisualNotes = {
                 title: this.projectTitle,
                 notes: this.notes,
                 connections: this.connections,
+                shapes: this.shapes,
                 panX: this.panX,
                 panY: this.panY,
                 zoom: this.zoom,
@@ -354,6 +374,7 @@ const VisualNotes = {
             this.projectTitle = typeof project.title === "string" ? project.title : "Untitled Project";
             this.notes = project.notes || [];
             this.connections = project.connections || [];
+            this.shapes = project.shapes || [];
             this.needsInitialCenter = typeof project.panX !== "number" || typeof project.panY !== "number";
             this.panX = typeof project.panX === "number" ? project.panX : 0;
             this.panY = typeof project.panY === "number" ? project.panY : 0;
@@ -368,8 +389,10 @@ const VisualNotes = {
         } else if (!projectId) {
             const loadedNotes = JSON.parse(localStorage.getItem("visualNotes")) || [];
             const loadedConnections = JSON.parse(localStorage.getItem("visualConnections")) || [];
+            const loadedShapes = JSON.parse(localStorage.getItem("visualShapes")) || [];
             this.notes = loadedNotes;
             this.connections = loadedConnections;
+            this.shapes = loadedShapes;
             this.projectTitle = localStorage.getItem("visualTitle") ?? "Untitled Project";
             const storedCoordinateVersion = Number(localStorage.getItem("visualCoordinateVersion")) || 1;
             if (storedCoordinateVersion < this.coordinateVersion && this.notes.length) {
@@ -393,6 +416,7 @@ const VisualNotes = {
         } else {
             this.notes = [];
             this.connections = [];
+            this.shapes = [];
             this.projectTitle = "Untitled Project";
             this.needsInitialCenter = true;
         }
@@ -432,6 +456,306 @@ const VisualNotes = {
             note.title = value;
         });
         this.saveBoard();
+    },
+
+    shapeMode: false,
+    creatingShape: false,
+    shapeDrawStart: null,
+    shapeDrawRect: null,
+    shapeDraftElement: null,
+    movingShape: null,
+    shapeMoveStart: null,
+    shapeMoveOrigin: null,
+    resizingShape: null,
+    shapeResizeDirection: null,
+    shapeResizeStart: null,
+    shapeResizeOrigin: null,
+
+    setShapeMode(enabled) {
+        this.shapeMode = Boolean(enabled);
+        const button = document.getElementById("shapesBtn");
+        const shapesLayer = document.getElementById("shapes");
+
+        if (this.shapeMode) {
+            this.selectedNotes = [];
+            document.body.classList.add("shapes-mode-active");
+            if (button) {
+                button.classList.add("active");
+                button.textContent = "Shapes: ON";
+                button.setAttribute("aria-pressed", "true");
+            }
+            if (shapesLayer) shapesLayer.setAttribute("aria-hidden", "false");
+        } else {
+            this.cancelShapeDraw();
+            this.selectedShapeId = null;
+            document.body.classList.remove("shapes-mode-active");
+            if (button) {
+                button.classList.remove("active");
+                button.textContent = "Shapes Mode";
+                button.setAttribute("aria-pressed", "false");
+            }
+            if (shapesLayer) shapesLayer.setAttribute("aria-hidden", "true");
+        }
+
+        this.render();
+    },
+
+    toggleShapesMode() {
+        const shouldEnable = !this.shapeMode;
+        if (shouldEnable) {
+            if (this.removeMode) this.toggleRemoveMode();
+            if (this.addMode) this.toggleAddMode();
+            if (this.colorMode) this.toggleColorMode();
+        }
+        this.setShapeMode(shouldEnable);
+    },
+
+    startShapeDraw(event) {
+        if (!this.shapeMode || this.creatingShape) return;
+        const shapesLayer = document.getElementById("shapes");
+        if (!shapesLayer) return;
+
+        this.selectedShapeId = null;
+        this.creatingShape = true;
+        this.shapeDrawStart = this.screenToCanvas(event.clientX, event.clientY);
+        this.shapeDrawRect = { ...this.shapeDrawStart, width: 0, height: 0 };
+        this.shapeDraftElement = document.createElement("div");
+        this.shapeDraftElement.className = "canvasShape shapeDraft";
+        shapesLayer.appendChild(this.shapeDraftElement);
+        this.updateShapeDraw(event);
+        document.onmousemove = nextEvent => this.updateShapeDraw(nextEvent);
+        document.onmouseup = nextEvent => this.endShapeDraw(nextEvent);
+        event.preventDefault();
+    },
+
+    updateShapeDraw(event) {
+        if (!this.creatingShape || !this.shapeDrawStart || !this.shapeDraftElement) return;
+        const end = this.screenToCanvas(event.clientX, event.clientY);
+        const rectangle = CanvasUtils.normalizeRectangle(this.shapeDrawStart, end);
+        this.shapeDrawRect = rectangle;
+        this.shapeDraftElement.style.left = (rectangle.x - this.canvasBounds.left) + "px";
+        this.shapeDraftElement.style.top = (rectangle.y - this.canvasBounds.top) + "px";
+        this.shapeDraftElement.style.width = rectangle.width + "px";
+        this.shapeDraftElement.style.height = rectangle.height + "px";
+    },
+
+    endShapeDraw(event) {
+        if (!this.creatingShape) return;
+        if (event) this.updateShapeDraw(event);
+        const rectangle = this.shapeDrawRect;
+        this.cancelShapeDraw();
+        document.onmousemove = null;
+        document.onmouseup = null;
+
+        if (!rectangle || rectangle.width < 12 || rectangle.height < 12) {
+            this.renderShapes();
+            return;
+        }
+
+        const shape = {
+            id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            x: rectangle.x,
+            y: rectangle.y,
+            width: Math.max(160, rectangle.width),
+            height: Math.max(100, rectangle.height),
+            title: ""
+        };
+        this.performHistoryChange(() => this.shapes.push(shape));
+        this.selectedShapeId = shape.id;
+        this.updateCanvasBounds();
+        this.saveBoard();
+        this.render();
+        this.applyTransform();
+    },
+
+    cancelShapeDraw() {
+        if (this.shapeDraftElement) this.shapeDraftElement.remove();
+        this.shapeDraftElement = null;
+        this.shapeDrawStart = null;
+        this.shapeDrawRect = null;
+        this.creatingShape = false;
+    },
+
+    deleteShape(id) {
+        if (!this.shapeMode || !this.shapes.some(shape => String(shape.id) === String(id))) return;
+        this.performHistoryChange(() => {
+            this.shapes = this.shapes.filter(shape => String(shape.id) !== String(id));
+        });
+        if (String(this.selectedShapeId) === String(id)) this.selectedShapeId = null;
+        this.updateCanvasBounds();
+        this.saveBoard();
+        this.render();
+        this.applyTransform();
+    },
+
+    startShapeMove(shape, event) {
+        if (!this.shapeMode) return;
+        this.beginHistoryTransaction();
+        this.selectedShapeId = shape.id;
+        this.movingShape = shape;
+        this.shapeMoveStart = this.screenToCanvas(event.clientX, event.clientY);
+        this.shapeMoveOrigin = { x: shape.x, y: shape.y };
+        this.renderShapes();
+        document.onmousemove = nextEvent => this.moveShape(nextEvent);
+        document.onmouseup = () => this.stopShapeMove();
+    },
+
+    moveShape(event) {
+        if (!this.movingShape || !this.shapeMoveStart || !this.shapeMoveOrigin) return;
+        const current = this.screenToCanvas(event.clientX, event.clientY);
+        this.movingShape.x = this.shapeMoveOrigin.x + current.x - this.shapeMoveStart.x;
+        this.movingShape.y = this.shapeMoveOrigin.y + current.y - this.shapeMoveStart.y;
+        this.updateCanvasBounds();
+        this.renderShapes();
+        this.applyTransform();
+    },
+
+    stopShapeMove() {
+        if (this.movingShape) {
+            this.commitHistoryTransaction();
+            this.saveBoard();
+        }
+        this.movingShape = null;
+        this.shapeMoveStart = null;
+        this.shapeMoveOrigin = null;
+        document.onmousemove = null;
+        document.onmouseup = null;
+    },
+
+    startShapeResize(shape, direction, event) {
+        if (!this.shapeMode) return;
+        this.beginHistoryTransaction();
+        this.selectedShapeId = shape.id;
+        this.resizingShape = shape;
+        this.shapeResizeDirection = direction;
+        this.shapeResizeStart = this.screenToCanvas(event.clientX, event.clientY);
+        this.shapeResizeOrigin = {
+            x: shape.x,
+            y: shape.y,
+            width: shape.width,
+            height: shape.height
+        };
+        document.onmousemove = nextEvent => this.resizeShape(nextEvent);
+        document.onmouseup = () => this.stopShapeResize();
+        event.preventDefault();
+    },
+
+    resizeShape(event) {
+        if (!this.resizingShape || !this.shapeResizeStart || !this.shapeResizeOrigin) return;
+        const current = this.screenToCanvas(event.clientX, event.clientY);
+        const resized = CanvasUtils.resizeRectangle(
+            this.shapeResizeOrigin,
+            this.shapeResizeDirection,
+            current.x - this.shapeResizeStart.x,
+            current.y - this.shapeResizeStart.y
+        );
+        Object.assign(this.resizingShape, resized);
+        this.updateCanvasBounds();
+        this.renderShapes();
+        this.applyTransform();
+    },
+
+    stopShapeResize() {
+        if (this.resizingShape) {
+            this.commitHistoryTransaction();
+            this.saveBoard();
+        }
+        this.resizingShape = null;
+        this.shapeResizeDirection = null;
+        this.shapeResizeStart = null;
+        this.shapeResizeOrigin = null;
+        document.onmousemove = null;
+        document.onmouseup = null;
+    },
+
+    startShapeTitleEdit(shape, titleElement) {
+        if (!this.shapeMode) return;
+        this.beginHistoryTransaction();
+        const originalTitle = shape.title || "";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "shapeTitleInput";
+        input.value = originalTitle;
+        input.placeholder = "Group title";
+        input.addEventListener("mousedown", event => event.stopPropagation());
+        input.addEventListener("click", event => event.stopPropagation());
+        input.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                input.blur();
+            } else if (event.key === "Escape") {
+                event.preventDefault();
+                input.value = originalTitle;
+                input.blur();
+            }
+        });
+        input.addEventListener("blur", () => {
+            shape.title = input.value.trim();
+            this.commitHistoryTransaction();
+            this.saveBoard();
+            this.renderShapes();
+        });
+        titleElement.replaceWith(input);
+        input.focus();
+        input.select();
+    },
+
+    renderShapes() {
+        const shapesLayer = document.getElementById("shapes");
+        if (!shapesLayer) return;
+        shapesLayer.querySelectorAll(".canvasShape:not(.shapeDraft)").forEach(element => element.remove());
+
+        this.shapes.forEach(shape => {
+            const element = document.createElement("div");
+            element.className = "canvasShape";
+            element.dataset.shapeId = shape.id;
+            if (String(this.selectedShapeId) === String(shape.id)) element.classList.add("selected");
+            element.style.left = (shape.x - this.canvasBounds.left) + "px";
+            element.style.top = (shape.y - this.canvasBounds.top) + "px";
+            element.style.width = shape.width + "px";
+            element.style.height = shape.height + "px";
+            element.innerHTML = `
+                <span class="shapeTitle" data-placeholder="Add title">${this.escapeHtml(shape.title || "")}</span>
+                <button type="button" class="shapeDeleteButton" aria-label="Delete shape" title="Delete shape">&times;</button>
+                ${["n", "ne", "e", "se", "s", "sw", "w", "nw"]
+                    .map(direction => `<span class="shapeResizeHandle ${direction}" data-direction="${direction}"></span>`)
+                    .join("")}
+            `;
+
+            const title = element.querySelector(".shapeTitle");
+            if (title) {
+                title.addEventListener("mousedown", event => event.stopPropagation());
+                title.addEventListener("click", event => {
+                    event.stopPropagation();
+                    this.startShapeTitleEdit(shape, title);
+                });
+            }
+
+            const deleteButton = element.querySelector(".shapeDeleteButton");
+            if (deleteButton) {
+                deleteButton.addEventListener("mousedown", event => event.stopPropagation());
+                deleteButton.addEventListener("click", event => {
+                    event.stopPropagation();
+                    this.deleteShape(shape.id);
+                });
+            }
+
+            element.querySelectorAll(".shapeResizeHandle").forEach(handle => {
+                handle.addEventListener("mousedown", event => {
+                    event.stopPropagation();
+                    this.startShapeResize(shape, handle.dataset.direction, event);
+                });
+            });
+
+            element.addEventListener("mousedown", event => {
+                if (!this.shapeMode || event.button !== 0) return;
+                if (event.target.closest(".shapeTitle,.shapeTitleInput,.shapeDeleteButton,.shapeResizeHandle")) return;
+                event.stopPropagation();
+                event.preventDefault();
+                this.startShapeMove(shape, event);
+            });
+            shapesLayer.appendChild(element);
+        });
     },
 
     getTitleWidth(title) {
@@ -577,6 +901,7 @@ const VisualNotes = {
     colorApplyButton: null,
     toggleRemoveMode() {
         this.removeMode = !this.removeMode;
+        if (this.removeMode && this.shapeMode) this.setShapeMode(false);
         const btn = document.getElementById('removeBtn');
         const svg = document.getElementById('connections');
         const addBtn = document.getElementById('addBtn');
@@ -611,6 +936,7 @@ const VisualNotes = {
 
     toggleAddMode() {
         this.addMode = !this.addMode;
+        if (this.addMode && this.shapeMode) this.setShapeMode(false);
         const btn = document.getElementById('addBtn');
         const svg = document.getElementById('connections');
         const removeBtn = document.getElementById('removeBtn');
@@ -645,6 +971,7 @@ const VisualNotes = {
 
     toggleColorMode() {
         this.colorMode = !this.colorMode;
+        if (this.colorMode && this.shapeMode) this.setShapeMode(false);
         const btn = document.getElementById('colorBtn');
         const svg = document.getElementById('connections');
         const addBtn = document.getElementById('addBtn');
@@ -1102,6 +1429,7 @@ const VisualNotes = {
             }
         });
         this.updateCanvasBounds();
+        this.renderShapes();
         
         // Remove and rebuild the interactive note layer.
         const allNotes = canvas.querySelectorAll(".note");
@@ -1144,6 +1472,7 @@ const VisualNotes = {
             if (titleElement) {
                 titleElement.addEventListener('click', e => {
                     e.stopPropagation();
+                    if (self.shapeMode) return;
                     self.startTitleEdit(note, titleElement);
                 });
             }
@@ -1199,6 +1528,7 @@ const VisualNotes = {
 
 
             div.onmousedown = e => {
+                if (self.shapeMode) return;
                 if (self.removeMode) return;
                 if (self.addMode) return;
                 if (self.colorMode) {
@@ -1266,6 +1596,7 @@ const VisualNotes = {
             if (resizeHandle) {
                 resizeHandle.onmousedown = e => {
                     e.stopPropagation();
+                    if (self.shapeMode) return;
                     self.startResize(note, e);
                 };
             }
@@ -1277,6 +1608,7 @@ const VisualNotes = {
     },
     applyTransform() {
         const canvas = document.getElementById("canvas");
+        const shapesLayer = document.getElementById("shapes");
         const grid = document.getElementById("grid");
         const svg = document.getElementById("connections");
         const bounds = this.canvasBounds;
@@ -1284,6 +1616,10 @@ const VisualNotes = {
         if (canvas) {
             canvas.style.transform = transform;
             canvas.style.transformOrigin = "0 0";
+        }
+        if (shapesLayer) {
+            shapesLayer.style.transform = transform;
+            shapesLayer.style.transformOrigin = "0 0";
         }
         if (grid) {
             grid.style.transform = transform;
@@ -1385,6 +1721,10 @@ const VisualNotes = {
                 if (e.button !== 0) return; // Only left click
                 const ignoreElement = self.isIgnoreElement(e.target);
                 if (ignoreElement) return;
+                if (self.shapeMode) {
+                    self.startShapeDraw(e);
+                    return;
+                }
                 if (self.removeMode) {
                     self.startRemoveDrag(e);
                     return;
@@ -1432,7 +1772,8 @@ const VisualNotes = {
                 if (historyShortcut) {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (e.target && e.target.classList && e.target.classList.contains("noteTitleInput")) {
+                    if (e.target && e.target.classList &&
+                        (e.target.classList.contains("noteTitleInput") || e.target.classList.contains("shapeTitleInput"))) {
                         e.target.blur();
                     }
                     if (e.shiftKey) {
@@ -1447,6 +1788,12 @@ const VisualNotes = {
                 const typing = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement.isContentEditable;
                 if (typing) return;
 
+                if (e.key === "Delete" && self.shapeMode && self.selectedShapeId &&
+                    !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    e.preventDefault();
+                    self.deleteShape(self.selectedShapeId);
+                    return;
+                }
                 if (e.key === "Delete" && self.selectedNotes.length > 0 && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
                     e.preventDefault();
                     self.deleteSelectedNotes();
@@ -1463,6 +1810,10 @@ const VisualNotes = {
                     if (e.key.toLowerCase() === 'c' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
                         e.preventDefault();
                         self.toggleColorMode();
+                    }
+                    if (e.key.toLowerCase() === 's' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                        e.preventDefault();
+                        self.toggleShapesMode();
                     }
                 }
                 if (e.key.toLowerCase() === "b" && (e.ctrlKey || e.metaKey)) {

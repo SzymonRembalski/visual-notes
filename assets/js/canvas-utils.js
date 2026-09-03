@@ -95,6 +95,32 @@ const CanvasUtils = {
             zoom: view.zoom
         };
     },
+    normalizeRectangle(start, end) {
+        return {
+            x: Math.min(start.x, end.x),
+            y: Math.min(start.y, end.y),
+            width: Math.abs(end.x - start.x),
+            height: Math.abs(end.y - start.y)
+        };
+    },
+    resizeRectangle(rectangle, direction, deltaX, deltaY, minWidth = 160, minHeight = 100) {
+        let { x, y, width, height } = rectangle;
+
+        if (direction.includes("e")) width = Math.max(minWidth, width + deltaX);
+        if (direction.includes("s")) height = Math.max(minHeight, height + deltaY);
+        if (direction.includes("w")) {
+            const nextWidth = Math.max(minWidth, width - deltaX);
+            x += width - nextWidth;
+            width = nextWidth;
+        }
+        if (direction.includes("n")) {
+            const nextHeight = Math.max(minHeight, height - deltaY);
+            y += height - nextHeight;
+            height = nextHeight;
+        }
+
+        return { x, y, width, height };
+    },
     lineIntersects(firstStart, firstEnd, secondLine) {
         const orientation = (point, next, other) =>
             (next.y - point.y) * (other.x - next.x) -

@@ -270,6 +270,11 @@ body.canvas-page #toolbar .button-link {
     white-space: nowrap;
 }
 
+body.canvas-page #toolbar button.active {
+    background: #66bb6a;
+    box-shadow: 0 0 0 2px rgba(129, 199, 132, 0.28);
+}
+
 body.canvas-page #projectTitleInput {
     flex: 1;
     min-width: 220px;
@@ -360,6 +365,184 @@ body.canvas-page #grid {
     pointer-events: none;
     z-index: 800;
 }
+
+body.canvas-page #shapes {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    width: 1600px;
+    height: 1000px;
+    pointer-events: none;
+    z-index: 850;
+}
+
+body.canvas-page .canvasShape {
+    position: absolute;
+    min-width: 160px;
+    min-height: 100px;
+    border: 2px solid rgba(255, 255, 255, 0.24);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.035);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+    pointer-events: none;
+}
+
+body.shapes-mode-active {
+    cursor: crosshair;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body.shapes-mode-active #toolbar,
+body.shapes-mode-active #toolbar * {
+    cursor: auto;
+    user-select: auto;
+    -webkit-user-select: auto;
+}
+
+body.shapes-mode-active #toolbar button,
+body.shapes-mode-active #toolbar a {
+    cursor: pointer;
+}
+
+body.shapes-mode-active .note {
+    pointer-events: none;
+}
+
+body.shapes-mode-active .note * {
+    pointer-events: none !important;
+}
+
+body.shapes-mode-active #shapes .canvasShape {
+    pointer-events: auto;
+    cursor: move;
+}
+
+body.canvas-page .canvasShape.selected {
+    border-color: #66bb6a;
+    box-shadow: 0 0 0 3px rgba(102, 187, 106, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+body.canvas-page .canvasShape.shapeDraft {
+    min-width: 0;
+    min-height: 0;
+    border-color: #81c784;
+    border-style: dashed;
+    background: rgba(76, 175, 80, 0.08);
+    pointer-events: none;
+}
+
+body.canvas-page .shapeTitle {
+    position: absolute;
+    top: -17px;
+    left: 16px;
+    z-index: 5;
+    max-width: calc(100% - 64px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    background: #2b2b2b;
+    color: #ddd;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1;
+    pointer-events: none;
+}
+
+body.canvas-page .shapeTitle:empty::before {
+    content: attr(data-placeholder);
+    color: #999;
+    font-style: italic;
+    font-weight: normal;
+}
+
+body.shapes-mode-active .shapeTitle {
+    pointer-events: auto;
+    cursor: text;
+}
+
+body.canvas-page .shapeTitleInput {
+    position: absolute;
+    top: -18px;
+    left: 16px;
+    z-index: 5;
+    width: min(240px, calc(100% - 64px));
+    height: 28px;
+    border: 1px solid #66bb6a;
+    border-radius: 999px;
+    outline: none;
+    background: #222;
+    color: white;
+    padding: 4px 10px;
+    font: 600 0.85rem/1 "Segoe UI", Arial, sans-serif;
+}
+
+body.canvas-page .shapeDeleteButton {
+    display: none;
+    position: absolute;
+    top: -17px;
+    right: 14px;
+    z-index: 5;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    background: #b71c1c;
+    font-size: 1.05rem;
+    line-height: 28px;
+}
+
+body.shapes-mode-active .canvasShape.selected .shapeDeleteButton {
+    display: block;
+}
+
+body.canvas-page .shapeResizeHandle {
+    display: none;
+    position: absolute;
+    z-index: 4;
+}
+
+body.shapes-mode-active .canvasShape.selected .shapeResizeHandle {
+    display: block;
+}
+
+body.canvas-page .shapeResizeHandle.n,
+body.canvas-page .shapeResizeHandle.s {
+    left: 12px;
+    right: 12px;
+    height: 12px;
+    cursor: ns-resize;
+}
+
+body.canvas-page .shapeResizeHandle.n { top: -7px; }
+body.canvas-page .shapeResizeHandle.s { bottom: -7px; }
+
+body.canvas-page .shapeResizeHandle.e,
+body.canvas-page .shapeResizeHandle.w {
+    top: 12px;
+    bottom: 12px;
+    width: 12px;
+    cursor: ew-resize;
+}
+
+body.canvas-page .shapeResizeHandle.e { right: -7px; }
+body.canvas-page .shapeResizeHandle.w { left: -7px; }
+
+body.canvas-page .shapeResizeHandle.ne,
+body.canvas-page .shapeResizeHandle.nw,
+body.canvas-page .shapeResizeHandle.se,
+body.canvas-page .shapeResizeHandle.sw {
+    width: 16px;
+    height: 16px;
+}
+
+body.canvas-page .shapeResizeHandle.ne { top: -9px; right: -9px; cursor: nesw-resize; }
+body.canvas-page .shapeResizeHandle.nw { top: -9px; left: -9px; cursor: nwse-resize; }
+body.canvas-page .shapeResizeHandle.se { right: -9px; bottom: -9px; cursor: nwse-resize; }
+body.canvas-page .shapeResizeHandle.sw { left: -9px; bottom: -9px; cursor: nesw-resize; }
 
 body.canvas-page .note {
     position: absolute;

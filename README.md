@@ -23,6 +23,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 - Create multiple visual-note projects.
 - Place, move, resize, and edit notes on a large canvas.
 - Connect related notes to build idea maps.
+- Draw titled, resizable background shapes to visually group related notes.
 - Color groups of notes and see connections blend between their colors.
 - Select and move several notes together.
 - Pan and zoom through complex boards.
@@ -48,9 +49,10 @@ flowchart LR
     C --> D[Adaptive Canvas]
     D --> E[Notes]
     D --> F[Connections]
-    D --> G[Colors & Groups]
+    D --> G[Colors]
+    D --> J[Background Groups]
     B --> H[Tasks, Steps & Progress]
-    E & F & G & H --> I[(Browser localStorage)]
+    E & F & G & H & J --> I[(Browser localStorage)]
 ```
 
 ## Run it
@@ -83,6 +85,9 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Connect notes | Turn on **Add Connections**, then draw through notes |
 | Remove links | Turn on **Remove Connections**, then draw through connections |
 | Color notes | Select notes, enable **Color Mode**, choose a color, and apply |
+| Create a background group | Enable **Shapes Mode**, then drag on empty canvas |
+| Edit a group | In **Shapes Mode**, drag it to move, click its title to rename, or drag an edge/corner to resize |
+| Delete a group | Select it in **Shapes Mode**, then press `Delete` or use its × button |
 
 ## Project structure
 

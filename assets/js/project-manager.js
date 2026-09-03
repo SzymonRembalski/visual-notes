@@ -17,13 +17,14 @@ const ProjectManager = {
         const projects = this.loadProjects();
         return projects.find(project => String(project.id) === String(id)) || null;
     },
-    createProject({ title, notes, connections, panX, panY, zoom, coordinateVersion }) {
+    createProject({ title, notes, connections, shapes, panX, panY, zoom, coordinateVersion }) {
         const projects = this.loadProjects();
         const project = {
             id: Date.now().toString(),
             title: typeof title === "string" ? title : "Untitled Project",
             notes: notes || [],
             connections: connections || [],
+            shapes: shapes || [],
             panX: typeof panX === "number" ? panX : null,
             panY: typeof panY === "number" ? panY : null,
             zoom: typeof zoom === "number" ? zoom : 1,

@@ -13,9 +13,11 @@
         <button id="removeBtn" onclick="toggleRemoveMode()">Remove Connections</button>
         <button id="addBtn" onclick="toggleAddMode()">Add Connections</button>
         <button id="colorBtn" onclick="toggleColorMode()">Color Mode</button>
+        <button id="shapesBtn" aria-pressed="false" onclick="toggleShapesMode()" title="Turn on Shapes mode, then drag on empty canvas to draw a rectangle">Shapes Mode</button>
         <a href="projects.html" class="button button-link">Back to Projects</a>
     </div>
     <div id="grid" aria-hidden="true"></div>
+    <div id="shapes" aria-label="Canvas groups" aria-hidden="true"></div>
     <svg id="connections"></svg>
     <div id="canvas"></div>
     <script src="assets/js/project-manager.js"></script>
