@@ -3,6 +3,7 @@ const VisualNotes = {
     connections: JSON.parse(localStorage.getItem("visualConnections")) || [],
     shapes: JSON.parse(localStorage.getItem("visualShapes")) || [],
     projectId: null,
+    suspendPersistence: false,
     projectTitle: localStorage.getItem("visualTitle") ?? "Untitled Project",
     selectedNote: null,
     selectedNotes: [],
@@ -173,6 +174,7 @@ const VisualNotes = {
         return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
     },
     saveBoard() {
+        if (this.suspendPersistence) return;
         if (this.projectId) {
             const projects = ProjectManager.loadProjects();
             const projectIndex = projects.findIndex(p => String(p.id) === String(this.projectId));
@@ -206,6 +208,7 @@ const VisualNotes = {
             localStorage.setItem("visualPanX", String(this.panX));
             localStorage.setItem("visualPanY", String(this.panY));
             localStorage.setItem("visualZoom", String(this.zoom));
+            if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
         }
     },
     saveProject() {
@@ -802,7 +805,7 @@ const VisualNotes = {
     },
 
     isIgnoreElement(target) {
-        return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar");
+        return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls");
     },
 
     startTitleEdit(note, titleElement) {
@@ -1869,7 +1872,7 @@ const VisualNotes = {
             document.addEventListener("contextmenu", e => e.preventDefault());
             document.addEventListener("mousedown", e => {
                 if (e.button === 2) {
-                    const ignoreElement = e.target.closest("#toolbar,.colorPanel");
+                    const ignoreElement = e.target.closest("#toolbar,.colorPanel,.backupControls");
                     if (ignoreElement) return;
                     // Right-click always starts panning (add-mode uses left-click like remove-mode)
                     self.startPan(e);

@@ -11,6 +11,7 @@ const ProjectManager = {
     },
     saveProjects(projects) {
         localStorage.setItem(this.storageKey, JSON.stringify(projects));
+        if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
     },
     getProjectById(id) {
         if (!id) return null;

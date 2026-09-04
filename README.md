@@ -38,7 +38,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 
 ### 🔒 Keep everything local
 
-Your projects and tasks are saved in the browser with `localStorage`. Visual Notes has no server and sends no workspace data anywhere.
+Your projects and tasks stay on your device. Browser storage keeps the app fast, while the **Backups** panel can download a complete workspace backup or mirror changed data to a local JSON file every five minutes in supported browsers. Pending changes are also written when you use the app's menu-return buttons or press **Ctrl/Cmd + S**. Visual Notes has no server and sends no workspace data anywhere.
 
 ## How it fits together
 
@@ -69,7 +69,7 @@ cd visual-notes
 Then open `index.html`. There is nothing to install and no build command to run.
 
 > [!IMPORTANT]
-> Data belongs to the browser profile and origin where you created it. Clearing browser site data may remove saved projects and tasks.
+> Browser data belongs to the profile and origin where you created it. Use **Backups → Choose auto-backup file** or **Download backup** to keep a copy that survives clearing browser data. Restore that file from any page with **Backups → Restore backup**.
 
 ## Useful canvas controls
 
@@ -78,6 +78,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Create a note | **New Note** |
 | Resize a note | Left-drag any border or corner; image notes keep their proportions |
 | Move around the canvas | Right-click and drag |
+| Save to the connected backup file | **Ctrl/Cmd + S** |
 | Zoom | Mouse wheel |
 | Select several notes | Drag on empty canvas or `Ctrl` + click |
 | Delete selected notes | `Delete` |

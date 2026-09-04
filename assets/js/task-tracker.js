@@ -12,6 +12,7 @@ const TaskTracker = {
     save() {
         localStorage.setItem("tasksV2", JSON.stringify(this.tasks));
         localStorage.setItem("categoriesV2", JSON.stringify(this.categories));
+        if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
     },
     load() {
         try {

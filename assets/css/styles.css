@@ -270,6 +270,103 @@ body.canvas-page #toolbar .button-link {
     white-space: nowrap;
 }
 
+.backupControls {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 4000;
+}
+
+.backupToggle {
+    background: #1565c0;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.4);
+}
+
+.backupPanel {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: min(360px, calc(100vw - 36px));
+    padding: 18px;
+    border: 1px solid #4a4a4a;
+    border-radius: 16px;
+    background: #252525;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+}
+
+.backupPanel[hidden] {
+    display: none;
+}
+
+.backupPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 1.1rem;
+}
+
+.backupClose {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 50%;
+    background: #444;
+    font-size: 1.2rem;
+}
+
+.backupDescription,
+.backupStatus {
+    margin: 12px 0;
+    line-height: 1.4;
+}
+
+.backupDescription {
+    color: #ccc;
+}
+
+.backupStatus {
+    padding: 10px 12px;
+    border-radius: 9px;
+    background: #333;
+    font-size: 0.9rem;
+}
+
+.backupStatus[data-state="success"] {
+    background: rgba(76, 175, 80, 0.16);
+    color: #a5d6a7;
+}
+
+.backupStatus[data-state="warning"] {
+    background: rgba(255, 193, 7, 0.14);
+    color: #ffe082;
+}
+
+.backupStatus[data-state="error"] {
+    background: rgba(244, 67, 54, 0.16);
+    color: #ef9a9a;
+}
+
+.backupActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.backupActions button {
+    min-width: 0;
+}
+
+.backupActions .connectBackup {
+    grid-column: 1 / -1;
+    background: #388e3c;
+}
+
+.backupActions .restoreBackup {
+    grid-column: 1 / -1;
+    background: #555;
+}
+
 body.canvas-page #toolbar button.active {
     background: #66bb6a;
     box-shadow: 0 0 0 2px rgba(129, 199, 132, 0.28);

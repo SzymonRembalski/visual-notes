@@ -11,7 +11,7 @@
     <div id="controls">
         <button onclick="addTask()">+ New Task</button>
         <button onclick="addCategory()">+ Category</button>
-        <a href="index.html" class="button button-link">Back to Menu</a>
+        <a href="index.html" class="button button-link" data-backup-before-leave>Back to Menu</a>
     </div>
     <table>
         <thead>
@@ -26,6 +26,7 @@
         </thead>
         <tbody id="tableBody"></tbody>
     </table>
+    <script src="assets/js/local-backup-manager.js"></script>
     <script src="assets/js/task-tracker.js"></script>
     <script src="assets/js/app.js"></script>
 </body>
