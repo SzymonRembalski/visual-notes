@@ -121,6 +121,29 @@ const CanvasUtils = {
 
         return { x, y, width, height };
     },
+    resizeRectangleProportionally(rectangle, direction, deltaX, deltaY, aspectRatio, minWidth, minHeight) {
+        const horizontal = direction.includes("e") || direction.includes("w");
+        const vertical = direction.includes("n") || direction.includes("s");
+        const widthDelta = direction.includes("w") ? -deltaX : deltaX;
+        const heightDelta = direction.includes("n") ? -deltaY : deltaY;
+        const useHeight = vertical && (!horizontal || Math.abs(heightDelta / aspectRatio) > Math.abs(widthDelta));
+        const requestedWidth = useHeight
+            ? (rectangle.height + heightDelta) / aspectRatio
+            : rectangle.width + widthDelta;
+        const width = Math.max(minWidth, minHeight / aspectRatio, requestedWidth);
+        const height = width * aspectRatio;
+
+        return {
+            x: direction.includes("w") ? rectangle.x + rectangle.width - width
+                : direction.includes("e") ? rectangle.x
+                    : rectangle.x + (rectangle.width - width) / 2,
+            y: direction.includes("n") ? rectangle.y + rectangle.height - height
+                : direction.includes("s") ? rectangle.y
+                    : rectangle.y + (rectangle.height - height) / 2,
+            width,
+            height
+        };
+    },
     lineIntersects(firstStart, firstEnd, secondLine) {
         const orientation = (point, next, other) =>
             (next.y - point.y) * (other.x - next.x) -

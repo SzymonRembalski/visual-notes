@@ -1362,13 +1362,20 @@ const VisualNotes = {
         document.onmousemove = null;
         document.onmouseup = null;
     },
-    startResize(note, e) {
+    startResize(note, e, direction = "se") {
+        if (e.button !== 0 || this.shapeMode || this.addMode || this.removeMode || this.colorMode) return;
+        e.preventDefault();
+        // Finish editing before starting a separate, single-step resize transaction.
+        if (document.activeElement && document.activeElement.matches("input,textarea")) {
+            document.activeElement.blur();
+        }
+        this.commitHistoryTransaction();
         this.beginHistoryTransaction();
         this.resizingNote = note;
+        this.resizeDirection = direction;
         this.resizeStartX = e.clientX;
         this.resizeStartY = e.clientY;
-        this.resizeStartWidth = note.width || 220;
-        this.resizeStartHeight = note.height || 140;
+        this.resizeStartRect = { x: note.x, y: note.y, width: note.width || 220, height: note.height || 140 };
         this.previousBodyUserSelect = document.body.style.userSelect;
         this.previousBodyWebkitUserSelect = document.body.style.webkitUserSelect;
         document.body.style.userSelect = 'none';
@@ -1376,23 +1383,31 @@ const VisualNotes = {
         document.onselectstart = () => false;
         document.onmousemove = e2 => this.doResize(e2);
         document.onmouseup = () => this.stopResize();
+        this.render();
     },
     doResize(e) {
         if (!this.resizingNote) return;
-        const canvasOffsetTop = 50;
         const deltaX = (e.clientX - this.resizeStartX) / this.zoom;
         const deltaY = (e.clientY - this.resizeStartY) / this.zoom;
-        const minWidth = this.getMinNoteWidth(this.resizingNote);
-        if (this.resizingNote.type === 'image' && this.resizingNote.aspectRatio) {
-            const newWidth = Math.max(minWidth, this.resizeStartWidth + deltaX);
-            const newHeight = Math.max(40, Math.round(newWidth * this.resizingNote.aspectRatio));
-            this.resizingNote.width = newWidth;
-            this.resizingNote.height = newHeight;
+        const note = this.resizingNote;
+        const minWidth = this.getMinNoteWidth(note);
+        let rectangle;
+        if (note.type === 'image' && Number.isFinite(note.aspectRatio) && note.aspectRatio > 0) {
+            rectangle = CanvasUtils.resizeRectangleProportionally(
+                this.resizeStartRect, this.resizeDirection, deltaX, deltaY, note.aspectRatio, minWidth, 140
+            );
         } else {
-            this.resizingNote.width = Math.max(minWidth, this.resizeStartWidth + deltaX);
-            const minHeight = this.getMinNoteHeight(this.resizingNote);
-            this.resizingNote.height = Math.max(minHeight, this.resizeStartHeight + deltaY);
+            const proposed = CanvasUtils.resizeRectangle(
+                this.resizeStartRect, this.resizeDirection, deltaX, deltaY, minWidth, 140
+            );
+            const minHeight = Math.max(140, this.getMinNoteHeight({ ...note, width: proposed.width }));
+            rectangle = CanvasUtils.resizeRectangle(
+                this.resizeStartRect, this.resizeDirection, deltaX, deltaY, minWidth, minHeight
+            );
+            // A narrower text note may need additional height even on a side-only resize.
+            rectangle.height = Math.max(rectangle.height, minHeight);
         }
+        Object.assign(note, rectangle);
         this.render();
     },
     stopResize() {
@@ -1404,8 +1419,11 @@ const VisualNotes = {
         document.body.style.webkitUserSelect = this.previousBodyWebkitUserSelect || '';
         document.onselectstart = null;
         this.resizingNote = null;
+        this.resizeStartRect = null;
+        this.resizeDirection = null;
         document.onmousemove = null;
         document.onmouseup = null;
+        this.render();
     },
     render() {
         const canvas = document.getElementById("canvas");
@@ -1433,6 +1451,7 @@ const VisualNotes = {
             const div = document.createElement("div");
             div.className = "note";
             div.dataset.noteId = note.id;
+            if (this.resizingNote && this.resizingNote.id === note.id) div.classList.add("resizing");
             if (this.selectedNotes.includes(note.id)) {
                 div.classList.add("selected");
             }
@@ -1449,7 +1468,6 @@ const VisualNotes = {
         </div>
         ${note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image">` +
             `</img></div>` : ""}
-        <div class="resizeHandle"></div>
         `;
             } else {
                 div.innerHTML = `
@@ -1458,7 +1476,6 @@ const VisualNotes = {
         </div>
         ${note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image"></div>` : ""}
         <textarea>${this.escapeHtml(note.text)}</textarea>
-        <div class="resizeHandle"></div>
         `;
             }
 
@@ -1587,15 +1604,21 @@ const VisualNotes = {
                 document.onmouseup = () => self.stopMove();
             };
             
-            const resizeHandle = div.querySelector(".resizeHandle");
-            if (resizeHandle) {
+            const resizeBorder = document.createElement("div");
+            resizeBorder.className = "noteResizeBorder";
+            resizeBorder.setAttribute("aria-hidden", "true");
+            ["n", "ne", "e", "se", "s", "sw", "w", "nw"].forEach(direction => {
+                const resizeHandle = document.createElement("span");
+                resizeHandle.className = `resizeHandle ${direction}`;
+                resizeHandle.dataset.direction = direction;
                 resizeHandle.onmousedown = e => {
                     if (e.button !== 0) return;
                     e.stopPropagation();
-                    if (self.shapeMode) return;
-                    self.startResize(note, e);
+                    self.startResize(note, e, direction);
                 };
-            }
+                resizeBorder.appendChild(resizeHandle);
+            });
+            div.appendChild(resizeBorder);
 
             canvas.appendChild(div);
         });

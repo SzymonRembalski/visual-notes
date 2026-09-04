@@ -76,6 +76,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Action | Control |
 | --- | --- |
 | Create a note | **New Note** |
+| Resize a note | Left-drag any border or corner; image notes keep their proportions |
 | Move around the canvas | Right-click and drag |
 | Zoom | Mouse wheel |
 | Select several notes | Drag on empty canvas or `Ctrl` + click |
