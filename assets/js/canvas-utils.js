@@ -71,6 +71,33 @@ const CanvasUtils = {
             panY: Math.max(1, viewportHeight - this.toolbarHeight) / 2
         };
     },
+    getNotesCenter(notes) {
+        if (!notes.length) return { x: 0, y: 0 };
+
+        let left = Infinity;
+        let top = Infinity;
+        let right = -Infinity;
+        let bottom = -Infinity;
+        notes.forEach(note => {
+            left = Math.min(left, note.x);
+            top = Math.min(top, note.y);
+            right = Math.max(right, note.x + (note.width || this.defaultNoteWidth));
+            bottom = Math.max(bottom, note.y + (note.height || this.defaultNoteHeight));
+        });
+
+        return {
+            x: (left + right) / 2,
+            y: (top + bottom) / 2
+        };
+    },
+    cameraCenteredOnNotes(notes, zoom, viewportWidth, viewportHeight) {
+        const center = this.getNotesCenter(notes);
+        const viewportCenter = this.centeredCamera(viewportWidth, viewportHeight);
+        return {
+            panX: viewportCenter.panX - center.x * zoom,
+            panY: viewportCenter.panY - center.y * zoom
+        };
+    },
     rebaseNotesAroundFirst(notes, view, preserveView, viewportWidth, viewportHeight) {
         if (!notes.length) return view;
 

@@ -147,6 +147,19 @@ const VisualNotes = {
         this.panX = view.panX;
         this.panY = view.panY;
     },
+    centerCameraOnNotes() {
+        const view = CanvasUtils.cameraCenteredOnNotes(
+            this.notes,
+            this.zoom,
+            window.innerWidth,
+            window.innerHeight
+        );
+        this.panX = view.panX;
+        this.panY = view.panY;
+        this.updateCanvasBounds();
+        this.applyTransform();
+        this.saveBoard();
+    },
     establishFirstNoteOrigin(note) {
         const view = CanvasUtils.rebaseNotesAroundFirst(
             [note, ...this.shapes],
@@ -1791,6 +1804,18 @@ const VisualNotes = {
             
             // Mouse wheel zoom - attach to document since canvas has pointer-events:none
             document.addEventListener("wheel", e => self.handleZoom(e), { passive: false });
+
+            // Pressing the mouse wheel centers the camera on the notes' bounding area.
+            document.addEventListener("mousedown", e => {
+                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls")) return;
+                e.preventDefault();
+                e.stopPropagation();
+                self.centerCameraOnNotes();
+            }, true);
+            document.addEventListener("auxclick", e => {
+                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls")) return;
+                e.preventDefault();
+            }, true);
             
             // Keyboard shortcuts
             document.addEventListener("keydown", e => {
