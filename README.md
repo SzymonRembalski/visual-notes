@@ -81,7 +81,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Center the camera on all notes | Press the mouse wheel |
 | Navigate a larger note area | Drag or click the horizontal and vertical position bars |
 | Save to the connected backup file | **Ctrl/Cmd + S** |
-| Zoom | Mouse wheel |
+| Zoom | Mouse wheel (`0.2×`–`1×`) |
 | Select several notes | Drag on empty canvas or `Ctrl` + click |
 | Delete selected notes | `Delete` |
 | Undo the last change | `Ctrl` + `Z` |

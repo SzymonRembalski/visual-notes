@@ -19,6 +19,9 @@ const VisualNotes = {
     panStartPanX: 0,
     panStartPanY: 0,
     navigationDrag: null,
+    zoomAnimationFrame: null,
+    zoomAnimationTarget: null,
+    zoomAnimationDuration: 180,
     selectingBox: false,
     selectBoxStart: { x: 0, y: 0 },
     selectBoxStartScreen: { x: 0, y: 0 },
@@ -149,6 +152,7 @@ const VisualNotes = {
         this.panY = view.panY;
     },
     centerCameraOnNotes() {
+        this.finishZoomAnimation();
         const view = CanvasUtils.cameraCenteredOnNotes(
             this.notes,
             this.zoom,
@@ -389,7 +393,7 @@ const VisualNotes = {
             this.needsInitialCenter = typeof project.panX !== "number" || typeof project.panY !== "number";
             this.panX = typeof project.panX === "number" ? project.panX : 0;
             this.panY = typeof project.panY === "number" ? project.panY : 0;
-            this.zoom = typeof project.zoom === "number" ? project.zoom : 1;
+            this.zoom = CanvasUtils.clampZoom(project.zoom);
             if ((project.coordinateVersion || 1) < this.coordinateVersion && this.notes.length) {
                 this.migrateLegacyCoordinates(true);
                 boardNeedsUpgrade = true;
@@ -418,7 +422,7 @@ const VisualNotes = {
                 if (hasStoredView) {
                     this.panX = storedPanX;
                     this.panY = storedPanY;
-                    this.zoom = Number.isFinite(storedZoom) && storedZoom > 0 ? storedZoom : 1;
+                    this.zoom = CanvasUtils.clampZoom(storedZoom);
                 } else {
                     this.needsInitialCenter = true;
                 }
@@ -1821,23 +1825,80 @@ const VisualNotes = {
         this.applyTransform();
         this.saveBoard();
     },
+    finishZoomAnimation() {
+        if (!this.zoomAnimationTarget) return;
+        cancelAnimationFrame(this.zoomAnimationFrame);
+        const target = this.zoomAnimationTarget;
+        this.zoomAnimationFrame = null;
+        this.zoomAnimationTarget = null;
+        this.zoom = target.zoom;
+        this.panX = target.panX;
+        this.panY = target.panY;
+        this.updateCanvasBounds();
+        this.applyTransform();
+        this.saveBoard();
+    },
+    animateZoom(target) {
+        if (this.zoomAnimationFrame) cancelAnimationFrame(this.zoomAnimationFrame);
+        const start = {
+            zoom: this.zoom,
+            panX: this.panX,
+            panY: this.panY
+        };
+        const animationTarget = { ...target };
+        this.zoomAnimationTarget = animationTarget;
+        let startedAt = null;
+
+        const step = timestamp => {
+            if (this.zoomAnimationTarget !== animationTarget) return;
+            if (startedAt === null) startedAt = timestamp;
+            const progress = Math.min(1, (timestamp - startedAt) / this.zoomAnimationDuration);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            this.zoom = start.zoom + (animationTarget.zoom - start.zoom) * eased;
+            this.panX = start.panX + (animationTarget.panX - start.panX) * eased;
+            this.panY = start.panY + (animationTarget.panY - start.panY) * eased;
+            this.updateCanvasBounds();
+            this.applyTransform();
+
+            if (progress < 1) {
+                this.zoomAnimationFrame = requestAnimationFrame(step);
+                return;
+            }
+            this.zoom = animationTarget.zoom;
+            this.panX = animationTarget.panX;
+            this.panY = animationTarget.panY;
+            this.zoomAnimationFrame = null;
+            this.zoomAnimationTarget = null;
+            this.updateCanvasBounds();
+            this.applyTransform();
+            this.saveBoard();
+        };
+        this.zoomAnimationFrame = requestAnimationFrame(step);
+    },
     handleZoom(event) {
         event.preventDefault();
         const zoomSpeed = 0.1;
         const delta = event.deltaY > 0 ? -zoomSpeed : zoomSpeed;
-        const newZoom = Math.max(0.2, Math.min(10, this.zoom + delta));
-        if (newZoom === this.zoom) return;
+        const pending = this.zoomAnimationTarget || {
+            zoom: this.zoom,
+            panX: this.panX,
+            panY: this.panY
+        };
+        const newZoom = CanvasUtils.clampZoom(
+            Math.round((pending.zoom + delta) * 10) / 10
+        );
+        if (newZoom === pending.zoom) return;
         
         const viewportCenterX = window.innerWidth / 2;
         const viewportCenterY = (window.innerHeight - 50) / 2;
-        const worldX = (viewportCenterX - this.panX) / this.zoom;
-        const worldY = (viewportCenterY - this.panY) / this.zoom;
-        
-        this.panX = viewportCenterX - worldX * newZoom;
-        this.panY = viewportCenterY - worldY * newZoom;
-        this.zoom = newZoom;
-        this.updateCanvasBounds();
-        this.applyTransform();
+        const worldX = (viewportCenterX - pending.panX) / pending.zoom;
+        const worldY = (viewportCenterY - pending.panY) / pending.zoom;
+
+        this.animateZoom({
+            zoom: newZoom,
+            panX: viewportCenterX - worldX * newZoom,
+            panY: viewportCenterY - worldY * newZoom
+        });
     },
     init() {
         if (document.getElementById("canvas")) {
@@ -1847,6 +1908,10 @@ const VisualNotes = {
             this.setupNavigationBars();
             const canvas = document.getElementById("canvas");
             const self = this;
+
+            // Pointer interactions snap a running zoom animation to its exact target
+            // before starting, so camera calculations always use a locked zoom value.
+            document.addEventListener("mousedown", () => self.finishZoomAnimation(), true);
 
             const projectTitleInput = document.getElementById("projectTitleInput");
             if (projectTitleInput) {

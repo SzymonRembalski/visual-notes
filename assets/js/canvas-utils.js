@@ -2,6 +2,12 @@ const CanvasUtils = {
     toolbarHeight: 50,
     defaultNoteWidth: 220,
     defaultNoteHeight: 140,
+    minimumZoom: 0.2,
+    maximumZoom: 1,
+    clampZoom(zoom) {
+        if (!Number.isFinite(zoom) || zoom <= 0) return 1;
+        return Math.max(this.minimumZoom, Math.min(this.maximumZoom, zoom));
+    },
     screenToCanvas(clientX, clientY, panX, panY, zoom) {
         return {
             x: (clientX - panX) / zoom,
