@@ -73,7 +73,14 @@ const CanvasUtils = {
     },
     getNotesCenter(notes) {
         if (!notes.length) return { x: 0, y: 0 };
-
+        const bounds = this.getNotesBounds(notes);
+        return {
+            x: (bounds.left + bounds.right) / 2,
+            y: (bounds.top + bounds.bottom) / 2
+        };
+    },
+    getNotesBounds(notes) {
+        if (!notes.length) return null;
         let left = Infinity;
         let top = Infinity;
         let right = -Infinity;
@@ -86,8 +93,40 @@ const CanvasUtils = {
         });
 
         return {
-            x: (left + right) / 2,
-            y: (top + bottom) / 2
+            left,
+            top,
+            right,
+            bottom
+        };
+    },
+    getNavigationMetrics(notes, viewport, axis, trackLength, minimumThumbSize = 18) {
+        const bounds = this.getNotesBounds(notes);
+        if (!bounds || trackLength <= 0) return null;
+
+        const horizontal = axis === "x";
+        const noteStart = horizontal ? bounds.left : bounds.top;
+        const noteEnd = horizontal ? bounds.right : bounds.bottom;
+        const viewportStart = horizontal ? viewport.left : viewport.top;
+        const viewportEnd = horizontal ? viewport.right : viewport.bottom;
+        const viewportSpan = viewportEnd - viewportStart;
+        const allNotesVisible = noteStart >= viewportStart && noteEnd <= viewportEnd;
+        const contentStart = Math.min(noteStart, viewportStart);
+        const contentEnd = Math.max(noteEnd, viewportEnd);
+        const contentSpan = Math.max(viewportSpan, contentEnd - contentStart);
+        const scrollRange = Math.max(1, contentSpan - viewportSpan);
+        const progress = Math.max(0, Math.min(1, (viewportStart - contentStart) / scrollRange));
+        const thumbSize = Math.min(
+            trackLength,
+            Math.max(minimumThumbSize, trackLength * viewportSpan / contentSpan)
+        );
+
+        return {
+            visible: !allNotesVisible,
+            contentStart,
+            scrollRange,
+            progress,
+            thumbSize,
+            thumbPosition: progress * Math.max(0, trackLength - thumbSize)
         };
     },
     cameraCenteredOnNotes(notes, zoom, viewportWidth, viewportHeight) {

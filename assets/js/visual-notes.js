@@ -18,6 +18,7 @@ const VisualNotes = {
     panStartY: 0,
     panStartPanX: 0,
     panStartPanY: 0,
+    navigationDrag: null,
     selectingBox: false,
     selectBoxStart: { x: 0, y: 0 },
     selectBoxStartScreen: { x: 0, y: 0 },
@@ -818,7 +819,7 @@ const VisualNotes = {
     },
 
     isIgnoreElement(target) {
-        return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls");
+        return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls,.canvasNavigator");
     },
 
     startTitleEdit(note, titleElement) {
@@ -1640,6 +1641,128 @@ const VisualNotes = {
         });
 
         this.drawConnections();
+        this.updateNavigationBars();
+    },
+    getNavigationMetrics(axis, trackLength) {
+        return CanvasUtils.getNavigationMetrics(
+            this.notes,
+            this.getViewportBounds(),
+            axis,
+            trackLength
+        );
+    },
+    updateNavigationBars() {
+        [
+            { axis: "x", id: "horizontalNavigator" },
+            { axis: "y", id: "verticalNavigator" }
+        ].forEach(({ axis, id }) => {
+            const navigator = document.getElementById(id);
+            if (!navigator) return;
+            if (!this.notes.length) {
+                navigator.hidden = true;
+                return;
+            }
+
+            navigator.hidden = false;
+            const trackLength = axis === "x" ? navigator.clientWidth : navigator.clientHeight;
+            let metrics = this.getNavigationMetrics(axis, trackLength);
+            if (!metrics) {
+                navigator.hidden = true;
+                return;
+            }
+
+            if (this.navigationDrag && this.navigationDrag.axis === axis) {
+                const activeMetrics = this.navigationDrag.metrics;
+                const viewport = this.getViewportBounds();
+                const viewportStart = axis === "x" ? viewport.left : viewport.top;
+                const progress = Math.max(0, Math.min(1,
+                    (viewportStart - activeMetrics.contentStart) / activeMetrics.scrollRange
+                ));
+                metrics = {
+                    ...activeMetrics,
+                    visible: true,
+                    progress,
+                    thumbPosition: progress * Math.max(0, trackLength - activeMetrics.thumbSize)
+                };
+            }
+
+            if (!metrics.visible) {
+                navigator.hidden = true;
+                return;
+            }
+
+            const thumb = navigator.querySelector(".canvasNavigatorThumb");
+            if (axis === "x") {
+                thumb.style.left = `${metrics.thumbPosition}px`;
+                thumb.style.width = `${metrics.thumbSize}px`;
+            } else {
+                thumb.style.top = `${metrics.thumbPosition}px`;
+                thumb.style.height = `${metrics.thumbSize}px`;
+            }
+            navigator.setAttribute("aria-valuemin", "0");
+            navigator.setAttribute("aria-valuemax", "100");
+            navigator.setAttribute("aria-valuenow", String(Math.round(metrics.progress * 100)));
+        });
+    },
+    moveCameraFromNavigator(event) {
+        const drag = this.navigationDrag;
+        if (!drag) return;
+        const rectangle = drag.navigator.getBoundingClientRect();
+        const pointer = drag.axis === "x" ? event.clientX - rectangle.left : event.clientY - rectangle.top;
+        const trackLength = drag.axis === "x" ? rectangle.width : rectangle.height;
+        const travel = Math.max(1, trackLength - drag.metrics.thumbSize);
+        const progress = Math.max(0, Math.min(1, (pointer - drag.grabOffset) / travel));
+        const viewportStart = drag.metrics.contentStart + progress * drag.metrics.scrollRange;
+        if (drag.axis === "x") {
+            this.panX = -viewportStart * this.zoom;
+        } else {
+            this.panY = -viewportStart * this.zoom;
+        }
+        this.updateCanvasBounds();
+        this.applyTransform();
+    },
+    startNavigationDrag(axis, navigator, event) {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const rectangle = navigator.getBoundingClientRect();
+        const trackLength = axis === "x" ? rectangle.width : rectangle.height;
+        const metrics = this.getNavigationMetrics(axis, trackLength);
+        if (!metrics) return;
+
+        const pointer = axis === "x" ? event.clientX - rectangle.left : event.clientY - rectangle.top;
+        const clickedThumb = event.target.closest(".canvasNavigatorThumb");
+        const grabOffset = clickedThumb
+            ? pointer - metrics.thumbPosition
+            : metrics.thumbSize / 2;
+        this.navigationDrag = { axis, navigator, metrics, grabOffset };
+        navigator.classList.add("dragging");
+        this.moveCameraFromNavigator(event);
+
+        const move = moveEvent => this.moveCameraFromNavigator(moveEvent);
+        const stop = () => {
+            document.removeEventListener("mousemove", move);
+            document.removeEventListener("mouseup", stop);
+            navigator.classList.remove("dragging");
+            this.navigationDrag = null;
+            this.updateNavigationBars();
+            this.saveBoard();
+        };
+        document.addEventListener("mousemove", move);
+        document.addEventListener("mouseup", stop);
+    },
+    setupNavigationBars() {
+        [
+            { axis: "x", id: "horizontalNavigator" },
+            { axis: "y", id: "verticalNavigator" }
+        ].forEach(({ axis, id }) => {
+            const navigator = document.getElementById(id);
+            if (!navigator) return;
+            navigator.addEventListener("mousedown", event => {
+                this.startNavigationDrag(axis, navigator, event);
+            });
+        });
+        this.updateNavigationBars();
     },
     applyTransform() {
         const canvas = document.getElementById("canvas");
@@ -1668,6 +1791,7 @@ const VisualNotes = {
             svg.style.transform = transform;
             svg.style.transformOrigin = "0 0";
         }
+        this.updateNavigationBars();
     },
     startPan(event) {
         if (event.button !== 2) return;
@@ -1720,6 +1844,7 @@ const VisualNotes = {
             this.loadBoard();
             this.historyManager.clear();
             this.historyTransaction = null;
+            this.setupNavigationBars();
             const canvas = document.getElementById("canvas");
             const self = this;
 
@@ -1807,7 +1932,7 @@ const VisualNotes = {
 
             // Pressing the mouse wheel centers the camera on the notes' bounding area.
             document.addEventListener("mousedown", e => {
-                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls")) return;
+                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls,.canvasNavigator")) return;
                 e.preventDefault();
                 e.stopPropagation();
                 self.centerCameraOnNotes();
@@ -1897,7 +2022,7 @@ const VisualNotes = {
             document.addEventListener("contextmenu", e => e.preventDefault());
             document.addEventListener("mousedown", e => {
                 if (e.button === 2) {
-                    const ignoreElement = e.target.closest("#toolbar,.colorPanel,.backupControls");
+                    const ignoreElement = e.target.closest("#toolbar,.colorPanel,.backupControls,.canvasNavigator");
                     if (ignoreElement) return;
                     // Right-click always starts panning (add-mode uses left-click like remove-mode)
                     self.startPan(e);
