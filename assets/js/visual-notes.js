@@ -1472,6 +1472,11 @@ const VisualNotes = {
             const div = document.createElement("div");
             div.className = "note";
             div.dataset.noteId = note.id;
+            const imageOnlyNote = note.type === "image";
+            const hasCustomImageTitle = typeof note.title === "string" &&
+                note.title.trim() !== "" && note.title !== "Image";
+            if (imageOnlyNote) div.classList.add("image-note");
+            if (imageOnlyNote && !hasCustomImageTitle) div.classList.add("no-title");
             if (this.resizingNote && this.resizingNote.id === note.id) div.classList.add("resizing");
             if (this.selectedNotes.includes(note.id)) {
                 div.classList.add("selected");
@@ -1482,11 +1487,11 @@ const VisualNotes = {
             div.style.height = (note.height || 140) + "px";
             // apply custom background color if present
             div.style.setProperty('--note-bg', note.color || '#333');
-            if (note.type === 'image') {
+            if (imageOnlyNote) {
                 div.innerHTML = `
-        <div class="noteHeader">
+        ${hasCustomImageTitle ? `<div class="noteHeader">
             <span class="noteTitle" data-placeholder="Add title">${this.escapeHtml(note.title)}</span>
-        </div>
+        </div>` : ""}
         ${note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image">` +
             `</img></div>` : ""}
         `;
@@ -1530,15 +1535,21 @@ const VisualNotes = {
                 };
             }
 
-            // If image note, bind image onload to capture aspect ratio and set initial size
-            if (note.type === 'image') {
-                const imgEl = div.querySelector('.noteImage img');
-                if (imgEl) {
-                    imgEl.onload = () => {
-                        try {
-                            const naturalW = imgEl.naturalWidth || imgEl.width;
-                            const naturalH = imgEl.naturalHeight || imgEl.height;
-                            if (naturalW && naturalH) {
+            const imgEl = div.querySelector('.noteImage img');
+            if (imgEl) {
+                const syncImageDimensions = () => {
+                    try {
+                        const naturalW = imgEl.naturalWidth || imgEl.width;
+                        const naturalH = imgEl.naturalHeight || imgEl.height;
+                        if (naturalW && naturalH) {
+                            const imageContainer = imgEl.closest('.noteImage');
+                            imageContainer?.style.setProperty(
+                                '--overview-image-width',
+                                `${76 * naturalW / naturalH}px`
+                            );
+
+                            // Image-only notes also preserve their proportions while resizing.
+                            if (note.type === 'image') {
                                 note.aspectRatio = naturalH / naturalW;
                                 // If note had default width, compute height to keep proportions
                                 if (!note._sizeInitialized) {
@@ -1551,10 +1562,15 @@ const VisualNotes = {
                                     div.style.height = note.height + 'px';
                                 }
                             }
-                        } catch (err) {
-                            // ignore
                         }
-                    };
+                    } catch (err) {
+                        // ignore
+                    }
+                };
+
+                imgEl.onload = syncImageDimensions;
+                if (imgEl.complete) {
+                    syncImageDimensions();
                 }
             }
 
@@ -1774,6 +1790,12 @@ const VisualNotes = {
         const grid = document.getElementById("grid");
         const svg = document.getElementById("connections");
         const bounds = this.canvasBounds;
+        const displayedZoomTarget = this.zoomAnimationTarget
+            ? this.zoomAnimationTarget.zoom
+            : this.zoom;
+        const overviewActive = displayedZoomTarget <= CanvasUtils.overviewZoomThreshold + 0.001;
+        document.body.classList.toggle("canvas-overview-mode", overviewActive);
+        document.body.style.setProperty("--overview-title-scale", String(1 / this.zoom));
         const transform = `translate(${this.panX + bounds.left * this.zoom}px, ${this.panY + bounds.top * this.zoom}px) scale(${this.zoom})`;
         if (canvas) {
             canvas.style.transform = transform;
@@ -2140,7 +2162,7 @@ const VisualNotes = {
                     const img = new Image();
                     img.onload = () => {
                         self.createNoteAt(x, y, {
-                            title: "Image",
+                            title: "",
                             imageSrc: dataUrl,
                             aspectRatio: img.naturalHeight / img.naturalWidth,
                             width: Math.min(400, img.naturalWidth),

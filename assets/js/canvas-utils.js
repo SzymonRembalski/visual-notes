@@ -4,6 +4,7 @@ const CanvasUtils = {
     defaultNoteHeight: 140,
     minimumZoom: 0.2,
     maximumZoom: 1,
+    overviewZoomThreshold: 0.3,
     clampZoom(zoom) {
         if (!Number.isFinite(zoom) || zoom <= 0) return 1;
         return Math.max(this.minimumZoom, Math.min(this.maximumZoom, zoom));
