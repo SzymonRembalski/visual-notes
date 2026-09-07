@@ -8,7 +8,7 @@
 </head>
 <body class="canvas-page">
     <div id="toolbar">
-        <input id="projectTitleInput" class="projectTitleInput" type="text" placeholder="Project title" oninput="updateProjectTitle(this.value)">
+        <input id="projectTitleInput" class="projectTitleInput" type="text" aria-label="Project title" placeholder="Project title" title="Click to edit project title" oninput="updateProjectTitle(this.value)">
         <button onclick="createNote()">New Node</button>
         <button id="removeBtn" onclick="toggleRemoveMode()">Remove Connections</button>
         <button id="addBtn" onclick="toggleAddMode()">Add Connections</button>

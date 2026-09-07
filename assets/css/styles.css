@@ -407,12 +407,26 @@ body.canvas-page #toolbar button.active {
 body.canvas-page #projectTitleInput {
     flex: 1;
     min-width: 180px;
-    background: #1e1e1e;
+    background: transparent;
     color: white;
-    border: 1px solid #555;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 1rem;
+    border: none;
+    border-bottom: 1px solid transparent;
+    border-radius: 0;
+    padding: 6px 4px;
+    font-size: 1.15rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    outline: none;
+    cursor: text;
+    transition: border-color 150ms ease, color 150ms ease;
+}
+
+body.canvas-page #projectTitleInput:hover {
+    color: #e7e7e7;
+}
+
+body.canvas-page #projectTitleInput:focus {
+    border-bottom-color: #66bb6a;
 }
 
 body.projects-page {
