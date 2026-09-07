@@ -25,6 +25,7 @@ const VisualNotes = {
     zoomAnimationTarget: null,
     zoomAnimationDuration: 180,
     selectingBox: false,
+    selectBoxMoved: false,
     selectBoxStart: { x: 0, y: 0 },
     selectBoxStartScreen: { x: 0, y: 0 },
     selectionBoxElement: null,
@@ -1564,15 +1565,18 @@ const VisualNotes = {
             x: event.clientX,
             y: event.clientY
         };
-        if (this.selectionBoxElement) {
-            this.selectionBoxElement.style.display = "block";
-        }
         this.selectingBox = true;
+        this.selectBoxMoved = false;
         document.onmousemove = e => this.updateSelectBox(e);
         document.onmouseup = () => this.stopSelectBox();
     },
     updateSelectBox(event) {
         if (!this.selectingBox) return;
+        const screenWidth = Math.abs(event.clientX - this.selectBoxStartScreen.x);
+        const screenHeight = Math.abs(event.clientY - this.selectBoxStartScreen.y);
+        if (!this.selectBoxMoved && Math.hypot(screenWidth, screenHeight) < 5) return;
+        this.selectBoxMoved = true;
+
         const canvasOffsetTop = 50;
         const viewportX = event.clientX;
         const viewportY = event.clientY - canvasOffsetTop;
@@ -1595,8 +1599,7 @@ const VisualNotes = {
         if (this.selectionBoxElement) {
             const screenMinX = Math.min(this.selectBoxStartScreen.x, event.clientX);
             const screenMinY = Math.min(this.selectBoxStartScreen.y, event.clientY);
-            const screenWidth = Math.abs(event.clientX - this.selectBoxStartScreen.x);
-            const screenHeight = Math.abs(event.clientY - this.selectBoxStartScreen.y);
+            this.selectionBoxElement.style.display = "block";
             this.selectionBoxElement.style.left = screenMinX + "px";
             this.selectionBoxElement.style.top = screenMinY + "px";
             this.selectionBoxElement.style.width = screenWidth + "px";
@@ -1607,6 +1610,7 @@ const VisualNotes = {
     },
     stopSelectBox() {
         this.selectingBox = false;
+        this.selectBoxMoved = false;
         if (this.selectionBoxElement) {
             this.selectionBoxElement.style.display = "none";
             this.selectionBoxElement.style.width = "0px";
