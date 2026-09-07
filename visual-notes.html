@@ -9,19 +9,35 @@
 <body class="canvas-page">
     <div id="toolbar">
         <input id="projectTitleInput" class="projectTitleInput" type="text" aria-label="Project title" placeholder="Project title" title="Click to edit project title" oninput="updateProjectTitle(this.value)">
-        <button onclick="createNote()">New Node</button>
-        <button id="removeBtn" onclick="toggleRemoveMode()">Remove Connections</button>
-        <button id="addBtn" onclick="toggleAddMode()">Add Connections</button>
-        <button id="colorBtn" onclick="toggleColorMode()">Color Mode</button>
-        <button id="shapesBtn" aria-pressed="false" onclick="toggleShapesMode()" title="Turn on Shapes mode, then drag on empty canvas to draw a rectangle">Shapes Mode</button>
-        <button id="snapBtn" class="active" aria-pressed="true" onclick="toggleSnappingMode()" title="Align moved and resized items to canvas dots">Snap: ON</button>
+        <nav class="toolbarMenus" aria-label="Canvas menus">
+            <details id="editMenu" class="toolbarMenu">
+                <summary class="toolbarMenuTrigger">Edit</summary>
+                <div class="toolbarMenuPanel editMenuPanel" aria-label="Editing tools">
+                    <button type="button" onclick="createNote()" data-close-menu>New Node</button>
+                    <button type="button" id="addBtn" onclick="toggleAddMode()" data-close-menu>Add Connections</button>
+                    <button type="button" id="removeBtn" onclick="toggleRemoveMode()" data-close-menu>Remove Connections</button>
+                    <button type="button" id="colorBtn" onclick="toggleColorMode()" data-close-menu>Color Mode</button>
+                    <button type="button" id="shapesBtn" aria-pressed="false" onclick="toggleShapesMode()" title="Turn on Shapes mode, then drag on empty canvas to draw a rectangle" data-close-menu>Shapes Mode</button>
+                    <button type="button" id="snapBtn" class="active" aria-pressed="true" onclick="toggleSnappingMode()" title="Align moved and resized items to canvas dots" data-close-menu>Snap: ON</button>
+                </div>
+            </details>
+            <details id="saveMenu" class="toolbarMenu">
+                <summary class="toolbarMenuTrigger backupToggle">Save</summary>
+                <div id="saveMenuPanel" class="toolbarMenuPanel saveMenuPanel" aria-label="Save and backup options"></div>
+            </details>
+            <details id="exportMenu" class="toolbarMenu">
+                <summary class="toolbarMenuTrigger">Export</summary>
+                <div class="toolbarMenuPanel exportMenuPanel" aria-label="Export options">
+                    <button id="exportImageBtn" class="exportImageButton" type="button" onclick="exportBoardImage()" data-close-menu>Export PNG</button>
+                </div>
+            </details>
+        </nav>
         <a href="projects.html" class="button button-link" data-backup-before-leave>Back to Projects</a>
     </div>
     <div id="grid" aria-hidden="true"></div>
     <div id="shapes" aria-label="Canvas groups" aria-hidden="true"></div>
     <svg id="connections"></svg>
     <div id="canvas"></div>
-    <button id="exportImageBtn" class="exportImageButton" type="button" onclick="exportBoardImage()">Export PNG</button>
     <div id="horizontalNavigator" class="canvasNavigator horizontalNavigator" role="scrollbar" aria-label="Horizontal canvas position" aria-orientation="horizontal" hidden>
         <div class="canvasNavigatorThumb"></div>
     </div>

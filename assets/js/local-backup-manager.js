@@ -306,11 +306,11 @@ const LocalBackupManager = {
     },
 
     createInterface() {
+        const menuHost = document.getElementById("saveMenuPanel");
+        const menuDetails = menuHost ? menuHost.closest(".toolbarMenu") : null;
         const root = document.createElement("div");
-        root.className = "backupControls";
-        root.innerHTML = `
-            <button type="button" class="backupToggle" aria-expanded="false">Backups</button>
-            <section class="backupPanel" hidden aria-label="Local backup controls">
+        root.className = menuHost ? "backupControls toolbarBackupControls" : "backupControls";
+        const panelContents = `
                 <div class="backupPanelHeader">
                     <strong>Local backups</strong>
                     <button type="button" class="backupClose" aria-label="Close backup controls">&times;</button>
@@ -323,17 +323,36 @@ const LocalBackupManager = {
                     <button type="button" class="downloadBackup">Download backup</button>
                     <button type="button" class="restoreBackup">Restore backup</button>
                 </div>
-                <input class="backupFileInput" type="file" accept="application/json,.json" hidden>
+                <input class="backupFileInput" type="file" accept="application/json,.json" hidden>`;
+        root.innerHTML = menuHost ? `
+            <section class="backupPanel" aria-label="Local backup controls">
+                ${panelContents}
+            </section>` : `
+            <button type="button" class="backupToggle" aria-expanded="false">Backups</button>
+            <section class="backupPanel" hidden aria-label="Local backup controls">
+                ${panelContents}
             </section>`;
-        document.body.appendChild(root);
+        (menuHost || document.body).appendChild(root);
         this.panel = root.querySelector(".backupPanel");
         this.statusElement = root.querySelector(".backupStatus");
-        const toggle = root.querySelector(".backupToggle");
+        const toggle = menuDetails
+            ? menuDetails.querySelector(".backupToggle")
+            : root.querySelector(".backupToggle");
         const setOpen = open => {
-            this.panel.hidden = !open;
+            if (menuDetails) {
+                menuDetails.open = open;
+            } else {
+                this.panel.hidden = !open;
+            }
             toggle.setAttribute("aria-expanded", String(open));
         };
-        toggle.onclick = () => setOpen(this.panel.hidden);
+        if (menuDetails) {
+            menuDetails.addEventListener("toggle", () => {
+                toggle.setAttribute("aria-expanded", String(menuDetails.open));
+            });
+        } else {
+            toggle.onclick = () => setOpen(this.panel.hidden);
+        }
         root.querySelector(".backupClose").onclick = () => setOpen(false);
         root.querySelector(".connectBackup").onclick = () => this.connectFile();
         root.querySelector(".saveBackupNow").onclick = async () => {
