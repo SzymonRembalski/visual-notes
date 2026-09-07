@@ -7,6 +7,7 @@ const VisualNotes = {
     projectTitle: localStorage.getItem("visualTitle") ?? "Untitled Project",
     selectedNote: null,
     selectedNotes: [],
+    expandedNoteIds: new Set(),
     selectedShapeId: null,
     offsetX: 0,
     offsetY: 0,
@@ -68,8 +69,10 @@ const VisualNotes = {
         this.projectTitle = typeof state.projectTitle === "string" ? state.projectTitle : "Untitled Project";
         this.selectedNote = null;
         this.selectedNotes = [];
+        this.expandedNoteIds.clear();
         this.selectedShapeId = null;
         this.historyTransaction = null;
+        this.normalizeTitleOnlyNotes();
 
         const titleInput = document.getElementById("projectTitleInput");
         if (titleInput) titleInput.value = this.projectTitle;
@@ -287,7 +290,7 @@ const VisualNotes = {
         const { x, y } = this.getVisibleCenter();
         this.createNoteAt(
             x - CanvasUtils.defaultNoteWidth / 2,
-            y - CanvasUtils.defaultNoteHeight / 2
+            y - CanvasUtils.titleOnlyNoteHeight / 2
         );
     },
     createNoteAt(x, y, options = {}) {
@@ -295,16 +298,21 @@ const VisualNotes = {
         this.performHistoryChange(() => {
             const isFirstNote = this.notes.length === 0;
             const position = this.snappingEnabled ? CanvasUtils.snapPoint({ x, y }) : { x, y };
+            const noteType = options.type || (options.imageSrc ? 'image' : 'text');
+            const noteText = options.text || "";
+            const defaultHeight = noteType === 'image' || String(noteText).trim()
+                ? CanvasUtils.defaultNoteHeight
+                : CanvasUtils.titleOnlyNoteHeight;
             note = {
                 id: Date.now(),
                 x: position.x,
                 y: position.y,
                 width: typeof options.width === 'number' ? options.width : CanvasUtils.defaultNoteWidth,
-                height: typeof options.height === 'number' ? options.height : CanvasUtils.defaultNoteHeight,
-                title: typeof options.title === "string" ? options.title : "New note",
-                text: options.text || "",
+                height: typeof options.height === 'number' ? options.height : defaultHeight,
+                title: typeof options.title === "string" ? options.title : "New node",
+                text: noteText,
                 imageSrc: options.imageSrc || null,
-                type: options.type || (options.imageSrc ? 'image' : 'text'),
+                type: noteType,
                 aspectRatio: typeof options.aspectRatio === 'number' ? options.aspectRatio : null,
                 color: options.color || null
             };
@@ -351,6 +359,35 @@ const VisualNotes = {
         if (this.projectId) {
             this.saveBoard();
         }
+    },
+    hasNoteContent(note) {
+        return Boolean(note && (String(note.text || "").trim() || note.imageSrc));
+    },
+    normalizeTitleOnlyNotes() {
+        let changed = false;
+        this.notes.forEach(note => {
+            if (note.type === 'image' || this.hasNoteContent(note)) return;
+            if (note.text) {
+                note.text = "";
+                changed = true;
+            }
+            if (note.height !== CanvasUtils.titleOnlyNoteHeight) {
+                note.height = CanvasUtils.titleOnlyNoteHeight;
+                changed = true;
+            }
+        });
+        return changed;
+    },
+    openNoteContent(note) {
+        if (!note || note.type === 'image' || this.hasNoteContent(note)) return;
+        this.beginHistoryTransaction();
+        note.height = Math.max(CanvasUtils.defaultNoteHeight, note.height || 0);
+        this.expandedNoteIds.add(note.id);
+        this.render();
+        setTimeout(() => {
+            const textarea = document.querySelector(`.note[data-note-id="${note.id}"] textarea`);
+            if (textarea) textarea.focus();
+        }, 0);
     },
     chooseNoteImage(id) {
         const note = this.notes.find(n => n.id === id);
@@ -490,6 +527,10 @@ const VisualNotes = {
             this.projectTitle = "Untitled Project";
             this.snappingEnabled = true;
             this.needsInitialCenter = true;
+        }
+
+        if (this.normalizeTitleOnlyNotes()) {
+            boardNeedsUpgrade = true;
         }
 
         if (this.needsInitialCenter) {
@@ -1608,7 +1649,9 @@ const VisualNotes = {
         const deltaY = (e.clientY - this.resizeStartY) / this.zoom;
         const note = this.resizingNote;
         const minWidth = this.getMinNoteWidth(note);
-        let minHeight = CanvasUtils.defaultNoteHeight;
+        const titleOnlyNote = note.type !== 'image' && !this.hasNoteContent(note) &&
+            !this.expandedNoteIds.has(note.id);
+        let minHeight = titleOnlyNote ? CanvasUtils.titleOnlyNoteHeight : CanvasUtils.defaultNoteHeight;
         let rectangle;
         if (note.type === 'image' && Number.isFinite(note.aspectRatio) && note.aspectRatio > 0) {
             rectangle = CanvasUtils.resizeRectangleProportionally(
@@ -1618,10 +1661,12 @@ const VisualNotes = {
             const proposed = CanvasUtils.resizeRectangle(
                 this.resizeStartRect, this.resizeDirection, deltaX, deltaY, minWidth, minHeight
             );
-            minHeight = Math.max(
-                CanvasUtils.defaultNoteHeight,
-                this.getMinNoteHeight({ ...note, width: proposed.width })
-            );
+            minHeight = titleOnlyNote
+                ? CanvasUtils.titleOnlyNoteHeight
+                : Math.max(
+                    CanvasUtils.defaultNoteHeight,
+                    this.getMinNoteHeight({ ...note, width: proposed.width })
+                );
             rectangle = CanvasUtils.resizeRectangle(
                 this.resizeStartRect, this.resizeDirection, deltaX, deltaY, minWidth, minHeight
             );
@@ -1664,9 +1709,14 @@ const VisualNotes = {
             if ((note.width || CanvasUtils.defaultNoteWidth) < minWidth) {
                 note.width = minWidth;
             }
+            const noteContentVisible = note.type === 'image' || self.hasNoteContent(note) ||
+                self.expandedNoteIds.has(note.id);
             const minHeight = note.type === 'image'
                 ? note.height || CanvasUtils.defaultNoteHeight
-                : self.getMinNoteHeight(note);
+                : noteContentVisible
+                    ? self.getMinNoteHeight(note)
+                    : CanvasUtils.titleOnlyNoteHeight;
+            if (!noteContentVisible) note.height = CanvasUtils.titleOnlyNoteHeight;
             if ((note.height || CanvasUtils.defaultNoteHeight) < minHeight) {
                 note.height = minHeight;
             }
@@ -1683,7 +1733,13 @@ const VisualNotes = {
             div.className = "note";
             div.dataset.noteId = note.id;
             const imageOnlyNote = note.type === "image";
+            const noteContentVisible = imageOnlyNote || this.hasNoteContent(note) || this.expandedNoteIds.has(note.id);
+            const titleOnlyNote = !imageOnlyNote && !noteContentVisible;
+            const showAddNoteButton = titleOnlyNote && this.selectedNotes.length === 1 &&
+                this.selectedNotes[0] === note.id;
             if (imageOnlyNote) div.classList.add("image-note", "no-title");
+            if (titleOnlyNote) div.classList.add("title-only");
+            if (showAddNoteButton) div.classList.add("has-add-note-control");
             if (this.resizingNote && this.resizingNote.id === note.id) div.classList.add("resizing");
             if (this.selectedNotes.includes(note.id)) {
                 div.classList.add("selected");
@@ -1704,9 +1760,20 @@ const VisualNotes = {
         <div class="noteHeader">
             <span class="noteTitle" data-placeholder="Add title">${this.escapeHtml(note.title)}</span>
         </div>
-        ${note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image"></div>` : ""}
-        <textarea>${this.escapeHtml(note.text)}</textarea>
+        ${showAddNoteButton ? `<button type="button" class="addNoteContentButton" aria-label="Add note" title="Add note">+</button>` : ""}
+        ${noteContentVisible && note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image"></div>` : ""}
+        ${noteContentVisible ? `<textarea aria-label="Note">${this.escapeHtml(note.text)}</textarea>` : ""}
         `;
+            }
+
+            const addNoteContentButton = div.querySelector(".addNoteContentButton");
+            if (addNoteContentButton) {
+                addNoteContentButton.addEventListener("mousedown", event => event.stopPropagation());
+                addNoteContentButton.addEventListener("click", event => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    self.openNoteContent(note);
+                });
             }
 
             const titleElement = div.querySelector(".noteTitle");
@@ -1748,11 +1815,19 @@ const VisualNotes = {
                 };
                 textarea.onfocus = e => {
                     e.stopPropagation();
+                    self.expandedNoteIds.add(note.id);
                     self.beginHistoryTransaction();
                 };
                 textarea.onblur = () => {
+                    self.expandedNoteIds.delete(note.id);
+                    const shouldCollapse = !self.hasNoteContent(note);
+                    if (shouldCollapse) {
+                        note.text = "";
+                        note.height = CanvasUtils.titleOnlyNoteHeight;
+                    }
                     self.commitHistoryTransaction();
                     self.saveBoard();
+                    if (shouldCollapse) self.render();
                 };
             }
 

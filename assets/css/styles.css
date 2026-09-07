@@ -745,7 +745,7 @@ body.canvas-page .shapeResizeHandle.sw { left: -9px; bottom: -9px; cursor: nesw-
 body.canvas-page .note {
     position: absolute;
     width: 225px;
-    min-height: 135px;
+    min-height: 45px;
     height: auto;
     background: var(--note-bg, #333);
     border-radius: 10px;
@@ -758,6 +758,20 @@ body.canvas-page .note {
     gap: 8px;
     z-index: 950;
     overflow: hidden;
+}
+
+body.canvas-page .note:not(.title-only) {
+    min-height: 135px;
+}
+
+body.canvas-page .note.title-only {
+    justify-content: center;
+    gap: 0;
+    padding: 8px 12px;
+}
+
+body.canvas-page .note.title-only.has-add-note-control {
+    overflow: visible;
 }
 
 body.canvas-page .noteResizeBorder {
@@ -832,6 +846,7 @@ body.shapes-mode-active.color-pick-mode-active .shapeTitle {
 body.canvas-page .noteHeader {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     margin-bottom: 4px;
     color: white;
@@ -852,6 +867,7 @@ body.canvas-page .noteTitle {
     user-select: text;
     -webkit-user-select: text;
     cursor: text;
+    text-align: center;
 }
 
 body.canvas-page .noteTitle:empty::before {
@@ -872,6 +888,38 @@ body.canvas-page .noteTitleInput {
     font-size: 1rem;
     font-weight: bold;
     outline: none;
+    text-align: center;
+}
+
+body.canvas-page .addNoteContentButton {
+    position: absolute;
+    left: 50%;
+    bottom: -15px;
+    z-index: 6;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 2px solid #1b1b1b;
+    border-radius: 50%;
+    background: #388e3c;
+    font-size: 1.25rem;
+    line-height: 26px;
+    transform: translateX(-50%);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+body.canvas-page .addNoteContentButton:hover {
+    transform: translateX(-50%) translateY(-1px);
+}
+
+body.canvas-page .note.title-only .resizeHandle:not(.e):not(.w) {
+    display: none;
+}
+
+body.canvas-page .note.title-only .resizeHandle.e,
+body.canvas-page .note.title-only .resizeHandle.w {
+    top: 0;
+    bottom: 0;
 }
 
 body.remove-mode-active,
@@ -1107,6 +1155,7 @@ body.canvas-overview-mode .noteTitleInput {
 
 body.canvas-overview-mode .note textarea,
 body.canvas-overview-mode .imageButton,
+body.canvas-overview-mode .addNoteContentButton,
 body.canvas-overview-mode .noteResizeBorder {
     display: none !important;
 }

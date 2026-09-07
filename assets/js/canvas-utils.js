@@ -3,6 +3,7 @@ const CanvasUtils = {
     gridSpacing: 45,
     defaultNoteWidth: 225,
     defaultNoteHeight: 135,
+    titleOnlyNoteHeight: 45,
     minimumZoom: 0.2,
     maximumZoom: 1,
     overviewZoomThreshold: 0.3,

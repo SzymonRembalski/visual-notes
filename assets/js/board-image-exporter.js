@@ -212,6 +212,7 @@ const BoardImageExporter = {
         notes.forEach((note, index) => {
             const width = note.width || CanvasUtils.defaultNoteWidth;
             const height = note.height || CanvasUtils.defaultNoteHeight;
+            const titleOnlyNote = note.type !== "image" && !String(note.text || "").trim() && !note.imageSrc;
             context.save();
             context.shadowColor = "rgba(0, 0, 0, 0.5)";
             context.shadowBlur = 15;
@@ -243,13 +244,16 @@ const BoardImageExporter = {
 
             context.font = 'bold 16px "Segoe UI", Arial, sans-serif';
             context.fillStyle = note.title ? "#ffffff" : "#aaaaaa";
-            context.textBaseline = "top";
+            context.textAlign = "center";
+            context.textBaseline = titleOnlyNote ? "middle" : "top";
             context.fillText(
                 this.fitText(context, note.title || "Add title", Math.max(1, width - 32)),
-                note.x + 16,
-                note.y + 12,
+                note.x + width / 2,
+                titleOnlyNote ? note.y + height / 2 : note.y + 12,
                 width - 32
             );
+            context.textAlign = "left";
+            if (titleOnlyNote) return;
 
             const textX = note.x + 12;
             const textY = note.y + 43;

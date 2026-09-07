@@ -21,12 +21,13 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 ### 🧠 Think visually
 
 - Create multiple visual-note projects.
-- Place, move, resize, and edit notes on a large canvas.
-- Connect related notes with structured, right-angle paths to build clear idea maps.
-- Draw titled, resizable, translucent colored background shapes to visually group related notes.
-- Color groups of notes and see connections blend between their colors.
-- Select and move several notes together.
-- Optionally snap notes and shapes to the canvas dots while moving or resizing them.
+- Place, move, resize, and edit nodes on a large canvas. Each node has a title and can optionally contain a note.
+- New nodes begin as compact, title-only cards; select one and use its **+** button to add note content.
+- Connect related nodes with structured, right-angle paths to build clear idea maps.
+- Draw titled, resizable, translucent colored background shapes to visually group related nodes.
+- Color groups of nodes and see connections blend between their colors.
+- Select and move several nodes together.
+- Optionally snap nodes and shapes to the canvas dots while moving or resizing them.
 - Pan and zoom through complex boards.
 - Export an entire board as a high-quality PNG image.
 
@@ -77,24 +78,25 @@ Then open `index.html`. There is nothing to install and no build command to run.
 
 | Action | Control |
 | --- | --- |
-| Create a note | **New Note** |
-| Resize a note | Left-drag any border or corner; image notes keep their proportions |
+| Create a node | **New Node** |
+| Add a note inside a node | Select one title-only node, then use the **+** beneath its title; an empty note collapses automatically |
+| Resize a node | Left-drag any border or corner; image nodes keep their proportions |
 | Move around the canvas | Right-click and drag |
-| Center the camera | Select one or more notes and press the mouse wheel; without a selection, it centers on all notes |
-| Navigate a larger note area | Drag or click the horizontal and vertical position bars |
+| Center the camera | Select one or more nodes and press the mouse wheel; without a selection, it centers on all nodes |
+| Navigate a larger node area | Drag or click the horizontal and vertical position bars |
 | Save to the connected backup file | **Ctrl/Cmd + S** |
 | Save the full board as an image | **Export PNG** |
 | Zoom | Mouse wheel (`0.2×`–`1×`) |
 | Simplified overview | Use `0.2×`–`0.3×` to show readable titles, image previews, shapes, and connections |
-| Image-only notes | Display without titles in both normal and simplified views |
-| Select several notes | Drag on empty canvas or `Ctrl` + click |
-| Delete selected notes | `Delete` |
+| Image-only nodes | Display without titles in both normal and simplified views |
+| Select several nodes | Drag on empty canvas or `Ctrl` + click |
+| Delete selected nodes | `Delete` |
 | Undo the last change | `Ctrl` + `Z` |
 | Redo an undone change | `Ctrl` + `Shift` + `Z` |
-| Connect notes | Turn on **Add Connections**, then draw through notes |
+| Connect nodes | Turn on **Add Connections**, then draw through nodes |
 | Remove links | Turn on **Remove Connections**, then draw through connections |
-| Color notes | In **Color Mode**, left-click one note, `Shift` + click to select more, or drag a selection box; then choose a color and apply |
-| Reuse a board color | In **Color Mode**, choose **Pick**, then click a note or shape |
+| Color nodes | In **Color Mode**, left-click one node, `Shift` + click to select more, or drag a selection box; then choose a color and apply |
+| Reuse a board color | In **Color Mode**, choose **Pick**, then click a node or shape |
 | Create a background group | Enable **Shapes Mode**, then drag on empty canvas |
 | Color a background group | Enable **Shapes Mode** and **Color Mode**, select a shape, choose a color, and apply |
 | Edit a group | In **Shapes Mode**, drag it to move, click its title to rename, or drag an edge/corner to resize |
