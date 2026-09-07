@@ -932,6 +932,8 @@ body.canvas-page .note textarea {
     width: 100%;
     flex: 1;
     resize: none;
+    overflow-x: hidden;
+    overflow-y: hidden;
     background: #222;
     color: white;
     border: 1px solid #555;

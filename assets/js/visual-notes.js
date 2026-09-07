@@ -980,6 +980,13 @@ const VisualNotes = {
         return Math.max(textHeight + titleHeight + 20, note.type === 'image' ? 80 : 100);
     },
 
+    updateTextareaOverflow(textarea) {
+        if (!textarea) return;
+        textarea.style.overflowY = 'hidden';
+        const overflowAmount = textarea.scrollHeight - textarea.clientHeight;
+        textarea.style.overflowY = overflowAmount > 2 ? 'auto' : 'hidden';
+    },
+
     isIgnoreElement(target) {
         return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls,.canvasNavigator");
     },
@@ -1225,7 +1232,7 @@ const VisualNotes = {
         this.setColorPickMode(false);
     },
 
-    selectNoteForColor(note, additive = false) {
+    selectNote(note, additive = false) {
         if (!note) return;
         if (additive) {
             if (this.selectedNotes.includes(note.id)) {
@@ -1791,10 +1798,11 @@ const VisualNotes = {
                         if (self.colorPickMode) {
                             self.sampleNoteColor(note);
                         } else {
-                            self.selectNoteForColor(note, e.shiftKey);
+                            self.selectNote(note, e.shiftKey);
                         }
                         return;
                     }
+                    if (e.shiftKey) return;
                     self.startTitleEdit(note, titleElement);
                 });
             }
@@ -1806,6 +1814,7 @@ const VisualNotes = {
                     const minNoteHeight = self.getMinNoteHeight(note);
                     note.height = Math.max(note.height || CanvasUtils.defaultNoteHeight, minNoteHeight);
                     div.style.height = note.height + 'px';
+                    self.updateTextareaOverflow(textarea);
                 };
                 textarea.onmousedown = e => {
                     if (e.button !== 0) return;
@@ -1815,8 +1824,11 @@ const VisualNotes = {
                         if (self.colorPickMode) {
                             self.sampleNoteColor(note);
                         } else {
-                            self.selectNoteForColor(note, e.shiftKey);
+                            self.selectNote(note, e.shiftKey);
                         }
+                    } else if (e.shiftKey) {
+                        e.preventDefault();
+                        self.selectNote(note, true);
                     }
                 };
                 textarea.onfocus = e => {
@@ -1888,7 +1900,7 @@ const VisualNotes = {
                     if (self.colorPickMode) {
                         self.sampleNoteColor(note);
                     } else {
-                        self.selectNoteForColor(note, e.shiftKey);
+                        self.selectNote(note, e.shiftKey);
                     }
                     return;
                 }
@@ -1898,23 +1910,19 @@ const VisualNotes = {
                 }
                 e.stopPropagation();
                 e.preventDefault();
-                self.beginHistoryTransaction();
                 const canvasOffsetTop = 50;
                 const viewportX = e.clientX;
                 const viewportY = e.clientY - canvasOffsetTop;
                 const unzoomedX = (viewportX - self.panX) / self.zoom;
                 const unzoomedY = (viewportY - self.panY) / self.zoom;
                 
-                // Handle Ctrl+Click: toggle selection without dragging
-                if (e.ctrlKey || e.metaKey) {
-                    if (self.selectedNotes.includes(note.id)) {
-                        self.selectedNotes = self.selectedNotes.filter(id => id !== note.id);
-                    } else {
-                        self.selectedNotes.push(note.id);
-                    }
-                    self.render();
-                    return; // Don't drag on Ctrl+Click
+                // Modifier-click toggles selection without starting a drag.
+                if (e.shiftKey) {
+                    self.selectNote(note, true);
+                    return;
                 }
+
+                self.beginHistoryTransaction();
                 
                 // If clicking on already selected note, drag all selected notes
                 if (self.selectedNotes.includes(note.id)) {
@@ -1955,6 +1963,7 @@ const VisualNotes = {
             div.appendChild(resizeBorder);
 
             canvas.appendChild(div);
+            self.updateTextareaOverflow(textarea);
         });
 
         this.drawConnections();
