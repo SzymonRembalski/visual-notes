@@ -257,6 +257,15 @@ body.canvas-page {
     margin: 0;
     overflow: hidden;
     background: #1b1b1b;
+    transition: background-color 180ms ease;
+}
+
+body.canvas-page.add-mode-active {
+    background-color: #19231b;
+}
+
+body.canvas-page.remove-mode-active {
+    background-color: #251919;
 }
 
 body.canvas-page #toolbar {
