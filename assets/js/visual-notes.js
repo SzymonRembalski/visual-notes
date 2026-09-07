@@ -270,7 +270,7 @@ const VisualNotes = {
                 y: position.y,
                 width: typeof options.width === 'number' ? options.width : CanvasUtils.defaultNoteWidth,
                 height: typeof options.height === 'number' ? options.height : CanvasUtils.defaultNoteHeight,
-                title: options.title || "New note",
+                title: typeof options.title === "string" ? options.title : "New note",
                 text: options.text || "",
                 imageSrc: options.imageSrc || null,
                 type: options.type || (options.imageSrc ? 'image' : 'text'),
@@ -330,6 +330,7 @@ const VisualNotes = {
             this.performHistoryChange(() => {
                 note.imageSrc = imageUrl;
                 note.type = 'image';
+                note.title = "";
             });
             // Try to get aspect ratio via Image
             const img = new Image();
@@ -360,6 +361,7 @@ const VisualNotes = {
                 this.performHistoryChange(() => {
                     note.imageSrc = reader.result;
                     note.type = 'image';
+                    note.title = "";
                 });
                 this.saveBoard();
                 this.render();
@@ -1575,10 +1577,7 @@ const VisualNotes = {
             div.className = "note";
             div.dataset.noteId = note.id;
             const imageOnlyNote = note.type === "image";
-            const hasCustomImageTitle = typeof note.title === "string" &&
-                note.title.trim() !== "" && note.title !== "Image";
-            if (imageOnlyNote) div.classList.add("image-note");
-            if (imageOnlyNote && !hasCustomImageTitle) div.classList.add("no-title");
+            if (imageOnlyNote) div.classList.add("image-note", "no-title");
             if (this.resizingNote && this.resizingNote.id === note.id) div.classList.add("resizing");
             if (this.selectedNotes.includes(note.id)) {
                 div.classList.add("selected");
@@ -1591,9 +1590,6 @@ const VisualNotes = {
             div.style.setProperty('--note-bg', note.color || '#333');
             if (imageOnlyNote) {
                 div.innerHTML = `
-        ${hasCustomImageTitle ? `<div class="noteHeader">
-            <span class="noteTitle" data-placeholder="Add title">${this.escapeHtml(note.title)}</span>
-        </div>` : ""}
         ${note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image">` +
             `</img></div>` : ""}
         `;

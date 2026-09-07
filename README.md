@@ -84,7 +84,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Save to the connected backup file | **Ctrl/Cmd + S** |
 | Zoom | Mouse wheel (`0.2×`–`1×`) |
 | Simplified overview | Use `0.2×`–`0.3×` to show readable titles, image previews, shapes, and connections |
-| Image-only notes | Display without a title unless a custom title has been assigned |
+| Image-only notes | Display without titles in both normal and simplified views |
 | Select several notes | Drag on empty canvas or `Ctrl` + click |
 | Delete selected notes | `Delete` |
 | Undo the last change | `Ctrl` + `Z` |
