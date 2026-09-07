@@ -520,13 +520,12 @@ const VisualNotes = {
         if (shouldEnable) {
             if (this.removeMode) this.toggleRemoveMode();
             if (this.addMode) this.toggleAddMode();
-            if (this.colorMode) this.toggleColorMode();
         }
         this.setShapeMode(shouldEnable);
     },
 
     startShapeDraw(event) {
-        if (!this.shapeMode || this.creatingShape) return;
+        if (!this.shapeMode || this.colorMode || this.creatingShape) return;
         const shapesLayer = document.getElementById("shapes");
         if (!shapesLayer) return;
 
@@ -604,7 +603,7 @@ const VisualNotes = {
     },
 
     startShapeMove(shape, event) {
-        if (!this.shapeMode) return;
+        if (!this.shapeMode || this.colorMode) return;
         this.beginHistoryTransaction();
         this.selectedShapeId = shape.id;
         this.movingShape = shape;
@@ -638,7 +637,7 @@ const VisualNotes = {
     },
 
     startShapeResize(shape, direction, event) {
-        if (!this.shapeMode) return;
+        if (!this.shapeMode || this.colorMode) return;
         this.beginHistoryTransaction();
         this.selectedShapeId = shape.id;
         this.resizingShape = shape;
@@ -684,7 +683,7 @@ const VisualNotes = {
     },
 
     startShapeTitleEdit(shape, titleElement) {
-        if (!this.shapeMode) return;
+        if (!this.shapeMode || this.colorMode) return;
         this.beginHistoryTransaction();
         const originalTitle = shape.title || "";
         const input = document.createElement("input");
@@ -729,6 +728,10 @@ const VisualNotes = {
             element.style.top = (shape.y - this.canvasBounds.top) + "px";
             element.style.width = shape.width + "px";
             element.style.height = shape.height + "px";
+            if (shape.color) {
+                element.classList.add("has-custom-color");
+                element.style.setProperty("--shape-color", shape.color);
+            }
             element.innerHTML = `
                 <span class="shapeTitle" data-placeholder="Add title">${this.escapeHtml(shape.title || "")}</span>
                 <button type="button" class="shapeDeleteButton" aria-label="Delete shape" title="Delete shape">&times;</button>
@@ -742,6 +745,11 @@ const VisualNotes = {
                 title.addEventListener("mousedown", event => event.stopPropagation());
                 title.addEventListener("click", event => {
                     event.stopPropagation();
+                    if (this.colorMode) {
+                        this.selectedShapeId = String(this.selectedShapeId) === String(shape.id) ? null : shape.id;
+                        this.renderShapes();
+                        return;
+                    }
                     this.startShapeTitleEdit(shape, title);
                 });
             }
@@ -767,6 +775,11 @@ const VisualNotes = {
                 if (event.target.closest(".shapeTitle,.shapeTitleInput,.shapeDeleteButton,.shapeResizeHandle")) return;
                 event.stopPropagation();
                 event.preventDefault();
+                if (this.colorMode) {
+                    this.selectedShapeId = String(this.selectedShapeId) === String(shape.id) ? null : shape.id;
+                    this.renderShapes();
+                    return;
+                }
                 this.startShapeMove(shape, event);
             });
             shapesLayer.appendChild(element);
@@ -986,7 +999,6 @@ const VisualNotes = {
 
     toggleColorMode() {
         this.colorMode = !this.colorMode;
-        if (this.colorMode && this.shapeMode) this.setShapeMode(false);
         const btn = document.getElementById('colorBtn');
         const svg = document.getElementById('connections');
         const addBtn = document.getElementById('addBtn');
@@ -1016,9 +1028,21 @@ const VisualNotes = {
     },
 
     applyColor() {
-        if (!this.selectedNotes.length) return;
         const color = (this.colorPicker && this.colorPicker.value) ? this.colorPicker.value : null;
         if (!color) return;
+
+        if (this.shapeMode) {
+            const shape = this.shapes.find(item => String(item.id) === String(this.selectedShapeId));
+            if (!shape || shape.color === color) return;
+            this.performHistoryChange(() => {
+                shape.color = color;
+            });
+            this.saveBoard();
+            this.renderShapes();
+            return;
+        }
+
+        if (!this.selectedNotes.length) return;
         const changedNotes = this.notes.filter(note =>
             this.selectedNotes.includes(note.id) && note.color !== color
         );
@@ -1973,6 +1997,11 @@ const VisualNotes = {
                 const ignoreElement = self.isIgnoreElement(e.target);
                 if (ignoreElement) return;
                 if (self.shapeMode) {
+                    if (self.colorMode) {
+                        self.selectedShapeId = null;
+                        self.renderShapes();
+                        return;
+                    }
                     self.startShapeDraw(e);
                     return;
                 }

@@ -546,6 +546,12 @@ body.canvas-page .canvasShape {
     pointer-events: none;
 }
 
+body.canvas-page .canvasShape.has-custom-color {
+    border-color: color-mix(in srgb, var(--shape-color) 72%, transparent);
+    background: color-mix(in srgb, var(--shape-color) 18%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--shape-color) 10%, transparent);
+}
+
 body.shapes-mode-active {
     cursor: crosshair;
     user-select: none;
@@ -577,6 +583,15 @@ body.shapes-mode-active #shapes .canvasShape {
     cursor: move;
 }
 
+body.shapes-mode-active.color-mode-active {
+    cursor: default;
+}
+
+body.shapes-mode-active.color-mode-active #shapes .canvasShape,
+body.shapes-mode-active.color-mode-active .shapeTitle {
+    cursor: pointer;
+}
+
 body.canvas-page .canvasShape.selected {
     border-color: #66bb6a;
     box-shadow: 0 0 0 3px rgba(102, 187, 106, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
@@ -605,7 +620,7 @@ body.canvas-page .shapeTitle {
     border-radius: 999px;
     background: #2b2b2b;
     color: #ddd;
-    font-size: 0.85rem;
+    font-size: 1.3rem;
     font-weight: 600;
     line-height: 1;
     pointer-events: none;
@@ -636,7 +651,7 @@ body.canvas-page .shapeTitleInput {
     background: #222;
     color: white;
     padding: 4px 10px;
-    font: 600 0.85rem/1 "Segoe UI", Arial, sans-serif;
+    font: 600 1.3rem/1 "Segoe UI", Arial, sans-serif;
 }
 
 body.canvas-page .shapeDeleteButton {
@@ -1053,6 +1068,14 @@ body.canvas-overview-mode .canvasShape {
     border-width: 8px;
     border-radius: 60px;
     background: rgba(255, 255, 255, 0.045);
+}
+
+body.canvas-overview-mode .canvasShape.has-custom-color {
+    background: color-mix(in srgb, var(--shape-color) 18%, transparent);
+}
+
+body.canvas-overview-mode .canvasShape.has-custom-color:not(.selected) {
+    border-color: color-mix(in srgb, var(--shape-color) 72%, transparent);
 }
 
 body.canvas-overview-mode .shapeTitle,
