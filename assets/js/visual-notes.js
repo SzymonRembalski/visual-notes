@@ -1077,12 +1077,14 @@ const VisualNotes = {
     addDragTouchedNotes: [],
     colorMode: false,
     colorPresets: [
+        { name: "Default", value: null },
         { name: "Green", value: "#5f9364" },
         { name: "Red", value: "#a85f5f" },
         { name: "Blue", value: "#5f7fa8" },
         { name: "Amber", value: "#a88755" },
         { name: "Purple", value: "#826fa3" }
     ],
+    selectedColor: null,
     colorPanelElement: null,
     colorPicker: null,
     customColorButton: null,
@@ -1191,21 +1193,26 @@ const VisualNotes = {
     },
 
     selectColor(color) {
-        if (!/^#[0-9a-f]{6}$/i.test(color) || !this.colorPicker) return;
-        const normalizedColor = color.toLowerCase();
-        this.colorPicker.value = normalizedColor;
+        if (!this.colorPicker) return;
+        const isDefault = color === null || color === "" || color === "default";
+        if (!isDefault && !/^#[0-9a-f]{6}$/i.test(color)) return;
+        const normalizedColor = isDefault ? null : color.toLowerCase();
+        this.selectedColor = normalizedColor;
+        if (normalizedColor) this.colorPicker.value = normalizedColor;
         if (this.colorPanelElement) {
-            this.colorPanelElement.style.setProperty("--selected-color", normalizedColor);
+            this.colorPanelElement.style.setProperty("--selected-color", normalizedColor || "#333333");
             let presetSelected = false;
             this.colorPanelElement.querySelectorAll(".colorSwatch").forEach(button => {
-                const selected = button.dataset.color === normalizedColor;
+                const presetColor = button.dataset.color || null;
+                const selected = presetColor === normalizedColor;
                 button.classList.toggle("selected", selected);
                 button.setAttribute("aria-pressed", String(selected));
                 if (selected) presetSelected = true;
             });
             if (this.customColorButton) {
-                this.customColorButton.classList.toggle("selected", !presetSelected);
-                this.customColorButton.setAttribute("aria-pressed", String(!presetSelected));
+                const customSelected = normalizedColor !== null && !presetSelected;
+                this.customColorButton.classList.toggle("selected", customSelected);
+                this.customColorButton.setAttribute("aria-pressed", String(customSelected));
             }
         }
     },
@@ -1222,13 +1229,13 @@ const VisualNotes = {
 
     sampleNoteColor(note) {
         if (!note) return;
-        this.selectColor(note.color || '#333333');
+        this.selectColor(note.color || null);
         this.setColorPickMode(false);
     },
 
     sampleShapeColor(shape) {
         if (!shape) return;
-        this.selectColor(shape.color || '#ffffff');
+        this.selectColor(shape.color || null);
         this.setColorPickMode(false);
     },
 
@@ -1247,14 +1254,17 @@ const VisualNotes = {
     },
 
     applyColor() {
-        const color = (this.colorPicker && this.colorPicker.value) ? this.colorPicker.value : null;
-        if (!color) return;
+        const color = this.selectedColor;
 
         if (this.shapeMode) {
             const shape = this.shapes.find(item => String(item.id) === String(this.selectedShapeId));
-            if (!shape || shape.color === color) return;
+            if (!shape || (shape.color || null) === color) return;
             this.performHistoryChange(() => {
-                shape.color = color;
+                if (color) {
+                    shape.color = color;
+                } else {
+                    delete shape.color;
+                }
             });
             this.saveBoard();
             this.renderShapes();
@@ -1263,12 +1273,16 @@ const VisualNotes = {
 
         if (!this.selectedNotes.length) return;
         const changedNotes = this.notes.filter(note =>
-            this.selectedNotes.includes(note.id) && note.color !== color
+            this.selectedNotes.includes(note.id) && (note.color || null) !== color
         );
         if (!changedNotes.length) return;
         this.performHistoryChange(() => {
             changedNotes.forEach(note => {
-                note.color = color;
+                if (color) {
+                    note.color = color;
+                } else {
+                    delete note.color;
+                }
             });
         });
         this.saveBoard();
@@ -2272,14 +2286,14 @@ const VisualNotes = {
             colorPanel.innerHTML = `
                 <div class="colorPalette" role="group" aria-label="Preset colors">
                     ${this.colorPresets.map(({ name, value }) => `
-                        <button type="button" class="colorSwatch" data-color="${value}" style="--swatch-color: ${value}" aria-label="${name}" title="${name}" aria-pressed="false"></button>
+                        <button type="button" class="colorSwatch${value ? "" : " defaultColorSwatch"}" data-color="${value || ""}"${value ? ` style="--swatch-color: ${value}"` : ""} aria-label="${name}" title="${name}" aria-pressed="false"></button>
                     `).join("")}
                 </div>
                 <button type="button" class="customColorBtn" aria-pressed="false">
                     <span class="customColorPreview" aria-hidden="true"></span>
                     Custom
                 </button>
-                <input type="color" class="colorPicker" value="${this.colorPresets[0].value}" aria-label="Choose a custom color" tabindex="-1">
+                <input type="color" class="colorPicker" value="${this.colorPresets.find(preset => preset.value).value}" aria-label="Choose a custom color" tabindex="-1">
                 <button type="button" class="pickColorBtn" aria-pressed="false" title="Pick a color from a note or shape">Pick</button>
                 <button type="button" class="applyColorBtn">Apply</button>
             `;
@@ -2303,7 +2317,7 @@ const VisualNotes = {
             if (this.colorApplyButton) {
                 this.colorApplyButton.onclick = () => this.applyColor();
             }
-            this.selectColor(this.colorPresets[0].value);
+            this.selectColor(null);
             
             // Canvas background click for drag-select - check coordinates against note positions
             document.addEventListener("mousedown", e => {

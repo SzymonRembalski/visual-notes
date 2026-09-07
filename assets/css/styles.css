@@ -1112,6 +1112,12 @@ body.canvas-page .note.selected {
     box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
+.colorPanel .colorSwatch.defaultColorSwatch {
+    background:
+        linear-gradient(135deg, transparent 42%, #d6d6d6 43%, #d6d6d6 52%, transparent 53%),
+        #333;
+}
+
 .colorPanel .colorSwatch.selected,
 .colorPanel .customColorBtn.selected {
     border-color: white;
