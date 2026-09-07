@@ -79,7 +79,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Create a note | **New Note** |
 | Resize a note | Left-drag any border or corner; image notes keep their proportions |
 | Move around the canvas | Right-click and drag |
-| Center the camera on all notes | Press the mouse wheel |
+| Center the camera | Select one or more notes and press the mouse wheel; without a selection, it centers on all notes |
 | Navigate a larger note area | Drag or click the horizontal and vertical position bars |
 | Save to the connected backup file | **Ctrl/Cmd + S** |
 | Zoom | Mouse wheel (`0.2×`–`1×`) |

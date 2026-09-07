@@ -152,10 +152,10 @@ const VisualNotes = {
         this.panX = view.panX;
         this.panY = view.panY;
     },
-    centerCameraOnNotes() {
+    centerCameraOnNotes(notes = this.notes) {
         this.finishZoomAnimation();
         const view = CanvasUtils.cameraCenteredOnNotes(
-            this.notes,
+            notes,
             this.zoom,
             window.innerWidth,
             window.innerHeight
@@ -2048,6 +2048,11 @@ const VisualNotes = {
         this.applyTransform();
         this.saveBoard();
     },
+    centerCameraOnSelectionOrNotes() {
+        const selectedIds = new Set(this.selectedNotes);
+        const selectedNotes = this.notes.filter(note => selectedIds.has(note.id));
+        this.centerCameraOnNotes(selectedNotes.length ? selectedNotes : this.notes);
+    },
     animateZoom(target) {
         if (this.zoomAnimationFrame) cancelAnimationFrame(this.zoomAnimationFrame);
         const start = {
@@ -2234,12 +2239,12 @@ const VisualNotes = {
             // Mouse wheel zoom - attach to document since canvas has pointer-events:none
             document.addEventListener("wheel", e => self.handleZoom(e), { passive: false });
 
-            // Pressing the mouse wheel centers the camera on the notes' bounding area.
+            // Pressing the mouse wheel centers on the selection, or all notes as a fallback.
             document.addEventListener("mousedown", e => {
                 if (e.button !== 1 || e.target.closest("#toolbar,.backupControls,.canvasNavigator")) return;
                 e.preventDefault();
                 e.stopPropagation();
-                self.centerCameraOnNotes();
+                self.centerCameraOnSelectionOrNotes();
             }, true);
             document.addEventListener("auxclick", e => {
                 if (e.button !== 1 || e.target.closest("#toolbar,.backupControls")) return;
