@@ -28,6 +28,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 - Select and move several notes together.
 - Optionally snap notes and shapes to the canvas dots while moving or resizing them.
 - Pan and zoom through complex boards.
+- Export an entire board as a high-quality PNG image.
 
 ### ✅ Turn ideas into action
 
@@ -82,6 +83,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Center the camera | Select one or more notes and press the mouse wheel; without a selection, it centers on all notes |
 | Navigate a larger note area | Drag or click the horizontal and vertical position bars |
 | Save to the connected backup file | **Ctrl/Cmd + S** |
+| Save the full board as an image | **Export PNG** |
 | Zoom | Mouse wheel (`0.2×`–`1×`) |
 | Simplified overview | Use `0.2×`–`0.3×` to show readable titles, image previews, shapes, and connections |
 | Image-only notes | Display without titles in both normal and simplified views |
@@ -112,6 +114,7 @@ visual-notes/
     │   └── styles.css        # Shared dark interface
     └── js/
         ├── app.js            # Page initialization and action bindings
+        ├── board-image-exporter.js # Full-board PNG renderer and download
         ├── canvas-utils.js   # Canvas coordinates, bounds, and geometry
         ├── history-manager.js # 30-step undo and redo history
         ├── project-manager.js # Project persistence

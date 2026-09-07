@@ -252,6 +252,37 @@ const VisualNotes = {
         this.saveBoard();
         alert("Project saved.");
     },
+    async exportBoardImage() {
+        const button = document.getElementById("exportImageBtn");
+        const originalLabel = button ? button.textContent : "Export PNG";
+        if (!window.BoardImageExporter) {
+            alert("Image export is unavailable.");
+            return;
+        }
+
+        if (button) {
+            button.disabled = true;
+            button.textContent = "Exporting…";
+        }
+        try {
+            await window.BoardImageExporter.download({
+                title: this.projectTitle,
+                notes: this.notes,
+                connections: this.connections,
+                shapes: this.shapes
+            });
+            if (button) button.textContent = "Saved!";
+        } catch (error) {
+            console.error("Board image export failed", error);
+            alert(error.message || "The board image could not be created.");
+        } finally {
+            setTimeout(() => {
+                if (!button) return;
+                button.disabled = false;
+                button.textContent = originalLabel;
+            }, 900);
+        }
+    },
     createNote() {
         const { x, y } = this.getVisibleCenter();
         this.createNoteAt(
@@ -2241,13 +2272,13 @@ const VisualNotes = {
 
             // Pressing the mouse wheel centers on the selection, or all notes as a fallback.
             document.addEventListener("mousedown", e => {
-                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls,.canvasNavigator")) return;
+                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls,.exportImageButton,.canvasNavigator")) return;
                 e.preventDefault();
                 e.stopPropagation();
                 self.centerCameraOnSelectionOrNotes();
             }, true);
             document.addEventListener("auxclick", e => {
-                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls")) return;
+                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls,.exportImageButton")) return;
                 e.preventDefault();
             }, true);
             
@@ -2331,7 +2362,7 @@ const VisualNotes = {
             document.addEventListener("contextmenu", e => e.preventDefault());
             document.addEventListener("mousedown", e => {
                 if (e.button === 2) {
-                    const ignoreElement = e.target.closest("#toolbar,.colorPanel,.backupControls,.canvasNavigator");
+                    const ignoreElement = e.target.closest("#toolbar,.colorPanel,.backupControls,.exportImageButton,.canvasNavigator");
                     if (ignoreElement) return;
                     // Right-click always starts panning (add-mode uses left-click like remove-mode)
                     self.startPan(e);
