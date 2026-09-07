@@ -807,8 +807,12 @@ const VisualNotes = {
                 title.addEventListener("click", event => {
                     event.stopPropagation();
                     if (this.colorMode) {
-                        this.selectedShapeId = String(this.selectedShapeId) === String(shape.id) ? null : shape.id;
-                        this.renderShapes();
+                        if (this.colorPickMode) {
+                            this.sampleShapeColor(shape);
+                        } else {
+                            this.selectedShapeId = String(this.selectedShapeId) === String(shape.id) ? null : shape.id;
+                            this.renderShapes();
+                        }
                         return;
                     }
                     this.startShapeTitleEdit(shape, title);
@@ -837,8 +841,12 @@ const VisualNotes = {
                 event.stopPropagation();
                 event.preventDefault();
                 if (this.colorMode) {
-                    this.selectedShapeId = String(this.selectedShapeId) === String(shape.id) ? null : shape.id;
-                    this.renderShapes();
+                    if (this.colorPickMode) {
+                        this.sampleShapeColor(shape);
+                    } else {
+                        this.selectedShapeId = String(this.selectedShapeId) === String(shape.id) ? null : shape.id;
+                        this.renderShapes();
+                    }
                     return;
                 }
                 this.startShapeMove(shape, event);
@@ -988,9 +996,19 @@ const VisualNotes = {
     addDragLine: null,
     addDragTouchedNotes: [],
     colorMode: false,
+    colorPresets: [
+        { name: "Green", value: "#5f9364" },
+        { name: "Red", value: "#a85f5f" },
+        { name: "Blue", value: "#5f7fa8" },
+        { name: "Amber", value: "#a88755" },
+        { name: "Purple", value: "#826fa3" }
+    ],
     colorPanelElement: null,
     colorPicker: null,
+    customColorButton: null,
     colorApplyButton: null,
+    colorPickButton: null,
+    colorPickMode: false,
     toggleRemoveMode() {
         this.removeMode = !this.removeMode;
         if (this.removeMode && this.shapeMode) this.setShapeMode(false);
@@ -1087,8 +1105,65 @@ const VisualNotes = {
             if (btn) { btn.classList.remove('active'); btn.textContent = 'Color Mode'; }
             if (this.colorPanelElement) this.colorPanelElement.style.display = 'none';
             document.body.classList.remove('color-mode-active');
+            this.setColorPickMode(false);
             // clear selection visuals
         }
+    },
+
+    selectColor(color) {
+        if (!/^#[0-9a-f]{6}$/i.test(color) || !this.colorPicker) return;
+        const normalizedColor = color.toLowerCase();
+        this.colorPicker.value = normalizedColor;
+        if (this.colorPanelElement) {
+            this.colorPanelElement.style.setProperty("--selected-color", normalizedColor);
+            let presetSelected = false;
+            this.colorPanelElement.querySelectorAll(".colorSwatch").forEach(button => {
+                const selected = button.dataset.color === normalizedColor;
+                button.classList.toggle("selected", selected);
+                button.setAttribute("aria-pressed", String(selected));
+                if (selected) presetSelected = true;
+            });
+            if (this.customColorButton) {
+                this.customColorButton.classList.toggle("selected", !presetSelected);
+                this.customColorButton.setAttribute("aria-pressed", String(!presetSelected));
+            }
+        }
+    },
+
+    setColorPickMode(enabled) {
+        this.colorPickMode = Boolean(enabled && this.colorMode);
+        document.body.classList.toggle('color-pick-mode-active', this.colorPickMode);
+        if (this.colorPickButton) {
+            this.colorPickButton.classList.toggle('active', this.colorPickMode);
+            this.colorPickButton.setAttribute('aria-pressed', String(this.colorPickMode));
+            this.colorPickButton.textContent = this.colorPickMode ? 'Pick: ON' : 'Pick';
+        }
+    },
+
+    sampleNoteColor(note) {
+        if (!note) return;
+        this.selectColor(note.color || '#333333');
+        this.setColorPickMode(false);
+    },
+
+    sampleShapeColor(shape) {
+        if (!shape) return;
+        this.selectColor(shape.color || '#ffffff');
+        this.setColorPickMode(false);
+    },
+
+    selectNoteForColor(note, additive = false) {
+        if (!note) return;
+        if (additive) {
+            if (this.selectedNotes.includes(note.id)) {
+                this.selectedNotes = this.selectedNotes.filter(id => id !== note.id);
+            } else {
+                this.selectedNotes.push(note.id);
+            }
+        } else {
+            this.selectedNotes = [note.id];
+        }
+        this.render();
     },
 
     applyColor() {
@@ -1608,6 +1683,14 @@ const VisualNotes = {
                 titleElement.addEventListener('click', e => {
                     e.stopPropagation();
                     if (self.shapeMode) return;
+                    if (self.colorMode) {
+                        if (self.colorPickMode) {
+                            self.sampleNoteColor(note);
+                        } else {
+                            self.selectNoteForColor(note, e.shiftKey);
+                        }
+                        return;
+                    }
                     self.startTitleEdit(note, titleElement);
                 });
             }
@@ -1621,7 +1704,16 @@ const VisualNotes = {
                     div.style.height = note.height + 'px';
                 };
                 textarea.onmousedown = e => {
-                    if (e.button === 0) e.stopPropagation();
+                    if (e.button !== 0) return;
+                    e.stopPropagation();
+                    if (self.colorMode) {
+                        e.preventDefault();
+                        if (self.colorPickMode) {
+                            self.sampleNoteColor(note);
+                        } else {
+                            self.selectNoteForColor(note, e.shiftKey);
+                        }
+                    }
                 };
                 textarea.onfocus = e => {
                     e.stopPropagation();
@@ -1679,18 +1771,13 @@ const VisualNotes = {
                 if (self.removeMode) return;
                 if (self.addMode) return;
                 if (self.colorMode) {
-                    // In color mode, clicking a note toggles its selection (no drag)
-                    if (self.isIgnoreElement(e.target)) {
-                        e.stopPropagation();
-                        return;
-                    }
                     e.stopPropagation();
-                    if (self.selectedNotes.includes(note.id)) {
-                        self.selectedNotes = self.selectedNotes.filter(id => id !== note.id);
+                    e.preventDefault();
+                    if (self.colorPickMode) {
+                        self.sampleNoteColor(note);
                     } else {
-                        self.selectedNotes.push(note.id);
+                        self.selectNoteForColor(note, e.shiftKey);
                     }
-                    self.render();
                     return;
                 }
                 if (self.isIgnoreElement(e.target)) {
@@ -2052,21 +2139,45 @@ const VisualNotes = {
             document.body.appendChild(selectionBox);
             this.selectionBoxElement = selectionBox;
 
-            // Create color picker panel (hidden by default)
+            // Create the themed color palette (hidden until Color Mode is active).
             const colorPanel = document.createElement('div');
             colorPanel.className = 'colorPanel';
             colorPanel.style.display = 'none';
             colorPanel.innerHTML = `
-                <input type="color" class="colorPicker" value="#4caf50">
-                <button class="applyColorBtn">Apply</button>
+                <div class="colorPalette" role="group" aria-label="Preset colors">
+                    ${this.colorPresets.map(({ name, value }) => `
+                        <button type="button" class="colorSwatch" data-color="${value}" style="--swatch-color: ${value}" aria-label="${name}" title="${name}" aria-pressed="false"></button>
+                    `).join("")}
+                </div>
+                <button type="button" class="customColorBtn" aria-pressed="false">
+                    <span class="customColorPreview" aria-hidden="true"></span>
+                    Custom
+                </button>
+                <input type="color" class="colorPicker" value="${this.colorPresets[0].value}" aria-label="Choose a custom color" tabindex="-1">
+                <button type="button" class="pickColorBtn" aria-pressed="false" title="Pick a color from a note or shape">Pick</button>
+                <button type="button" class="applyColorBtn">Apply</button>
             `;
             document.body.appendChild(colorPanel);
             this.colorPanelElement = colorPanel;
             this.colorPicker = colorPanel.querySelector('.colorPicker');
+            this.customColorButton = colorPanel.querySelector('.customColorBtn');
+            this.colorPickButton = colorPanel.querySelector('.pickColorBtn');
             this.colorApplyButton = colorPanel.querySelector('.applyColorBtn');
+            colorPanel.querySelectorAll('.colorSwatch').forEach(button => {
+                button.onclick = () => this.selectColor(button.dataset.color);
+            });
+            if (this.customColorButton && this.colorPicker) {
+                this.customColorButton.onclick = () => this.colorPicker.click();
+                this.colorPicker.addEventListener('input', () => this.selectColor(this.colorPicker.value));
+                this.colorPicker.addEventListener('change', () => this.selectColor(this.colorPicker.value));
+            }
+            if (this.colorPickButton) {
+                this.colorPickButton.onclick = () => this.setColorPickMode(!this.colorPickMode);
+            }
             if (this.colorApplyButton) {
                 this.colorApplyButton.onclick = () => this.applyColor();
             }
+            this.selectColor(this.colorPresets[0].value);
             
             // Canvas background click for drag-select - check coordinates against note positions
             document.addEventListener("mousedown", e => {

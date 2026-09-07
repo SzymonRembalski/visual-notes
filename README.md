@@ -91,7 +91,8 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Redo an undone change | `Ctrl` + `Shift` + `Z` |
 | Connect notes | Turn on **Add Connections**, then draw through notes |
 | Remove links | Turn on **Remove Connections**, then draw through connections |
-| Color notes | Select notes, enable **Color Mode**, choose a color, and apply |
+| Color notes | In **Color Mode**, left-click one note, `Shift` + click to select more, or drag a selection box; then choose a color and apply |
+| Reuse a board color | In **Color Mode**, choose **Pick**, then click a note or shape |
 | Create a background group | Enable **Shapes Mode**, then drag on empty canvas |
 | Color a background group | Enable **Shapes Mode** and **Color Mode**, select a shape, choose a color, and apply |
 | Edit a group | In **Shapes Mode**, drag it to move, click its title to rename, or drag an edge/corner to resize |

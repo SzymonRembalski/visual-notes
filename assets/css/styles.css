@@ -797,6 +797,14 @@ body.color-mode-active .note .resizeHandle {
     pointer-events: none;
 }
 
+body.color-pick-mode-active .note,
+body.color-pick-mode-active .noteTitle,
+body.color-pick-mode-active .note textarea,
+body.shapes-mode-active.color-pick-mode-active #shapes .canvasShape,
+body.shapes-mode-active.color-pick-mode-active .shapeTitle {
+    cursor: copy;
+}
+
 body.canvas-page .noteHeader {
     display: flex;
     align-items: center;
@@ -892,7 +900,7 @@ body.canvas-page .note.selected {
     background: rgba(28,28,28,0.95);
     border: 1px solid #444;
     padding: 10px;
-    border-radius: 8px;
+    border-radius: 12px;
     display: flex;
     gap: 8px;
     align-items: center;
@@ -900,16 +908,64 @@ body.canvas-page .note.selected {
     box-shadow: 0 6px 18px rgba(0,0,0,0.6);
 }
 
-.colorPanel input[type="color"] {
-    width: 38px;
-    height: 38px;
-    border: none;
+.colorPalette {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.colorPanel .colorSwatch {
+    width: 32px;
+    height: 32px;
     padding: 0;
-    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.14);
+    border-radius: 50%;
+    background: var(--swatch-color);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.colorPanel .colorSwatch.selected,
+.colorPanel .customColorBtn.selected {
+    border-color: white;
+    box-shadow: 0 0 0 2px rgba(102, 187, 106, 0.7);
+}
+
+.colorPanel .customColorBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border: 2px solid transparent;
+    background: #444;
+}
+
+.customColorPreview {
+    width: 18px;
+    height: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 5px;
+    background: var(--selected-color, #5f9364);
+}
+
+.colorPanel input[type="color"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.colorPanel button.pickColorBtn {
+    background: #444;
+    padding: 8px 12px;
+}
+
+.colorPanel button.pickColorBtn.active {
+    background: #5f7fa8;
 }
 
 .colorPanel button.applyColorBtn {
-    background: #4caf50;
+    background: #388e3c;
     padding: 8px 12px;
 }
 
