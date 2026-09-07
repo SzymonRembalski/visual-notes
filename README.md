@@ -26,6 +26,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 - Draw titled, resizable, translucent colored background shapes to visually group related notes.
 - Color groups of notes and see connections blend between their colors.
 - Select and move several notes together.
+- Optionally snap notes and shapes to the canvas dots while moving or resizing them.
 - Pan and zoom through complex boards.
 
 ### ✅ Turn ideas into action
@@ -95,6 +96,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Color a background group | Enable **Shapes Mode** and **Color Mode**, select a shape, choose a color, and apply |
 | Edit a group | In **Shapes Mode**, drag it to move, click its title to rename, or drag an edge/corner to resize |
 | Delete a group | Select it in **Shapes Mode**, then press `Delete` or use its × button |
+| Toggle grid snapping | Use **Snap: ON/OFF**; each project remembers the setting |
 
 ## Project structure
 

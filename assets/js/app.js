@@ -26,6 +26,7 @@ function exposeVisualNoteActions(visualNotes) {
     window.toggleAddMode = visualNotes.toggleAddMode.bind(visualNotes);
     window.toggleColorMode = visualNotes.toggleColorMode.bind(visualNotes);
     window.toggleShapesMode = visualNotes.toggleShapesMode.bind(visualNotes);
+    window.toggleSnappingMode = visualNotes.toggleSnappingMode.bind(visualNotes);
     window.applyColor = visualNotes.applyColor.bind(visualNotes);
 }
 

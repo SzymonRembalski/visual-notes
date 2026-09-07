@@ -11,6 +11,7 @@ const VisualNotes = {
     offsetX: 0,
     offsetY: 0,
     zoom: 1,
+    snappingEnabled: true,
     panX: 0,
     panY: 0,
     panning: false,
@@ -205,6 +206,7 @@ const VisualNotes = {
                 panX: this.panX,
                 panY: this.panY,
                 zoom: this.zoom,
+                snappingEnabled: this.snappingEnabled,
                 coordinateVersion: this.coordinateVersion,
                 modifiedAt: Date.now()
             };
@@ -226,6 +228,7 @@ const VisualNotes = {
             localStorage.setItem("visualPanX", String(this.panX));
             localStorage.setItem("visualPanY", String(this.panY));
             localStorage.setItem("visualZoom", String(this.zoom));
+            localStorage.setItem("visualSnappingEnabled", String(this.snappingEnabled));
             if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
         }
     },
@@ -239,6 +242,7 @@ const VisualNotes = {
                 panX: this.panX,
                 panY: this.panY,
                 zoom: this.zoom,
+                snappingEnabled: this.snappingEnabled,
                 coordinateVersion: this.coordinateVersion
             });
             this.projectId = project.id;
@@ -250,18 +254,22 @@ const VisualNotes = {
     },
     createNote() {
         const { x, y } = this.getVisibleCenter();
-        this.createNoteAt(x - 110, y - 70);
+        this.createNoteAt(
+            x - CanvasUtils.defaultNoteWidth / 2,
+            y - CanvasUtils.defaultNoteHeight / 2
+        );
     },
     createNoteAt(x, y, options = {}) {
         let note = null;
         this.performHistoryChange(() => {
             const isFirstNote = this.notes.length === 0;
+            const position = this.snappingEnabled ? CanvasUtils.snapPoint({ x, y }) : { x, y };
             note = {
                 id: Date.now(),
-                x,
-                y,
-                width: typeof options.width === 'number' ? options.width : 220,
-                height: typeof options.height === 'number' ? options.height : 140,
+                x: position.x,
+                y: position.y,
+                width: typeof options.width === 'number' ? options.width : CanvasUtils.defaultNoteWidth,
+                height: typeof options.height === 'number' ? options.height : CanvasUtils.defaultNoteHeight,
                 title: options.title || "New note",
                 text: options.text || "",
                 imageSrc: options.imageSrc || null,
@@ -271,6 +279,11 @@ const VisualNotes = {
             };
             if (isFirstNote) {
                 this.establishFirstNoteOrigin(note);
+                if (this.snappingEnabled) {
+                    const snappedPosition = CanvasUtils.snapPoint(note);
+                    note.x = snappedPosition.x;
+                    note.y = snappedPosition.y;
+                }
             }
             this.notes.push(note);
         });
@@ -362,8 +375,15 @@ const VisualNotes = {
         const viewportY = event.clientY - canvasOffsetTop;
         const unzoomedX = (viewportX - this.panX) / this.zoom;
         const unzoomedY = (viewportY - this.panY) / this.zoom;
-        const deltaX = unzoomedX - this.offsetX - this.selectedNote.x;
-        const deltaY = unzoomedY - this.offsetY - this.selectedNote.y;
+        const requestedPosition = {
+            x: unzoomedX - this.offsetX,
+            y: unzoomedY - this.offsetY
+        };
+        const nextPosition = this.snappingEnabled
+            ? CanvasUtils.snapPoint(requestedPosition)
+            : requestedPosition;
+        const deltaX = nextPosition.x - this.selectedNote.x;
+        const deltaY = nextPosition.y - this.selectedNote.y;
 
         this.selectedNotes.forEach(noteId => {
             const note = this.notes.find(n => n.id === noteId);
@@ -394,6 +414,7 @@ const VisualNotes = {
             this.panX = typeof project.panX === "number" ? project.panX : 0;
             this.panY = typeof project.panY === "number" ? project.panY : 0;
             this.zoom = CanvasUtils.clampZoom(project.zoom);
+            this.snappingEnabled = project.snappingEnabled !== false;
             if ((project.coordinateVersion || 1) < this.coordinateVersion && this.notes.length) {
                 this.migrateLegacyCoordinates(true);
                 boardNeedsUpgrade = true;
@@ -409,6 +430,7 @@ const VisualNotes = {
             this.connections = loadedConnections;
             this.shapes = loadedShapes;
             this.projectTitle = localStorage.getItem("visualTitle") ?? "Untitled Project";
+            this.snappingEnabled = localStorage.getItem("visualSnappingEnabled") !== "false";
             const storedCoordinateVersion = Number(localStorage.getItem("visualCoordinateVersion")) || 1;
             if (storedCoordinateVersion < this.coordinateVersion && this.notes.length) {
                 this.migrateLegacyCoordinates(false);
@@ -433,6 +455,7 @@ const VisualNotes = {
             this.connections = [];
             this.shapes = [];
             this.projectTitle = "Untitled Project";
+            this.snappingEnabled = true;
             this.needsInitialCenter = true;
         }
 
@@ -448,7 +471,20 @@ const VisualNotes = {
         if (titleInput) {
             titleInput.value = this.projectTitle;
         }
+        this.updateSnappingButton();
         this.render();
+    },
+    updateSnappingButton() {
+        const button = document.getElementById("snapBtn");
+        if (!button) return;
+        button.classList.toggle("active", this.snappingEnabled);
+        button.textContent = this.snappingEnabled ? "Snap: ON" : "Snap: OFF";
+        button.setAttribute("aria-pressed", String(this.snappingEnabled));
+    },
+    toggleSnappingMode() {
+        this.snappingEnabled = !this.snappingEnabled;
+        this.updateSnappingButton();
+        this.saveBoard();
     },
     getVisibleCenter() {
         return this.screenToCanvas(
@@ -531,7 +567,8 @@ const VisualNotes = {
 
         this.selectedShapeId = null;
         this.creatingShape = true;
-        this.shapeDrawStart = this.screenToCanvas(event.clientX, event.clientY);
+        const start = this.screenToCanvas(event.clientX, event.clientY);
+        this.shapeDrawStart = this.snappingEnabled ? CanvasUtils.snapPoint(start) : start;
         this.shapeDrawRect = { ...this.shapeDrawStart, width: 0, height: 0 };
         this.shapeDraftElement = document.createElement("div");
         this.shapeDraftElement.className = "canvasShape shapeDraft";
@@ -544,7 +581,8 @@ const VisualNotes = {
 
     updateShapeDraw(event) {
         if (!this.creatingShape || !this.shapeDrawStart || !this.shapeDraftElement) return;
-        const end = this.screenToCanvas(event.clientX, event.clientY);
+        const pointer = this.screenToCanvas(event.clientX, event.clientY);
+        const end = this.snappingEnabled ? CanvasUtils.snapPoint(pointer) : pointer;
         const rectangle = CanvasUtils.normalizeRectangle(this.shapeDrawStart, end);
         this.shapeDrawRect = rectangle;
         this.shapeDraftElement.style.left = (rectangle.x - this.canvasBounds.left) + "px";
@@ -566,12 +604,18 @@ const VisualNotes = {
             return;
         }
 
+        const minimumShapeWidth = this.snappingEnabled
+            ? Math.ceil(160 / CanvasUtils.gridSpacing) * CanvasUtils.gridSpacing
+            : 160;
+        const minimumShapeHeight = this.snappingEnabled
+            ? Math.ceil(100 / CanvasUtils.gridSpacing) * CanvasUtils.gridSpacing
+            : 100;
         const shape = {
             id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             x: rectangle.x,
             y: rectangle.y,
-            width: Math.max(160, rectangle.width),
-            height: Math.max(100, rectangle.height),
+            width: Math.max(minimumShapeWidth, rectangle.width),
+            height: Math.max(minimumShapeHeight, rectangle.height),
             title: ""
         };
         this.performHistoryChange(() => this.shapes.push(shape));
@@ -617,8 +661,15 @@ const VisualNotes = {
     moveShape(event) {
         if (!this.movingShape || !this.shapeMoveStart || !this.shapeMoveOrigin) return;
         const current = this.screenToCanvas(event.clientX, event.clientY);
-        this.movingShape.x = this.shapeMoveOrigin.x + current.x - this.shapeMoveStart.x;
-        this.movingShape.y = this.shapeMoveOrigin.y + current.y - this.shapeMoveStart.y;
+        const requestedPosition = {
+            x: this.shapeMoveOrigin.x + current.x - this.shapeMoveStart.x,
+            y: this.shapeMoveOrigin.y + current.y - this.shapeMoveStart.y
+        };
+        const nextPosition = this.snappingEnabled
+            ? CanvasUtils.snapPoint(requestedPosition)
+            : requestedPosition;
+        this.movingShape.x = nextPosition.x;
+        this.movingShape.y = nextPosition.y;
         this.updateCanvasBounds();
         this.renderShapes();
         this.applyTransform();
@@ -657,12 +708,20 @@ const VisualNotes = {
     resizeShape(event) {
         if (!this.resizingShape || !this.shapeResizeStart || !this.shapeResizeOrigin) return;
         const current = this.screenToCanvas(event.clientX, event.clientY);
-        const resized = CanvasUtils.resizeRectangle(
+        let resized = CanvasUtils.resizeRectangle(
             this.shapeResizeOrigin,
             this.shapeResizeDirection,
             current.x - this.shapeResizeStart.x,
             current.y - this.shapeResizeStart.y
         );
+        if (this.snappingEnabled) {
+            resized = CanvasUtils.snapResizedRectangle(
+                resized,
+                this.shapeResizeDirection,
+                160,
+                100
+            );
+        }
         Object.assign(this.resizingShape, resized);
         this.updateCanvasBounds();
         this.renderShapes();
@@ -831,7 +890,10 @@ const VisualNotes = {
 
     getMinNoteHeight(note) {
         const titleHeight = 28;
-        const textHeight = this.getTextHeight(note.text || '', (note.width || 220) - 16);
+        const textHeight = this.getTextHeight(
+            note.text || '',
+            (note.width || CanvasUtils.defaultNoteWidth) - 16
+        );
         return Math.max(textHeight + titleHeight + 20, note.type === 'image' ? 80 : 100);
     },
 
@@ -860,7 +922,7 @@ const VisualNotes = {
         });
         input.addEventListener('blur', () => {
             note.title = input.value.trim();
-            note.width = Math.max(note.width || 220, this.getMinNoteWidth(note));
+            note.width = Math.max(note.width || CanvasUtils.defaultNoteWidth, this.getMinNoteWidth(note));
             this.commitHistoryTransaction();
             this.saveBoard();
             this.render();
@@ -1198,10 +1260,10 @@ const VisualNotes = {
         for (let note of this.notes) {
             // check if the line intersects note rect
             const rectSegs = [
-                { x1: note.x, y1: note.y, x2: note.x + (note.width || 220), y2: note.y },
-                { x1: note.x + (note.width || 220), y1: note.y, x2: note.x + (note.width || 220), y2: note.y + (note.height || 140) },
-                { x1: note.x + (note.width || 220), y1: note.y + (note.height || 140), x2: note.x, y2: note.y + (note.height || 140) },
-                { x1: note.x, y1: note.y + (note.height || 140), x2: note.x, y2: note.y }
+                { x1: note.x, y1: note.y, x2: note.x + (note.width || CanvasUtils.defaultNoteWidth), y2: note.y },
+                { x1: note.x + (note.width || CanvasUtils.defaultNoteWidth), y1: note.y, x2: note.x + (note.width || CanvasUtils.defaultNoteWidth), y2: note.y + (note.height || CanvasUtils.defaultNoteHeight) },
+                { x1: note.x + (note.width || CanvasUtils.defaultNoteWidth), y1: note.y + (note.height || CanvasUtils.defaultNoteHeight), x2: note.x, y2: note.y + (note.height || CanvasUtils.defaultNoteHeight) },
+                { x1: note.x, y1: note.y + (note.height || CanvasUtils.defaultNoteHeight), x2: note.x, y2: note.y }
             ];
             for (let seg of rectSegs) {
                 if (this.lineIntersects(this.addDragStart, end, seg)) {
@@ -1375,8 +1437,8 @@ const VisualNotes = {
         
         this.selectedNotes = this.notes
             .filter(note => {
-                const noteRight = note.x + (note.width || 220);
-                const noteBottom = note.y + (note.height || 140);
+                const noteRight = note.x + (note.width || CanvasUtils.defaultNoteWidth);
+                const noteBottom = note.y + (note.height || CanvasUtils.defaultNoteHeight);
                 return note.x < maxX && noteRight > minX && note.y < maxY && noteBottom > minY;
             })
             .map(n => n.id);
@@ -1417,7 +1479,12 @@ const VisualNotes = {
         this.resizeDirection = direction;
         this.resizeStartX = e.clientX;
         this.resizeStartY = e.clientY;
-        this.resizeStartRect = { x: note.x, y: note.y, width: note.width || 220, height: note.height || 140 };
+        this.resizeStartRect = {
+            x: note.x,
+            y: note.y,
+            width: note.width || CanvasUtils.defaultNoteWidth,
+            height: note.height || CanvasUtils.defaultNoteHeight
+        };
         this.previousBodyUserSelect = document.body.style.userSelect;
         this.previousBodyWebkitUserSelect = document.body.style.webkitUserSelect;
         document.body.style.userSelect = 'none';
@@ -1433,21 +1500,33 @@ const VisualNotes = {
         const deltaY = (e.clientY - this.resizeStartY) / this.zoom;
         const note = this.resizingNote;
         const minWidth = this.getMinNoteWidth(note);
+        let minHeight = CanvasUtils.defaultNoteHeight;
         let rectangle;
         if (note.type === 'image' && Number.isFinite(note.aspectRatio) && note.aspectRatio > 0) {
             rectangle = CanvasUtils.resizeRectangleProportionally(
-                this.resizeStartRect, this.resizeDirection, deltaX, deltaY, note.aspectRatio, minWidth, 140
+                this.resizeStartRect, this.resizeDirection, deltaX, deltaY, note.aspectRatio, minWidth, minHeight
             );
         } else {
             const proposed = CanvasUtils.resizeRectangle(
-                this.resizeStartRect, this.resizeDirection, deltaX, deltaY, minWidth, 140
+                this.resizeStartRect, this.resizeDirection, deltaX, deltaY, minWidth, minHeight
             );
-            const minHeight = Math.max(140, this.getMinNoteHeight({ ...note, width: proposed.width }));
+            minHeight = Math.max(
+                CanvasUtils.defaultNoteHeight,
+                this.getMinNoteHeight({ ...note, width: proposed.width })
+            );
             rectangle = CanvasUtils.resizeRectangle(
                 this.resizeStartRect, this.resizeDirection, deltaX, deltaY, minWidth, minHeight
             );
             // A narrower text note may need additional height even on a side-only resize.
             rectangle.height = Math.max(rectangle.height, minHeight);
+        }
+        if (this.snappingEnabled) {
+            rectangle = CanvasUtils.snapResizedRectangle(
+                rectangle,
+                this.resizeDirection,
+                minWidth,
+                minHeight
+            );
         }
         Object.assign(note, rectangle);
         this.render();
@@ -1474,11 +1553,13 @@ const VisualNotes = {
         const self = this;
         notes.forEach(note => {
             const minWidth = self.getMinNoteWidth(note);
-            if ((note.width || 220) < minWidth) {
+            if ((note.width || CanvasUtils.defaultNoteWidth) < minWidth) {
                 note.width = minWidth;
             }
-            const minHeight = note.type === 'image' ? note.height || 140 : self.getMinNoteHeight(note);
-            if ((note.height || 140) < minHeight) {
+            const minHeight = note.type === 'image'
+                ? note.height || CanvasUtils.defaultNoteHeight
+                : self.getMinNoteHeight(note);
+            if ((note.height || CanvasUtils.defaultNoteHeight) < minHeight) {
                 note.height = minHeight;
             }
         });
@@ -1504,8 +1585,8 @@ const VisualNotes = {
             }
             div.style.left = (note.x - this.canvasBounds.left) + "px";
             div.style.top = (note.y - this.canvasBounds.top) + "px";
-            div.style.width = (note.width || 220) + "px";
-            div.style.height = (note.height || 140) + "px";
+            div.style.width = (note.width || CanvasUtils.defaultNoteWidth) + "px";
+            div.style.height = (note.height || CanvasUtils.defaultNoteHeight) + "px";
             // apply custom background color if present
             div.style.setProperty('--note-bg', note.color || '#333');
             if (imageOnlyNote) {
@@ -1540,7 +1621,7 @@ const VisualNotes = {
                 textarea.oninput = () => {
                     self.updateText(note.id, textarea.value);
                     const minNoteHeight = self.getMinNoteHeight(note);
-                    note.height = Math.max(note.height || 140, minNoteHeight);
+                    note.height = Math.max(note.height || CanvasUtils.defaultNoteHeight, minNoteHeight);
                     div.style.height = note.height + 'px';
                 };
                 textarea.onmousedown = e => {
@@ -1575,7 +1656,7 @@ const VisualNotes = {
                                 // If note had default width, compute height to keep proportions
                                 if (!note._sizeInitialized) {
                                     const maxW = 400;
-                                    const newW = Math.min(maxW, naturalW, note.width || 220);
+                                    const newW = Math.min(maxW, naturalW, note.width || CanvasUtils.defaultNoteWidth);
                                     note.width = newW;
                                     note.height = Math.max(80, Math.round(newW * note.aspectRatio));
                                     note._sizeInitialized = true;
@@ -1829,9 +1910,12 @@ const VisualNotes = {
         if (grid) {
             // Paint only the viewport in screen pixels, independent of canvas bounds.
             // CSS sizes the dots in em; only spacing and camera alignment use pixels.
-            const spacing = 45 * this.zoom;
+            const spacing = CanvasUtils.gridSpacing * this.zoom;
+            const dotCenterOffset = spacing / 2;
             grid.style.backgroundSize = `${spacing}px ${spacing}px`;
-            grid.style.backgroundPosition = `${this.panX % spacing}px ${this.panY % spacing}px`;
+            grid.style.backgroundPosition =
+                `${(this.panX - dotCenterOffset) % spacing}px ` +
+                `${(this.panY - dotCenterOffset) % spacing}px`;
             grid.style.setProperty("--grid-zoom", String(this.zoom));
         }
         if (svg) {
@@ -2028,8 +2112,8 @@ const VisualNotes = {
 
                 // Check if we clicked on a note by testing bounding boxes
                         let clickedNote = self.notes.some(note => {
-                            const noteRight = note.x + (note.width || 220);
-                            const noteBottom = note.y + (note.height || 140);
+                            const noteRight = note.x + (note.width || CanvasUtils.defaultNoteWidth);
+                            const noteBottom = note.y + (note.height || CanvasUtils.defaultNoteHeight);
                             return unzoomedX >= note.x && unzoomedX <= noteRight &&
                                    unzoomedY >= note.y && unzoomedY <= noteBottom;
                         });

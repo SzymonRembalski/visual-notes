@@ -7,7 +7,8 @@ const LocalBackupManager = {
     storageKeys: [
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
         "visualNotes", "visualConnections", "visualShapes", "visualTitle",
-        "visualCoordinateVersion", "visualPanX", "visualPanY", "visualZoom"
+        "visualCoordinateVersion", "visualPanX", "visualPanY", "visualZoom",
+        "visualSnappingEnabled"
     ],
     jsonStorageKeys: new Set([
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",

@@ -382,7 +382,7 @@ body.canvas-page #toolbar button.active {
 
 body.canvas-page #projectTitleInput {
     flex: 1;
-    min-width: 220px;
+    min-width: 180px;
     background: #1e1e1e;
     color: white;
     border: 1px solid #555;
@@ -720,8 +720,8 @@ body.canvas-page .shapeResizeHandle.sw { left: -9px; bottom: -9px; cursor: nesw-
 
 body.canvas-page .note {
     position: absolute;
-    width: 220px;
-    min-height: 140px;
+    width: 225px;
+    min-height: 135px;
     height: auto;
     background: var(--note-bg, #333);
     border-radius: 10px;

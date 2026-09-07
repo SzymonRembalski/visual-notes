@@ -1,7 +1,8 @@
 const CanvasUtils = {
     toolbarHeight: 50,
-    defaultNoteWidth: 220,
-    defaultNoteHeight: 140,
+    gridSpacing: 45,
+    defaultNoteWidth: 225,
+    defaultNoteHeight: 135,
     minimumZoom: 0.2,
     maximumZoom: 1,
     overviewZoomThreshold: 0.3,
@@ -175,6 +176,55 @@ const CanvasUtils = {
             width: Math.abs(end.x - start.x),
             height: Math.abs(end.y - start.y)
         };
+    },
+    snapValue(value, spacing = this.gridSpacing) {
+        if (!Number.isFinite(value) || !Number.isFinite(spacing) || spacing <= 0) return value;
+        return Math.round(value / spacing) * spacing;
+    },
+    snapPoint(point, spacing = this.gridSpacing) {
+        return {
+            x: this.snapValue(point.x, spacing),
+            y: this.snapValue(point.y, spacing)
+        };
+    },
+    snapResizedRectangle(rectangle, direction, minWidth = 0, minHeight = 0, spacing = this.gridSpacing) {
+        const snapped = { ...rectangle };
+
+        if (direction.includes("e")) {
+            const minimumRight = snapped.x + minWidth;
+            const right = Math.max(
+                this.snapValue(snapped.x + snapped.width, spacing),
+                Math.ceil(minimumRight / spacing) * spacing
+            );
+            snapped.width = right - snapped.x;
+        } else if (direction.includes("w")) {
+            const right = snapped.x + snapped.width;
+            const maximumLeft = right - minWidth;
+            snapped.x = Math.min(
+                this.snapValue(snapped.x, spacing),
+                Math.floor(maximumLeft / spacing) * spacing
+            );
+            snapped.width = right - snapped.x;
+        }
+
+        if (direction.includes("s")) {
+            const minimumBottom = snapped.y + minHeight;
+            const bottom = Math.max(
+                this.snapValue(snapped.y + snapped.height, spacing),
+                Math.ceil(minimumBottom / spacing) * spacing
+            );
+            snapped.height = bottom - snapped.y;
+        } else if (direction.includes("n")) {
+            const bottom = snapped.y + snapped.height;
+            const maximumTop = bottom - minHeight;
+            snapped.y = Math.min(
+                this.snapValue(snapped.y, spacing),
+                Math.floor(maximumTop / spacing) * spacing
+            );
+            snapped.height = bottom - snapped.y;
+        }
+
+        return snapped;
     },
     resizeRectangle(rectangle, direction, deltaX, deltaY, minWidth = 160, minHeight = 100) {
         let { x, y, width, height } = rectangle;
