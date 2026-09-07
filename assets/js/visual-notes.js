@@ -1074,10 +1074,9 @@ const VisualNotes = {
             if (!a || !b) return;
             const connKey = `${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`;
 
-            const x1 = a.x + 110;
-            const y1 = a.y + 70;
-            const x2 = b.x + 110;
-            const y2 = b.y + 70;
+            const geometry = CanvasUtils.getOrthogonalConnection(a, b);
+            const { x: x1, y: y1 } = geometry.start;
+            const { x: x2, y: y2 } = geometry.end;
 
             // Determine colors (default gray for notes without color)
             const defaultGray = '#aaa';
@@ -1113,11 +1112,9 @@ const VisualNotes = {
                 strokeRef = `url(#${gradId})`;
             }
 
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", x1);
-            line.setAttribute("y1", y1);
-            line.setAttribute("x2", x2);
-            line.setAttribute("y2", y2);
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            line.setAttribute("d", geometry.path);
+            line.setAttribute("fill", "none");
             line.setAttribute("class", "line");
             line.dataset.conn = connKey;
             // Prefer inline styles so CSS defaults don't override colors/gradients
@@ -1129,6 +1126,7 @@ const VisualNotes = {
             }
             line.style.strokeWidth = '2';
             line.style.strokeLinecap = 'round';
+            line.style.strokeLinejoin = 'round';
             line.addEventListener("click", e => {
                 e.stopPropagation();
                 if (this.removeMode) {
@@ -1137,13 +1135,12 @@ const VisualNotes = {
             });
 
             // Add invisible wider stroke for better clickability
-            const bgLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            bgLine.setAttribute("x1", x1);
-            bgLine.setAttribute("y1", y1);
-            bgLine.setAttribute("x2", x2);
-            bgLine.setAttribute("y2", y2);
+            const bgLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            bgLine.setAttribute("d", geometry.path);
+            bgLine.setAttribute("fill", "none");
             bgLine.setAttribute("stroke", "transparent");
             bgLine.setAttribute("stroke-width", "20");
+            bgLine.setAttribute("stroke-linejoin", "round");
             bgLine.style.pointerEvents = "all";
             bgLine.style.cursor = "pointer";
             bgLine.dataset.conn = connKey;
@@ -1270,8 +1267,8 @@ const VisualNotes = {
             const a = this.notes.find(n => n.id === c.a);
             const b = this.notes.find(n => n.id === c.b);
             if (!a || !b) return;
-            const segA = { x1: a.x + 110, y1: a.y + 70, x2: b.x + 110, y2: b.y + 70 };
-            if (this.lineIntersects(this.removeDragStart, end, segA)) {
+            const geometry = CanvasUtils.getOrthogonalConnection(a, b);
+            if (geometry.segments.some(segment => this.lineIntersects(this.removeDragStart, end, segment))) {
                 crossed.add(`${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`);
             }
         });

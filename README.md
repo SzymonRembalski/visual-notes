@@ -22,7 +22,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 
 - Create multiple visual-note projects.
 - Place, move, resize, and edit notes on a large canvas.
-- Connect related notes to build idea maps.
+- Connect related notes with structured, right-angle paths to build clear idea maps.
 - Draw titled, resizable, translucent colored background shapes to visually group related notes.
 - Color groups of notes and see connections blend between their colors.
 - Select and move several notes together.

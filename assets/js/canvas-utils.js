@@ -217,6 +217,51 @@ const CanvasUtils = {
             height
         };
     },
+    getOrthogonalConnection(firstNote, secondNote) {
+        const firstWidth = firstNote.width || this.defaultNoteWidth;
+        const firstHeight = firstNote.height || this.defaultNoteHeight;
+        const secondWidth = secondNote.width || this.defaultNoteWidth;
+        const secondHeight = secondNote.height || this.defaultNoteHeight;
+        const start = {
+            x: firstNote.x + firstWidth / 2,
+            y: firstNote.y + firstHeight / 2
+        };
+        const end = {
+            x: secondNote.x + secondWidth / 2,
+            y: secondNote.y + secondHeight / 2
+        };
+        const firstRight = firstNote.x + firstWidth;
+        const secondRight = secondNote.x + secondWidth;
+        let middleX = (start.x + end.x) / 2;
+
+        if (firstRight <= secondNote.x) {
+            middleX = (firstRight + secondNote.x) / 2;
+        } else if (secondRight <= firstNote.x) {
+            middleX = (secondRight + firstNote.x) / 2;
+        }
+        const points = [
+            start,
+            { x: middleX, y: start.y },
+            { x: middleX, y: end.y },
+            end
+        ];
+        const segments = [];
+
+        for (let index = 1; index < points.length; index += 1) {
+            const from = points[index - 1];
+            const to = points[index];
+            if (from.x === to.x && from.y === to.y) continue;
+            segments.push({ x1: from.x, y1: from.y, x2: to.x, y2: to.y });
+        }
+
+        return {
+            start,
+            end,
+            middleX,
+            segments,
+            path: `M ${start.x} ${start.y} H ${middleX} V ${end.y} H ${end.x}`
+        };
+    },
     lineIntersects(firstStart, firstEnd, secondLine) {
         const orientation = (point, next, other) =>
             (next.y - point.y) * (other.x - next.x) -
