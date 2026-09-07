@@ -1131,9 +1131,13 @@ body.canvas-overview-mode .note {
 }
 
 body.canvas-overview-mode .noteHeader {
+    position: absolute;
+    left: calc(var(--node-width, 225px) / 2);
+    top: calc(var(--node-height, 135px) / 2);
     width: max-content;
     margin: 0;
     overflow: visible;
+    transform: translate(-50%, -50%);
 }
 
 body.canvas-overview-mode .noteTitle,
@@ -1150,7 +1154,7 @@ body.canvas-overview-mode .noteTitleInput {
     font-size: 0.8rem;
     line-height: 1.2;
     transform: scale(var(--overview-title-scale, 5));
-    transform-origin: top left;
+    transform-origin: center;
 }
 
 body.canvas-overview-mode .note textarea,

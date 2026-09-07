@@ -1748,6 +1748,8 @@ const VisualNotes = {
             div.style.top = (note.y - this.canvasBounds.top) + "px";
             div.style.width = (note.width || CanvasUtils.defaultNoteWidth) + "px";
             div.style.height = (note.height || CanvasUtils.defaultNoteHeight) + "px";
+            div.style.setProperty('--node-width', `${note.width || CanvasUtils.defaultNoteWidth}px`);
+            div.style.setProperty('--node-height', `${note.height || CanvasUtils.defaultNoteHeight}px`);
             // apply custom background color if present
             div.style.setProperty('--note-bg', note.color || '#333');
             if (imageOnlyNote) {
