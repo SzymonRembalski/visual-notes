@@ -106,6 +106,27 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Delete a group | Select it in **Shapes Mode**, then press `Delete` or use its × button |
 | Toggle grid snapping | Use **Edit → Snap: ON/OFF**; each project remembers the setting |
 
+## Keyboard and mouse shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `A` | Toggle **Add Connections** |
+| `R` | Toggle **Remove Connections** |
+| `C` | Toggle **Color Mode** |
+| `S` | Toggle **Shapes Mode** |
+| `Ctrl/Cmd + B` | Create a new node |
+| `Ctrl/Cmd + S` | Save to the connected backup file, or download a backup when direct file access is unavailable |
+| `Ctrl/Cmd + Z` | Undo the last change |
+| `Ctrl/Cmd + Shift + Z` | Redo an undone change |
+| `Delete` | Delete the selected nodes, or the selected shape in Shapes Mode |
+| `Shift + click` | Add or remove a node from the current selection |
+| `Escape` | Close an open toolbar menu or cancel node/shape title editing |
+| Mouse wheel | Zoom in or out |
+| Middle-click | Center on selected nodes, or all nodes when nothing is selected |
+| Right-click and drag | Move the camera |
+
+The single-letter tool shortcuts work only when you are not typing and no nodes are selected. This prevents editing text or working with a selection from changing modes accidentally. `Ctrl/Cmd + B` is also disabled while typing.
+
 ## Project structure
 
 ```text
