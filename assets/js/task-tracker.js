@@ -124,20 +124,6 @@ const TaskTracker = {
         this.save();
         this.render();
     },
-    moveStepUp(taskIndex, stepIndex) {
-        if (stepIndex <= 0) return;
-        const steps = this.tasks[taskIndex].steps;
-        [steps[stepIndex - 1], steps[stepIndex]] = [steps[stepIndex], steps[stepIndex - 1]];
-        this.save();
-        this.render();
-    },
-    moveStepDown(taskIndex, stepIndex) {
-        const steps = this.tasks[taskIndex].steps;
-        if (stepIndex >= steps.length - 1) return;
-        [steps[stepIndex], steps[stepIndex + 1]] = [steps[stepIndex + 1], steps[stepIndex]];
-        this.save();
-        this.render();
-    },
     startStepDrag(taskIndex, stepIndex, event) {
         event.stopPropagation();
         this.draggedStep = { taskIndex, stepIndex };
@@ -189,13 +175,6 @@ const TaskTracker = {
             percent: Math.round(done / total * 100)
         };
     },
-    escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;");
-    },
     checkCompletion() {
         let total = 0;
         let done = 0;
@@ -235,12 +214,12 @@ const TaskTracker = {
 <td class="drag">≡</td>
 <td>
     <span class="star" onclick="togglePinned(${index})">${task.pinned ? "★" : "☆"}</span>
-    <span class="taskName" onclick="editTask(${index})">${this.escapeHtml(task.name)}</span>
+    <span class="taskName" onclick="editTask(${index})">${escapeHtml(task.name)}</span>
     <br>
     <button onclick="toggleNotes(${index})">📝 Notes</button>
     <button onclick="addTask(${index})" title="Insert after this task">+</button>
     <div class="note" style="display:${task.expanded ? "block" : "none"}">
-        <textarea rows="3" style="width:95%" onchange="updateNotes(${index},this.value)">${this.escapeHtml(task.notes)}</textarea>
+        <textarea rows="3" style="width:95%" onchange="updateNotes(${index},this.value)">${escapeHtml(task.notes)}</textarea>
     </div>
 </td>
 <td>
@@ -249,7 +228,7 @@ const TaskTracker = {
             <div class="step" draggable="true" ondragstart="startStepDrag(${index},${stepIndex},event)" ondragover="event.preventDefault(); event.stopPropagation()" ondrop="dropStep(${index},${stepIndex},event); event.stopPropagation()">
                 <span class="dragHandle" title="Drag to reorder">☰</span>
                 <input type="checkbox" ${step.done ? "checked" : ""} onclick="toggleStep(${index},${stepIndex})">
-                <span onclick="editStep(${index},${stepIndex})">${this.escapeHtml(step.text)}</span>
+                <span onclick="editStep(${index},${stepIndex})">${escapeHtml(step.text)}</span>
             </div>
         `).join("")}
     </div>

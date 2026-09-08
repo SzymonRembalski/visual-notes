@@ -1,11 +1,4 @@
 const ProjectsPage = {
-    escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;");
-    },
     init() {
         const listContainer = document.getElementById("projectList");
         if (!listContainer) return;
@@ -35,8 +28,8 @@ const ProjectsPage = {
             const modified = new Date(project.modifiedAt || project.createdAt || Date.now()).toLocaleString();
             return `
                 <div class="project-card" data-id="${project.id}">
-                    <h2 data-placeholder="No title">${this.escapeHtml(title)}</h2>
-                    <div>Saved: ${this.escapeHtml(modified)}</div>
+                    <h2 data-placeholder="No title">${escapeHtml(title)}</h2>
+                    <div>Saved: ${escapeHtml(modified)}</div>
                     <div class="project-actions">
                         <button class="button openProjectButton" data-id="${project.id}">Open</button>
                         <button class="button deleteProjectButton" data-id="${project.id}">Delete</button>

@@ -7,6 +7,7 @@ const VisualNotes = {
     projectTitle: localStorage.getItem("visualTitle") ?? "Untitled Project",
     selectedNote: null,
     selectedNotes: [],
+    resizeDirections: ["n", "ne", "e", "se", "s", "sw", "w", "nw"],
     expandedNoteIds: new Set(),
     selectedShapeId: null,
     offsetX: 0,
@@ -113,6 +114,44 @@ const VisualNotes = {
             this.canvasResizeStep
         );
     },
+    syncLayerGeometry(layer, selector, items, dataKey) {
+        if (!layer) return;
+        const itemsById = new Map(items.map(item => [String(item.id), item]));
+        layer.querySelectorAll(selector).forEach(element => {
+            if (element.classList.contains("shapeDraft")) return;
+            const item = itemsById.get(element.dataset[dataKey]);
+            if (!item) return;
+            element.style.left = `${item.x - this.canvasBounds.left}px`;
+            element.style.top = `${item.y - this.canvasBounds.top}px`;
+            if (Number.isFinite(item.width)) element.style.width = `${item.width}px`;
+            if (Number.isFinite(item.height)) element.style.height = `${item.height}px`;
+            if (element.classList.contains("note")) {
+                element.style.setProperty("--node-width", `${item.width || CanvasUtils.defaultNoteWidth}px`);
+                element.style.setProperty("--node-height", `${item.height || CanvasUtils.defaultNoteHeight}px`);
+            }
+        });
+    },
+    setDragHandlers(move, stop) {
+        document.onmousemove = move;
+        document.onmouseup = stop;
+    },
+    clearDragHandlers() {
+        document.onmousemove = null;
+        document.onmouseup = null;
+    },
+    setTextSelectionLocked(locked) {
+        if (locked) {
+            this.previousBodyUserSelect = document.body.style.userSelect;
+            this.previousBodyWebkitUserSelect = document.body.style.webkitUserSelect;
+            document.body.style.userSelect = "none";
+            document.body.style.webkitUserSelect = "none";
+            document.onselectstart = () => false;
+            return;
+        }
+        document.body.style.userSelect = this.previousBodyUserSelect || "";
+        document.body.style.webkitUserSelect = this.previousBodyWebkitUserSelect || "";
+        document.onselectstart = null;
+    },
     updateCanvasBounds() {
         const next = this.calculateCanvasBounds();
         this.canvasBounds = next;
@@ -125,23 +164,12 @@ const VisualNotes = {
         if (canvas) {
             canvas.style.width = width + "px";
             canvas.style.height = height + "px";
-            canvas.querySelectorAll(".note").forEach(element => {
-                const note = this.notes.find(item => String(item.id) === element.dataset.noteId);
-                if (!note) return;
-                element.style.left = (note.x - next.left) + "px";
-                element.style.top = (note.y - next.top) + "px";
-            });
+            this.syncLayerGeometry(canvas, ".note", this.notes, "noteId");
         }
         if (shapesLayer) {
             shapesLayer.style.width = width + "px";
             shapesLayer.style.height = height + "px";
-            shapesLayer.querySelectorAll(".canvasShape").forEach(element => {
-                if (element.classList.contains("shapeDraft")) return;
-                const shape = this.shapes.find(item => String(item.id) === element.dataset.shapeId);
-                if (!shape) return;
-                element.style.left = (shape.x - next.left) + "px";
-                element.style.top = (shape.y - next.top) + "px";
-            });
+            this.syncLayerGeometry(shapesLayer, ".canvasShape", this.shapes, "shapeId");
         }
         if (svg) {
             svg.style.left = "0px";
@@ -236,26 +264,6 @@ const VisualNotes = {
             if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
         }
     },
-    saveProject() {
-        if (!this.projectId) {
-            const project = ProjectManager.createProject({
-                title: this.projectTitle,
-                notes: this.notes,
-                connections: this.connections,
-                shapes: this.shapes,
-                panX: this.panX,
-                panY: this.panY,
-                zoom: this.zoom,
-                snappingEnabled: this.snappingEnabled,
-                coordinateVersion: this.coordinateVersion
-            });
-            this.projectId = project.id;
-            history.replaceState(null, "", `visual-notes.html?projectId=${project.id}`);
-        }
-
-        this.saveBoard();
-        alert("Project saved.");
-    },
     async exportBoardImage() {
         const button = document.getElementById("exportImageBtn");
         const originalLabel = button ? button.textContent : "Export PNG";
@@ -332,15 +340,6 @@ const VisualNotes = {
         this.render();
         return note;
     },
-    deleteNote(id) {
-        if (!this.notes.some(note => note.id === id)) return;
-        this.performHistoryChange(() => {
-            this.notes = this.notes.filter(note => note.id !== id);
-            this.connections = this.connections.filter(connection => connection.a !== id && connection.b !== id);
-        });
-        this.saveBoard();
-        this.render();
-    },
     updateText(id, value) {
         const note = this.notes.find(n => n.id === id);
         if (!note) return;
@@ -390,65 +389,12 @@ const VisualNotes = {
             if (textarea) textarea.focus();
         }, 0);
     },
-    chooseNoteImage(id) {
-        const note = this.notes.find(n => n.id === id);
-        if (!note) return;
-
-        const imageUrl = prompt("Enter image URL, or leave blank to upload a local file:", note.imageSrc || "");
-        if (imageUrl) {
-            this.performHistoryChange(() => {
-                note.imageSrc = imageUrl;
-                note.type = 'image';
-                note.title = "";
-            });
-            // Try to get aspect ratio via Image
-            const img = new Image();
-            img.onload = () => {
-                this.performHistoryChange(() => {
-                    note.aspectRatio = img.naturalHeight / img.naturalWidth;
-                    note.width = Math.min(400, img.naturalWidth);
-                    note.height = Math.max(80, Math.round(note.width * note.aspectRatio));
-                });
-                this.saveBoard();
-                this.render();
-            };
-            img.src = imageUrl;
-            // render immediately in case it fails to load later
-            this.saveBoard();
-            this.render();
-            return;
-        }
-
-        const fileInput = document.createElement("input");
-        fileInput.type = "file";
-        fileInput.accept = "image/*";
-        fileInput.onchange = () => {
-            const file = fileInput.files && fileInput.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-                this.performHistoryChange(() => {
-                    note.imageSrc = reader.result;
-                    note.type = 'image';
-                    note.title = "";
-                });
-                this.saveBoard();
-                this.render();
-            };
-            reader.readAsDataURL(file);
-        };
-        fileInput.click();
-    },
     moveNote(event) {
         if (!this.selectedNote) return;
-        const canvasOffsetTop = 50;
-        const viewportX = event.clientX;
-        const viewportY = event.clientY - canvasOffsetTop;
-        const unzoomedX = (viewportX - this.panX) / this.zoom;
-        const unzoomedY = (viewportY - this.panY) / this.zoom;
+        const pointer = this.screenToCanvas(event.clientX, event.clientY);
         const requestedPosition = {
-            x: unzoomedX - this.offsetX,
-            y: unzoomedY - this.offsetY
+            x: pointer.x - this.offsetX,
+            y: pointer.y - this.offsetY
         };
         const nextPosition = this.snappingEnabled
             ? CanvasUtils.snapPoint(requestedPosition)
@@ -456,14 +402,17 @@ const VisualNotes = {
         const deltaX = nextPosition.x - this.selectedNote.x;
         const deltaY = nextPosition.y - this.selectedNote.y;
 
+        const notesById = new Map(this.notes.map(note => [note.id, note]));
         this.selectedNotes.forEach(noteId => {
-            const note = this.notes.find(n => n.id === noteId);
+            const note = notesById.get(noteId);
             if (!note) return;
             note.x += deltaX;
             note.y += deltaY;
         });
 
-        this.render();
+        this.updateCanvasBounds();
+        this.applyTransform();
+        this.drawConnections(false);
     },
     loadBoard() {
         const params = new URLSearchParams(window.location.search);
@@ -549,12 +498,15 @@ const VisualNotes = {
         this.updateSnappingButton();
         this.render();
     },
-    updateSnappingButton() {
-        const button = document.getElementById("snapBtn");
+    updateToggleButton(id, active, activeLabel, inactiveLabel) {
+        const button = document.getElementById(id);
         if (!button) return;
-        button.classList.toggle("active", this.snappingEnabled);
-        button.textContent = this.snappingEnabled ? "Snap: ON" : "Snap: OFF";
-        button.setAttribute("aria-pressed", String(this.snappingEnabled));
+        button.classList.toggle("active", active);
+        button.textContent = active ? activeLabel : inactiveLabel;
+        button.setAttribute("aria-pressed", String(active));
+    },
+    updateSnappingButton() {
+        this.updateToggleButton("snapBtn", this.snappingEnabled, "Snap: ON", "Snap: OFF");
     },
     toggleSnappingMode() {
         this.snappingEnabled = !this.snappingEnabled;
@@ -564,26 +516,9 @@ const VisualNotes = {
     getVisibleCenter() {
         return this.screenToCanvas(
             window.innerWidth / 2,
-            50 + (window.innerHeight - 50) / 2
+            CanvasUtils.toolbarHeight + (window.innerHeight - CanvasUtils.toolbarHeight) / 2
         );
     },
-    escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    },
-    updateTitle(id, value) {
-        const note = this.notes.find(n => n.id === id);
-        if (!note) return;
-        if (note.title === value) return;
-        this.performHistoryChange(() => {
-            note.title = value;
-        });
-        this.saveBoard();
-    },
-
     shapeMode: false,
     creatingShape: false,
     shapeDrawStart: null,
@@ -599,30 +534,17 @@ const VisualNotes = {
 
     setShapeMode(enabled) {
         this.shapeMode = Boolean(enabled);
-        const button = document.getElementById("shapesBtn");
         const shapesLayer = document.getElementById("shapes");
 
         if (this.shapeMode) {
             this.selectedNotes = [];
-            document.body.classList.add("shapes-mode-active");
-            if (button) {
-                button.classList.add("active");
-                button.textContent = "Shapes: ON";
-                button.setAttribute("aria-pressed", "true");
-            }
-            if (shapesLayer) shapesLayer.setAttribute("aria-hidden", "false");
         } else {
             this.cancelShapeDraw();
             this.selectedShapeId = null;
-            document.body.classList.remove("shapes-mode-active");
-            if (button) {
-                button.classList.remove("active");
-                button.textContent = "Shapes Mode";
-                button.setAttribute("aria-pressed", "false");
-            }
-            if (shapesLayer) shapesLayer.setAttribute("aria-hidden", "true");
         }
-
+        document.body.classList.toggle("shapes-mode-active", this.shapeMode);
+        this.updateToggleButton("shapesBtn", this.shapeMode, "Shapes: ON", "Shapes Mode");
+        if (shapesLayer) shapesLayer.setAttribute("aria-hidden", String(!this.shapeMode));
         this.render();
     },
 
@@ -649,8 +571,10 @@ const VisualNotes = {
         this.shapeDraftElement.className = "canvasShape shapeDraft";
         shapesLayer.appendChild(this.shapeDraftElement);
         this.updateShapeDraw(event);
-        document.onmousemove = nextEvent => this.updateShapeDraw(nextEvent);
-        document.onmouseup = nextEvent => this.endShapeDraw(nextEvent);
+        this.setDragHandlers(
+            nextEvent => this.updateShapeDraw(nextEvent),
+            nextEvent => this.endShapeDraw(nextEvent)
+        );
         event.preventDefault();
     },
 
@@ -671,8 +595,7 @@ const VisualNotes = {
         if (event) this.updateShapeDraw(event);
         const rectangle = this.shapeDrawRect;
         this.cancelShapeDraw();
-        document.onmousemove = null;
-        document.onmouseup = null;
+        this.clearDragHandlers();
 
         if (!rectangle || rectangle.width < 12 || rectangle.height < 12) {
             this.renderShapes();
@@ -729,8 +652,10 @@ const VisualNotes = {
         this.shapeMoveStart = this.screenToCanvas(event.clientX, event.clientY);
         this.shapeMoveOrigin = { x: shape.x, y: shape.y };
         this.renderShapes();
-        document.onmousemove = nextEvent => this.moveShape(nextEvent);
-        document.onmouseup = () => this.stopShapeMove();
+        this.setDragHandlers(
+            nextEvent => this.moveShape(nextEvent),
+            () => this.stopShapeMove()
+        );
     },
 
     moveShape(event) {
@@ -746,7 +671,6 @@ const VisualNotes = {
         this.movingShape.x = nextPosition.x;
         this.movingShape.y = nextPosition.y;
         this.updateCanvasBounds();
-        this.renderShapes();
         this.applyTransform();
     },
 
@@ -758,8 +682,7 @@ const VisualNotes = {
         this.movingShape = null;
         this.shapeMoveStart = null;
         this.shapeMoveOrigin = null;
-        document.onmousemove = null;
-        document.onmouseup = null;
+        this.clearDragHandlers();
     },
 
     startShapeResize(shape, direction, event) {
@@ -775,8 +698,10 @@ const VisualNotes = {
             width: shape.width,
             height: shape.height
         };
-        document.onmousemove = nextEvent => this.resizeShape(nextEvent);
-        document.onmouseup = () => this.stopShapeResize();
+        this.setDragHandlers(
+            nextEvent => this.resizeShape(nextEvent),
+            () => this.stopShapeResize()
+        );
         event.preventDefault();
     },
 
@@ -799,7 +724,6 @@ const VisualNotes = {
         }
         Object.assign(this.resizingShape, resized);
         this.updateCanvasBounds();
-        this.renderShapes();
         this.applyTransform();
     },
 
@@ -812,40 +736,12 @@ const VisualNotes = {
         this.shapeResizeDirection = null;
         this.shapeResizeStart = null;
         this.shapeResizeOrigin = null;
-        document.onmousemove = null;
-        document.onmouseup = null;
+        this.clearDragHandlers();
     },
-
-    startShapeTitleEdit(shape, titleElement) {
-        if (!this.shapeMode || this.colorMode) return;
-        this.beginHistoryTransaction();
-        const originalTitle = shape.title || "";
-        const input = document.createElement("input");
-        input.type = "text";
-        input.className = "shapeTitleInput";
-        input.value = originalTitle;
-        input.placeholder = "Group title";
-        input.addEventListener("mousedown", event => event.stopPropagation());
-        input.addEventListener("click", event => event.stopPropagation());
-        input.addEventListener("keydown", event => {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                input.blur();
-            } else if (event.key === "Escape") {
-                event.preventDefault();
-                input.value = originalTitle;
-                input.blur();
-            }
-        });
-        input.addEventListener("blur", () => {
-            shape.title = input.value.trim();
-            this.commitHistoryTransaction();
-            this.saveBoard();
-            this.renderShapes();
-        });
-        titleElement.replaceWith(input);
-        input.focus();
-        input.select();
+    getResizeHandlesMarkup(className) {
+        return this.resizeDirections
+            .map(direction => `<span class="${className} ${direction}" data-direction="${direction}"></span>`)
+            .join("");
     },
 
     renderShapes() {
@@ -867,11 +763,9 @@ const VisualNotes = {
                 element.style.setProperty("--shape-color", shape.color);
             }
             element.innerHTML = `
-                <span class="shapeTitle" data-placeholder="Add title">${this.escapeHtml(shape.title || "")}</span>
+                <span class="shapeTitle" data-placeholder="Add title">${escapeHtml(shape.title || "")}</span>
                 <button type="button" class="shapeDeleteButton" aria-label="Delete shape" title="Delete shape">&times;</button>
-                ${["n", "ne", "e", "se", "s", "sw", "w", "nw"]
-                    .map(direction => `<span class="shapeResizeHandle ${direction}" data-direction="${direction}"></span>`)
-                    .join("")}
+                ${this.getResizeHandlesMarkup("shapeResizeHandle")}
             `;
 
             const title = element.querySelector(".shapeTitle");
@@ -881,14 +775,14 @@ const VisualNotes = {
                     event.stopPropagation();
                     if (this.colorMode) {
                         if (this.colorPickMode) {
-                            this.sampleShapeColor(shape);
+                            this.sampleColor(shape);
                         } else {
                             this.selectedShapeId = String(this.selectedShapeId) === String(shape.id) ? null : shape.id;
                             this.renderShapes();
                         }
                         return;
                     }
-                    this.startShapeTitleEdit(shape, title);
+                    this.startTitleEdit(shape, title, true);
                 });
             }
 
@@ -915,7 +809,7 @@ const VisualNotes = {
                 event.preventDefault();
                 if (this.colorMode) {
                     if (this.colorPickMode) {
-                        this.sampleShapeColor(shape);
+                        this.sampleColor(shape);
                     } else {
                         this.selectedShapeId = String(this.selectedShapeId) === String(shape.id) ? null : shape.id;
                         this.renderShapes();
@@ -991,12 +885,14 @@ const VisualNotes = {
         return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls,.canvasNavigator");
     },
 
-    startTitleEdit(note, titleElement) {
+    startTitleEdit(item, titleElement, shapeTitle = false) {
+        if (shapeTitle && (!this.shapeMode || this.colorMode)) return;
         this.beginHistoryTransaction();
         const input = document.createElement('input');
         input.type = 'text';
-        input.className = 'noteTitleInput';
-        input.value = note.title;
+        input.className = shapeTitle ? 'shapeTitleInput' : 'noteTitleInput';
+        input.value = item.title || '';
+        if (shapeTitle) input.placeholder = 'Group title';
         input.addEventListener('mousedown', e => e.stopPropagation());
         input.addEventListener('click', e => e.stopPropagation());
         input.addEventListener('keydown', e => {
@@ -1006,16 +902,18 @@ const VisualNotes = {
             }
             if (e.key === 'Escape') {
                 e.preventDefault();
-                input.value = note.title;
+                input.value = item.title || '';
                 input.blur();
             }
         });
         input.addEventListener('blur', () => {
-            note.title = input.value.trim();
-            note.width = Math.max(note.width || CanvasUtils.defaultNoteWidth, this.getMinNoteWidth(note));
+            item.title = input.value.trim();
+            if (!shapeTitle) {
+                item.width = Math.max(item.width || CanvasUtils.defaultNoteWidth, this.getMinNoteWidth(item));
+            }
             this.commitHistoryTransaction();
             this.saveBoard();
-            this.render();
+            shapeTitle ? this.renderShapes() : this.render();
         });
         titleElement.replaceWith(input);
         input.focus();
@@ -1034,11 +932,18 @@ const VisualNotes = {
         this.saveBoard();
         this.render();
     },
+    getConnectionKey(a, b) {
+        return `${Math.min(a, b)}-${Math.max(a, b)}`;
+    },
+    createSvgElement(tag, attributes = {}) {
+        const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+        Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+        return element;
+    },
     connectNotes(a, b) {
         if (a === b) return;
-        const exists = this.connections.some(
-            c => (c.a === a && c.b === b) || (c.a === b && c.b === a)
-        );
+        const key = this.getConnectionKey(a, b);
+        const exists = this.connections.some(connection => this.getConnectionKey(connection.a, connection.b) === key);
         if (exists) return;
         this.performHistoryChange(() => {
             this.connections.push({ a, b });
@@ -1047,18 +952,12 @@ const VisualNotes = {
         this.drawConnections();
     },
     removeConnection(a, b) {
-        const exists = this.connections.some(
-            connection =>
-                (connection.a === a && connection.b === b) ||
-                (connection.a === b && connection.b === a)
-        );
+        const key = this.getConnectionKey(a, b);
+        const exists = this.connections.some(connection => this.getConnectionKey(connection.a, connection.b) === key);
         if (!exists) return;
         this.performHistoryChange(() => {
-            this.connections = this.connections.filter(
-                c => !(
-                    (c.a === a && c.b === b) ||
-                    (c.a === b && c.b === a)
-                )
+            this.connections = this.connections.filter(connection =>
+                this.getConnectionKey(connection.a, connection.b) !== key
             );
         });
         this.saveBoard();
@@ -1091,105 +990,51 @@ const VisualNotes = {
     colorApplyButton: null,
     colorPickButton: null,
     colorPickMode: false,
+    setConnectionMode(mode, enabled, finishRemoveDrag = false) {
+        const addMode = mode === "add";
+        const property = `${mode}Mode`;
+        const className = `${mode}-mode-active`;
+        this[property] = enabled;
+        document.body.classList.toggle(className, enabled);
+        document.getElementById("connections")?.classList.toggle(className, enabled);
+        this.updateToggleButton(
+            `${mode}Btn`,
+            enabled,
+            addMode ? "Add: ON" : "Remove: ON",
+            addMode ? "Add Connections" : "Remove Connections"
+        );
+        if (!enabled) {
+            if (addMode) this.endAddDrag();
+            else if (finishRemoveDrag) this.endRemoveDrag();
+            else this.clearRemoveDrag();
+        }
+    },
+    toggleConnectionMode(mode) {
+        const enabled = !this[`${mode}Mode`];
+        if (enabled) {
+            if (this.shapeMode) this.setShapeMode(false);
+            const otherMode = mode === "add" ? "remove" : "add";
+            if (this[`${otherMode}Mode`]) this.setConnectionMode(otherMode, false, mode === "add");
+        }
+        this.setConnectionMode(mode, enabled);
+    },
     toggleRemoveMode() {
-        this.removeMode = !this.removeMode;
-        if (this.removeMode && this.shapeMode) this.setShapeMode(false);
-        const btn = document.getElementById('removeBtn');
-        const svg = document.getElementById('connections');
-        const addBtn = document.getElementById('addBtn');
-        if (this.removeMode) {
-            // turn off add mode and clean it up
-            if (this.addMode) {
-                this.addMode = false;
-                if (addBtn) {
-                    addBtn.classList.remove('active');
-                    addBtn.textContent = 'Add Connections';
-                }
-                document.body.classList.remove('add-mode-active');
-                if (svg) svg.classList.remove('add-mode-active');
-                try { this.endAddDrag(); } catch (e) {}
-            }
-            if (btn) {
-                btn.classList.add('active');
-                btn.textContent = 'Remove: ON';
-            }
-            if (svg) svg.classList.add('remove-mode-active');
-            document.body.classList.add('remove-mode-active');
-        } else {
-            if (btn) {
-                btn.classList.remove('active');
-                btn.textContent = 'Remove Connections';
-            }
-            if (svg) svg.classList.remove('remove-mode-active');
-            document.body.classList.remove('remove-mode-active');
-            try { this.clearRemoveDrag(); } catch (e) {}
-        }
+        this.toggleConnectionMode("remove");
     },
-
     toggleAddMode() {
-        this.addMode = !this.addMode;
-        if (this.addMode && this.shapeMode) this.setShapeMode(false);
-        const btn = document.getElementById('addBtn');
-        const svg = document.getElementById('connections');
-        const removeBtn = document.getElementById('removeBtn');
-        if (this.addMode) {
-            // turn off remove mode and clean it up
-            if (this.removeMode) {
-                this.removeMode = false;
-                if (removeBtn) {
-                    removeBtn.classList.remove('active');
-                    removeBtn.textContent = 'Remove Connections';
-                }
-                document.body.classList.remove('remove-mode-active');
-                if (svg) svg.classList.remove('remove-mode-active');
-                try { this.endRemoveDrag(); } catch (e) {}
-            }
-            if (btn) {
-                btn.classList.add('active');
-                btn.textContent = 'Add: ON';
-            }
-            if (svg) svg.classList.add('add-mode-active');
-            document.body.classList.add('add-mode-active');
-        } else {
-            if (btn) {
-                btn.classList.remove('active');
-                btn.textContent = 'Add Connections';
-            }
-            if (svg) svg.classList.remove('add-mode-active');
-            document.body.classList.remove('add-mode-active');
-            try { this.endAddDrag(); } catch (e) {}
-        }
+        this.toggleConnectionMode("add");
     },
-
     toggleColorMode() {
         this.colorMode = !this.colorMode;
-        const btn = document.getElementById('colorBtn');
-        const svg = document.getElementById('connections');
-        const addBtn = document.getElementById('addBtn');
-        const removeBtn = document.getElementById('removeBtn');
         if (this.colorMode) {
-            // turn off other modes
-            if (this.addMode) {
-                this.addMode = false;
-                if (addBtn) { addBtn.classList.remove('active'); addBtn.textContent = 'Add Connections'; }
-                try { this.endAddDrag(); } catch (e) {}
-            }
-            if (this.removeMode) {
-                this.removeMode = false;
-                if (removeBtn) { removeBtn.classList.remove('active'); removeBtn.textContent = 'Remove Connections'; }
-                try { this.endRemoveDrag(); } catch (e) {}
-            }
-            if (btn) { btn.classList.add('active'); btn.textContent = 'Color: ON'; }
-            // show color panel
-            if (this.colorPanelElement) this.colorPanelElement.style.display = 'flex';
-            document.body.classList.add('color-mode-active');
+            if (this.addMode) this.setConnectionMode("add", false);
+            if (this.removeMode) this.setConnectionMode("remove", false, true);
         } else {
-            if (btn) { btn.classList.remove('active'); btn.textContent = 'Color Mode'; }
-            if (this.colorPanelElement) this.colorPanelElement.style.display = 'none';
-            document.body.classList.remove('color-mode-active');
             this.setColorPickMode(false);
-            // clear selection visuals
         }
+        this.updateToggleButton("colorBtn", this.colorMode, "Color: ON", "Color Mode");
+        if (this.colorPanelElement) this.colorPanelElement.style.display = this.colorMode ? "flex" : "none";
+        document.body.classList.toggle("color-mode-active", this.colorMode);
     },
 
     selectColor(color) {
@@ -1227,15 +1072,9 @@ const VisualNotes = {
         }
     },
 
-    sampleNoteColor(note) {
-        if (!note) return;
-        this.selectColor(note.color || null);
-        this.setColorPickMode(false);
-    },
-
-    sampleShapeColor(shape) {
-        if (!shape) return;
-        this.selectColor(shape.color || null);
+    sampleColor(item) {
+        if (!item) return;
+        this.selectColor(item.color || null);
         this.setColorPickMode(false);
     },
 
@@ -1252,6 +1091,10 @@ const VisualNotes = {
         }
         this.render();
     },
+    setItemColor(item, color) {
+        if (color) item.color = color;
+        else delete item.color;
+    },
 
     applyColor() {
         const color = this.selectedColor;
@@ -1259,53 +1102,43 @@ const VisualNotes = {
         if (this.shapeMode) {
             const shape = this.shapes.find(item => String(item.id) === String(this.selectedShapeId));
             if (!shape || (shape.color || null) === color) return;
-            this.performHistoryChange(() => {
-                if (color) {
-                    shape.color = color;
-                } else {
-                    delete shape.color;
-                }
-            });
+            this.performHistoryChange(() => this.setItemColor(shape, color));
             this.saveBoard();
             this.renderShapes();
             return;
         }
 
         if (!this.selectedNotes.length) return;
-        const changedNotes = this.notes.filter(note =>
-            this.selectedNotes.includes(note.id) && (note.color || null) !== color
-        );
+        const selectedIds = new Set(this.selectedNotes);
+        const changedNotes = this.notes.filter(note => selectedIds.has(note.id) && (note.color || null) !== color);
         if (!changedNotes.length) return;
         this.performHistoryChange(() => {
-            changedNotes.forEach(note => {
-                if (color) {
-                    note.color = color;
-                } else {
-                    delete note.color;
-                }
-            });
+            changedNotes.forEach(note => this.setItemColor(note, color));
         });
         this.saveBoard();
         this.render();
     },
     
-    drawConnections() {
+    drawConnections(updateLayout = true) {
         const svg = document.getElementById("connections");
         if (!svg) return;
         this.clearRemoveDrag();
-        this.updateCanvasBounds();
-        this.applyTransform();
+        if (updateLayout) {
+            this.updateCanvasBounds();
+            this.applyTransform();
+        }
         svg.innerHTML = "";
 
         // defs for gradients
-        const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+        const defs = this.createSvgElement("defs");
         svg.appendChild(defs);
+        const notesById = new Map(this.notes.map(note => [note.id, note]));
 
         this.connections.forEach(c => {
-            const a = this.notes.find(n => n.id === c.a);
-            const b = this.notes.find(n => n.id === c.b);
+            const a = notesById.get(c.a);
+            const b = notesById.get(c.b);
             if (!a || !b) return;
-            const connKey = `${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`;
+            const connKey = this.getConnectionKey(c.a, c.b);
 
             const geometry = CanvasUtils.getOrthogonalConnection(a, b);
             const { x: x1, y: y1 } = geometry.start;
@@ -1326,29 +1159,18 @@ const VisualNotes = {
                 // remove existing def if present
                 const existing = defs.querySelector(`#${gradId}`);
                 if (existing) existing.remove();
-                const grad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-                grad.setAttribute('id', gradId);
-                grad.setAttribute('gradientUnits', 'userSpaceOnUse');
-                grad.setAttribute('x1', x1);
-                grad.setAttribute('y1', y1);
-                grad.setAttribute('x2', x2);
-                grad.setAttribute('y2', y2);
-                const stop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                stop1.setAttribute('offset', '0%');
-                stop1.setAttribute('stop-color', colorA);
-                const stop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                stop2.setAttribute('offset', '100%');
-                stop2.setAttribute('stop-color', colorB);
+                const grad = this.createSvgElement("linearGradient", {
+                    id: gradId, gradientUnits: "userSpaceOnUse", x1, y1, x2, y2
+                });
+                const stop1 = this.createSvgElement("stop", { offset: "0%", "stop-color": colorA });
+                const stop2 = this.createSvgElement("stop", { offset: "100%", "stop-color": colorB });
                 grad.appendChild(stop1);
                 grad.appendChild(stop2);
                 defs.appendChild(grad);
                 strokeRef = `url(#${gradId})`;
             }
 
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            line.setAttribute("d", geometry.path);
-            line.setAttribute("fill", "none");
-            line.setAttribute("class", "line");
+            const line = this.createSvgElement("path", { d: geometry.path, fill: "none", class: "line" });
             line.dataset.conn = connKey;
             // Prefer inline styles so CSS defaults don't override colors/gradients
             if (strokeRef) {
@@ -1368,12 +1190,13 @@ const VisualNotes = {
             });
 
             // Add invisible wider stroke for better clickability
-            const bgLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            bgLine.setAttribute("d", geometry.path);
-            bgLine.setAttribute("fill", "none");
-            bgLine.setAttribute("stroke", "transparent");
-            bgLine.setAttribute("stroke-width", "20");
-            bgLine.setAttribute("stroke-linejoin", "round");
+            const bgLine = this.createSvgElement("path", {
+                d: geometry.path,
+                fill: "none",
+                stroke: "transparent",
+                "stroke-width": 20,
+                "stroke-linejoin": "round"
+            });
             bgLine.style.pointerEvents = "all";
             bgLine.style.cursor = "pointer";
             bgLine.dataset.conn = connKey;
@@ -1394,12 +1217,13 @@ const VisualNotes = {
         const svg = document.getElementById("connections");
         if (!svg) return;
         this.removeDragStart = this.screenToCanvas(event.clientX, event.clientY);
-        this.removeDragLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        this.removeDragLine.setAttribute("class", "removeLine");
-        this.removeDragLine.setAttribute("x1", this.removeDragStart.x);
-        this.removeDragLine.setAttribute("y1", this.removeDragStart.y);
-        this.removeDragLine.setAttribute("x2", this.removeDragStart.x);
-        this.removeDragLine.setAttribute("y2", this.removeDragStart.y);
+        this.removeDragLine = this.createSvgElement("line", {
+            class: "removeLine",
+            x1: this.removeDragStart.x,
+            y1: this.removeDragStart.y,
+            x2: this.removeDragStart.x,
+            y2: this.removeDragStart.y
+        });
         svg.appendChild(this.removeDragLine);
         this.updateRemoveDrag(event);
     },
@@ -1410,12 +1234,13 @@ const VisualNotes = {
         const svg = document.getElementById("connections");
         if (!svg) return;
         this.addDragStart = this.screenToCanvas(event.clientX, event.clientY);
-        this.addDragLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        this.addDragLine.setAttribute("class", "addLine");
-        this.addDragLine.setAttribute("x1", this.addDragStart.x);
-        this.addDragLine.setAttribute("y1", this.addDragStart.y);
-        this.addDragLine.setAttribute("x2", this.addDragStart.x);
-        this.addDragLine.setAttribute("y2", this.addDragStart.y);
+        this.addDragLine = this.createSvgElement("line", {
+            class: "addLine",
+            x1: this.addDragStart.x,
+            y1: this.addDragStart.y,
+            x2: this.addDragStart.x,
+            y2: this.addDragStart.y
+        });
         svg.appendChild(this.addDragLine);
         this.updateAddDrag(event);
     },
@@ -1429,14 +1254,7 @@ const VisualNotes = {
         // highlight notes crossed by the line
         const touched = new Set();
         for (let note of this.notes) {
-            // check if the line intersects note rect
-            const rectSegs = [
-                { x1: note.x, y1: note.y, x2: note.x + (note.width || CanvasUtils.defaultNoteWidth), y2: note.y },
-                { x1: note.x + (note.width || CanvasUtils.defaultNoteWidth), y1: note.y, x2: note.x + (note.width || CanvasUtils.defaultNoteWidth), y2: note.y + (note.height || CanvasUtils.defaultNoteHeight) },
-                { x1: note.x + (note.width || CanvasUtils.defaultNoteWidth), y1: note.y + (note.height || CanvasUtils.defaultNoteHeight), x2: note.x, y2: note.y + (note.height || CanvasUtils.defaultNoteHeight) },
-                { x1: note.x, y1: note.y + (note.height || CanvasUtils.defaultNoteHeight), x2: note.x, y2: note.y }
-            ];
-            for (let seg of rectSegs) {
+            for (let seg of CanvasUtils.getRectangleSegments(note)) {
                 if (this.lineIntersects(this.addDragStart, end, seg)) {
                     touched.add(note.id);
                     break;
@@ -1496,13 +1314,14 @@ const VisualNotes = {
         this.removeDragLine.setAttribute("y2", end.y);
 
         const crossed = new Set();
+        const notesById = new Map(this.notes.map(note => [note.id, note]));
         this.connections.forEach(c => {
-            const a = this.notes.find(n => n.id === c.a);
-            const b = this.notes.find(n => n.id === c.b);
+            const a = notesById.get(c.a);
+            const b = notesById.get(c.b);
             if (!a || !b) return;
             const geometry = CanvasUtils.getOrthogonalConnection(a, b);
             if (geometry.segments.some(segment => this.lineIntersects(this.removeDragStart, end, segment))) {
-                crossed.add(`${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`);
+                crossed.add(this.getConnectionKey(c.a, c.b));
             }
         });
 
@@ -1524,7 +1343,7 @@ const VisualNotes = {
         if (this.removeDragCrossed.length > 0) {
             this.performHistoryChange(() => {
                 this.connections = this.connections.filter(c => {
-                    const key = `${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`;
+                    const key = this.getConnectionKey(c.a, c.b);
                     return !this.removeDragCrossed.includes(key);
                 });
             });
@@ -1566,30 +1385,20 @@ const VisualNotes = {
             this.commitHistoryTransaction();
             this.saveBoard();
         }
-        document.body.style.userSelect = this.previousBodyUserSelect || '';
-        document.body.style.webkitUserSelect = this.previousBodyWebkitUserSelect || '';
-        document.onselectstart = null;
+        this.setTextSelectionLocked(false);
         this.selectedNote = null;
-        document.onmousemove = null;
-        document.onmouseup = null;
+        this.clearDragHandlers();
     },
     startSelectBox(event) {
         if (event.button !== 0) return; // Only left click
-        const canvasOffsetTop = 50;
-        const viewportX = event.clientX;
-        const viewportY = event.clientY - canvasOffsetTop;
-        this.selectBoxStart = {
-            x: (viewportX - this.panX) / this.zoom,
-            y: (viewportY - this.panY) / this.zoom
-        };
+        this.selectBoxStart = this.screenToCanvas(event.clientX, event.clientY);
         this.selectBoxStartScreen = {
             x: event.clientX,
             y: event.clientY
         };
         this.selectingBox = true;
         this.selectBoxMoved = false;
-        document.onmousemove = e => this.updateSelectBox(e);
-        document.onmouseup = () => this.stopSelectBox();
+        this.setDragHandlers(e => this.updateSelectBox(e), () => this.stopSelectBox());
     },
     updateSelectBox(event) {
         if (!this.selectingBox) return;
@@ -1598,11 +1407,7 @@ const VisualNotes = {
         if (!this.selectBoxMoved && Math.hypot(screenWidth, screenHeight) < 5) return;
         this.selectBoxMoved = true;
 
-        const canvasOffsetTop = 50;
-        const viewportX = event.clientX;
-        const viewportY = event.clientY - canvasOffsetTop;
-        const endX = (viewportX - this.panX) / this.zoom;
-        const endY = (viewportY - this.panY) / this.zoom;
+        const { x: endX, y: endY } = this.screenToCanvas(event.clientX, event.clientY);
         
         const minX = Math.min(this.selectBoxStart.x, endX);
         const maxX = Math.max(this.selectBoxStart.x, endX);
@@ -1611,9 +1416,8 @@ const VisualNotes = {
         
         this.selectedNotes = this.notes
             .filter(note => {
-                const noteRight = note.x + (note.width || CanvasUtils.defaultNoteWidth);
-                const noteBottom = note.y + (note.height || CanvasUtils.defaultNoteHeight);
-                return note.x < maxX && noteRight > minX && note.y < maxY && noteBottom > minY;
+                const bounds = CanvasUtils.getItemBounds(note);
+                return bounds.left < maxX && bounds.right > minX && bounds.top < maxY && bounds.bottom > minY;
             })
             .map(n => n.id);
         
@@ -1637,8 +1441,7 @@ const VisualNotes = {
             this.selectionBoxElement.style.width = "0px";
             this.selectionBoxElement.style.height = "0px";
         }
-        document.onmousemove = null;
-        document.onmouseup = null;
+        this.clearDragHandlers();
     },
     startResize(note, e, direction = "se") {
         if (e.button !== 0 || this.shapeMode || this.addMode || this.removeMode || this.colorMode) return;
@@ -1659,13 +1462,8 @@ const VisualNotes = {
             width: note.width || CanvasUtils.defaultNoteWidth,
             height: note.height || CanvasUtils.defaultNoteHeight
         };
-        this.previousBodyUserSelect = document.body.style.userSelect;
-        this.previousBodyWebkitUserSelect = document.body.style.webkitUserSelect;
-        document.body.style.userSelect = 'none';
-        document.body.style.webkitUserSelect = 'none';
-        document.onselectstart = () => false;
-        document.onmousemove = e2 => this.doResize(e2);
-        document.onmouseup = () => this.stopResize();
+        this.setTextSelectionLocked(true);
+        this.setDragHandlers(e2 => this.doResize(e2), () => this.stopResize());
         this.render();
     },
     doResize(e) {
@@ -1707,27 +1505,28 @@ const VisualNotes = {
             );
         }
         Object.assign(note, rectangle);
-        this.render();
+        this.updateCanvasBounds();
+        this.applyTransform();
+        this.drawConnections(false);
+        this.updateTextareaOverflow(document.querySelector(`.note[data-note-id="${note.id}"] textarea`));
     },
     stopResize() {
         if (this.resizingNote) {
             this.commitHistoryTransaction();
             this.saveBoard();
         }
-        document.body.style.userSelect = this.previousBodyUserSelect || '';
-        document.body.style.webkitUserSelect = this.previousBodyWebkitUserSelect || '';
-        document.onselectstart = null;
+        this.setTextSelectionLocked(false);
         this.resizingNote = null;
         this.resizeStartRect = null;
         this.resizeDirection = null;
-        document.onmousemove = null;
-        document.onmouseup = null;
+        this.clearDragHandlers();
         this.render();
     },
     render() {
         const canvas = document.getElementById("canvas");
         if (!canvas) return;
         const notes = this.notes;
+        const selectedNoteIds = new Set(this.selectedNotes);
         const self = this;
         notes.forEach(note => {
             const minWidth = self.getMinNoteWidth(note);
@@ -1760,13 +1559,12 @@ const VisualNotes = {
             const imageOnlyNote = note.type === "image";
             const noteContentVisible = imageOnlyNote || this.hasNoteContent(note) || this.expandedNoteIds.has(note.id);
             const titleOnlyNote = !imageOnlyNote && !noteContentVisible;
-            const showAddNoteButton = titleOnlyNote && this.selectedNotes.length === 1 &&
-                this.selectedNotes[0] === note.id;
+            const showAddNoteButton = titleOnlyNote && selectedNoteIds.size === 1 && selectedNoteIds.has(note.id);
             if (imageOnlyNote) div.classList.add("image-note", "no-title");
             if (titleOnlyNote) div.classList.add("title-only");
             if (showAddNoteButton) div.classList.add("has-add-note-control");
             if (this.resizingNote && this.resizingNote.id === note.id) div.classList.add("resizing");
-            if (this.selectedNotes.includes(note.id)) {
+            if (selectedNoteIds.has(note.id)) {
                 div.classList.add("selected");
             }
             div.style.left = (note.x - this.canvasBounds.left) + "px";
@@ -1779,19 +1577,24 @@ const VisualNotes = {
             div.style.setProperty('--note-bg', note.color || '#333');
             if (imageOnlyNote) {
                 div.innerHTML = `
-        ${note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image">` +
+        ${note.imageSrc ? `<div class="noteImage"><img src="${escapeHtml(note.imageSrc)}" alt="Note image">` +
             `</img></div>` : ""}
         `;
             } else {
                 div.innerHTML = `
         <div class="noteHeader">
-            <span class="noteTitle" data-placeholder="Add title">${this.escapeHtml(note.title)}</span>
+            <span class="noteTitle" data-placeholder="Add title">${escapeHtml(note.title)}</span>
         </div>
         ${showAddNoteButton ? `<button type="button" class="addNoteContentButton" aria-label="Add note" title="Add note">+</button>` : ""}
-        ${noteContentVisible && note.imageSrc ? `<div class="noteImage"><img src="${this.escapeHtml(note.imageSrc)}" alt="Note image"></div>` : ""}
-        ${noteContentVisible ? `<textarea aria-label="Note">${this.escapeHtml(note.text)}</textarea>` : ""}
+        ${noteContentVisible && note.imageSrc ? `<div class="noteImage"><img src="${escapeHtml(note.imageSrc)}" alt="Note image"></div>` : ""}
+        ${noteContentVisible ? `<textarea aria-label="Note">${escapeHtml(note.text)}</textarea>` : ""}
         `;
             }
+            div.insertAdjacentHTML("beforeend", `
+                <div class="noteResizeBorder" aria-hidden="true">
+                    ${this.getResizeHandlesMarkup("resizeHandle")}
+                </div>
+            `);
 
             const addNoteContentButton = div.querySelector(".addNoteContentButton");
             if (addNoteContentButton) {
@@ -1810,7 +1613,7 @@ const VisualNotes = {
                     if (self.shapeMode) return;
                     if (self.colorMode) {
                         if (self.colorPickMode) {
-                            self.sampleNoteColor(note);
+                            self.sampleColor(note);
                         } else {
                             self.selectNote(note, e.shiftKey);
                         }
@@ -1836,7 +1639,7 @@ const VisualNotes = {
                     if (self.colorMode) {
                         e.preventDefault();
                         if (self.colorPickMode) {
-                            self.sampleNoteColor(note);
+                            self.sampleColor(note);
                         } else {
                             self.selectNote(note, e.shiftKey);
                         }
@@ -1912,7 +1715,7 @@ const VisualNotes = {
                     e.stopPropagation();
                     e.preventDefault();
                     if (self.colorPickMode) {
-                        self.sampleNoteColor(note);
+                        self.sampleColor(note);
                     } else {
                         self.selectNote(note, e.shiftKey);
                     }
@@ -1924,11 +1727,7 @@ const VisualNotes = {
                 }
                 e.stopPropagation();
                 e.preventDefault();
-                const canvasOffsetTop = 50;
-                const viewportX = e.clientX;
-                const viewportY = e.clientY - canvasOffsetTop;
-                const unzoomedX = (viewportX - self.panX) / self.zoom;
-                const unzoomedY = (viewportY - self.panY) / self.zoom;
+                const pointer = self.screenToCanvas(e.clientX, e.clientY);
                 
                 // Modifier-click toggles selection without starting a drag.
                 if (e.shiftKey) {
@@ -1939,48 +1738,35 @@ const VisualNotes = {
                 self.beginHistoryTransaction();
                 
                 // If clicking on already selected note, drag all selected notes
-                if (self.selectedNotes.includes(note.id)) {
+                if (selectedNoteIds.has(note.id)) {
                     self.selectedNote = note;
-                    self.offsetX = unzoomedX - note.x;
-                    self.offsetY = unzoomedY - note.y;
+                    self.offsetX = pointer.x - note.x;
+                    self.offsetY = pointer.y - note.y;
                 } else {
                     // Clicking on unselected note: select only it and drag
                     self.selectedNotes = [note.id];
                     self.render();
                     self.selectedNote = note;
-                    self.offsetX = unzoomedX - note.x;
-                    self.offsetY = unzoomedY - note.y;
+                    self.offsetX = pointer.x - note.x;
+                    self.offsetY = pointer.y - note.y;
                 }
-                self.previousBodyUserSelect = document.body.style.userSelect;
-                self.previousBodyWebkitUserSelect = document.body.style.webkitUserSelect;
-                document.body.style.userSelect = 'none';
-                document.body.style.webkitUserSelect = 'none';
-                document.onselectstart = () => false;
-                document.onmousemove = e2 => self.moveNote(e2);
-                document.onmouseup = () => self.stopMove();
+                self.setTextSelectionLocked(true);
+                self.setDragHandlers(e2 => self.moveNote(e2), () => self.stopMove());
             };
             
-            const resizeBorder = document.createElement("div");
-            resizeBorder.className = "noteResizeBorder";
-            resizeBorder.setAttribute("aria-hidden", "true");
-            ["n", "ne", "e", "se", "s", "sw", "w", "nw"].forEach(direction => {
-                const resizeHandle = document.createElement("span");
-                resizeHandle.className = `resizeHandle ${direction}`;
-                resizeHandle.dataset.direction = direction;
+            div.querySelectorAll(".resizeHandle").forEach(resizeHandle => {
                 resizeHandle.onmousedown = e => {
                     if (e.button !== 0) return;
                     e.stopPropagation();
-                    self.startResize(note, e, direction);
+                    self.startResize(note, e, resizeHandle.dataset.direction);
                 };
-                resizeBorder.appendChild(resizeHandle);
             });
-            div.appendChild(resizeBorder);
 
             canvas.appendChild(div);
             self.updateTextareaOverflow(textarea);
         });
 
-        this.drawConnections();
+        this.drawConnections(false);
         this.updateNavigationBars();
     },
     getNavigationMetrics(axis, trackLength) {
@@ -2149,8 +1935,7 @@ const VisualNotes = {
         this.panStartY = event.clientY;
         this.panStartPanX = this.panX;
         this.panStartPanY = this.panY;
-        document.onmousemove = e => this.updatePan(e);
-        document.onmouseup = () => this.stopPan();
+        this.setDragHandlers(e => this.updatePan(e), () => this.stopPan());
         event.preventDefault();
     },
     updatePan(event) {
@@ -2164,8 +1949,7 @@ const VisualNotes = {
     },
     stopPan() {
         this.panning = false;
-        document.onmousemove = null;
-        document.onmouseup = null;
+        this.clearDragHandlers();
         this.updateCanvasBounds();
         this.applyTransform();
         this.saveBoard();
@@ -2240,7 +2024,7 @@ const VisualNotes = {
         if (newZoom === pending.zoom) return;
         
         const viewportCenterX = window.innerWidth / 2;
-        const viewportCenterY = (window.innerHeight - 50) / 2;
+        const viewportCenterY = (window.innerHeight - CanvasUtils.toolbarHeight) / 2;
         const worldX = (viewportCenterX - pending.panX) / pending.zoom;
         const worldY = (viewportCenterY - pending.panY) / pending.zoom;
 
@@ -2342,11 +2126,7 @@ const VisualNotes = {
                     return;
                 }
                 
-                const canvasOffsetTop = 50;
-                const viewportX = e.clientX;
-                const viewportY = e.clientY - canvasOffsetTop;
-                const unzoomedX = (viewportX - self.panX) / self.zoom;
-                const unzoomedY = (viewportY - self.panY) / self.zoom;
+                const { x: unzoomedX, y: unzoomedY } = self.screenToCanvas(e.clientX, e.clientY);
                 
                 // Clear selection when clicking outside any note
                 self.selectedNotes = [];
@@ -2358,11 +2138,10 @@ const VisualNotes = {
                 }
 
                 // Check if we clicked on a note by testing bounding boxes
-                        let clickedNote = self.notes.some(note => {
-                            const noteRight = note.x + (note.width || CanvasUtils.defaultNoteWidth);
-                            const noteBottom = note.y + (note.height || CanvasUtils.defaultNoteHeight);
-                            return unzoomedX >= note.x && unzoomedX <= noteRight &&
-                                   unzoomedY >= note.y && unzoomedY <= noteBottom;
+                        const clickedNote = self.notes.some(note => {
+                            const bounds = CanvasUtils.getItemBounds(note);
+                            return unzoomedX >= bounds.left && unzoomedX <= bounds.right &&
+                                   unzoomedY >= bounds.top && unzoomedY <= bounds.bottom;
                         });
                 
                 // If we didn't click on a note, start selection box
@@ -2512,11 +2291,7 @@ const VisualNotes = {
             const handleDrop = e => {
                 if (!e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
                 preventDragDefault(e);
-                const canvasOffsetTop = 50;
-                const viewportX = e.clientX;
-                const viewportY = e.clientY - canvasOffsetTop;
-                const x = (viewportX - self.panX) / self.zoom;
-                const y = (viewportY - self.panY) / self.zoom;
+                const { x, y } = self.screenToCanvas(e.clientX, e.clientY);
 
                 const file = e.dataTransfer.files[0];
                 if (!file.type.startsWith("image/")) return;

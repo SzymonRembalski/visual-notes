@@ -26,6 +26,23 @@ const CanvasUtils = {
             bottom: (contentHeight - panY) / zoom
         };
     },
+    getItemBounds(item) {
+        return {
+            left: item.x,
+            top: item.y,
+            right: item.x + (item.width || this.defaultNoteWidth),
+            bottom: item.y + (item.height || this.defaultNoteHeight)
+        };
+    },
+    getRectangleSegments(item) {
+        const { left, top, right, bottom } = this.getItemBounds(item);
+        return [
+            { x1: left, y1: top, x2: right, y2: top },
+            { x1: right, y1: top, x2: right, y2: bottom },
+            { x1: right, y1: bottom, x2: left, y2: bottom },
+            { x1: left, y1: bottom, x2: left, y2: top }
+        ];
+    },
     calculateCanvasBounds(notes, viewport, padding = 360, resizeStep = 250) {
         let left = viewport.left;
         let top = viewport.top;
@@ -34,10 +51,11 @@ const CanvasUtils = {
 
         if (notes.length) {
             notes.forEach(note => {
-                left = Math.min(left, note.x);
-                top = Math.min(top, note.y);
-                right = Math.max(right, note.x + (note.width || this.defaultNoteWidth));
-                bottom = Math.max(bottom, note.y + (note.height || this.defaultNoteHeight));
+                const bounds = this.getItemBounds(note);
+                left = Math.min(left, bounds.left);
+                top = Math.min(top, bounds.top);
+                right = Math.max(right, bounds.right);
+                bottom = Math.max(bottom, bounds.bottom);
             });
         } else {
             left = Math.min(left, 0);
@@ -95,10 +113,11 @@ const CanvasUtils = {
         let right = -Infinity;
         let bottom = -Infinity;
         notes.forEach(note => {
-            left = Math.min(left, note.x);
-            top = Math.min(top, note.y);
-            right = Math.max(right, note.x + (note.width || this.defaultNoteWidth));
-            bottom = Math.max(bottom, note.y + (note.height || this.defaultNoteHeight));
+            const bounds = this.getItemBounds(note);
+            left = Math.min(left, bounds.left);
+            top = Math.min(top, bounds.top);
+            right = Math.max(right, bounds.right);
+            bottom = Math.max(bottom, bounds.bottom);
         });
 
         return {

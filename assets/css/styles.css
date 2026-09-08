@@ -48,7 +48,8 @@ button:hover,
 
 button:focus-visible,
 .button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+.toolbarMenu > summary:focus-visible {
     outline: 2px solid var(--accent-focus);
     outline-offset: 2px;
 }
@@ -158,25 +159,12 @@ body.task-page .dragHandle {
 
 body.task-page .addStep,
 body.task-page .removeStep,
-body.task-page .delete,
-body.task-page .smallButton {
+body.task-page .delete {
     padding: 8px 12px;
 }
 
 body.task-page .addStep {
     background: #1565c0;
-}
-
-body.task-page .smallButton {
-    min-width: 32px;
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    border-radius: 8px;
-    background: #555;
-}
-
-body.task-page .smallButton:hover {
-    background: #666;
 }
 
 body.task-page .removeStep,
@@ -205,29 +193,6 @@ body.task-page .note {
     margin-top: 10px;
     border-radius: 10px;
     display: none;
-}
-
-body.task-page .category {
-    background: #444;
-    font-weight: bold;
-    padding: 4px 8px;
-    border-radius: 8px;
-}
-
-body.task-page .categoryHeader {
-    background: #444;
-    font-weight: bold;
-    font-size: 18px;
-    cursor: pointer;
-    padding: 10px;
-}
-
-body.task-page .categoryColor {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin-right: 8px;
 }
 
 body.task-page tr.dragging {
@@ -342,11 +307,6 @@ body.canvas-page #toolbar .button-link {
 
 .toolbarMenu[open] > summary::after {
     transform: translateY(2px) rotate(225deg);
-}
-
-.toolbarMenu > summary:focus-visible {
-    outline: 2px solid var(--accent-focus);
-    outline-offset: 2px;
 }
 
 .toolbarMenuPanel {
@@ -823,50 +783,61 @@ body.shapes-mode-active .canvasShape.selected .shapeDeleteButton {
     display: block;
 }
 
-body.canvas-page .shapeResizeHandle {
-    display: none;
+body.canvas-page .shapeResizeHandle,
+body.canvas-page .resizeHandle {
     position: absolute;
+}
+
+body.canvas-page .shapeResizeHandle {
+    --edge-offset: -7px;
+    --edge-size: 12px;
+    --corner-offset: -9px;
+    --corner-size: 16px;
+    display: none;
     z-index: 4;
+}
+
+body.canvas-page .resizeHandle {
+    --edge-offset: 0;
+    --edge-size: 6px;
+    --corner-offset: 0;
+    --corner-size: 12px;
+    pointer-events: auto;
 }
 
 body.shapes-mode-active .canvasShape.selected .shapeResizeHandle {
     display: block;
 }
 
-body.canvas-page .shapeResizeHandle.n,
-body.canvas-page .shapeResizeHandle.s {
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle):is(.n, .s) {
     left: 12px;
     right: 12px;
-    height: 12px;
+    height: var(--edge-size);
     cursor: ns-resize;
 }
 
-body.canvas-page .shapeResizeHandle.n { top: -7px; }
-body.canvas-page .shapeResizeHandle.s { bottom: -7px; }
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle).n { top: var(--edge-offset); }
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle).s { bottom: var(--edge-offset); }
 
-body.canvas-page .shapeResizeHandle.e,
-body.canvas-page .shapeResizeHandle.w {
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle):is(.e, .w) {
     top: 12px;
     bottom: 12px;
-    width: 12px;
+    width: var(--edge-size);
     cursor: ew-resize;
 }
 
-body.canvas-page .shapeResizeHandle.e { right: -7px; }
-body.canvas-page .shapeResizeHandle.w { left: -7px; }
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle).e { right: var(--edge-offset); }
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle).w { left: var(--edge-offset); }
 
-body.canvas-page .shapeResizeHandle.ne,
-body.canvas-page .shapeResizeHandle.nw,
-body.canvas-page .shapeResizeHandle.se,
-body.canvas-page .shapeResizeHandle.sw {
-    width: 16px;
-    height: 16px;
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle):is(.ne, .nw, .se, .sw) {
+    width: var(--corner-size);
+    height: var(--corner-size);
 }
 
-body.canvas-page .shapeResizeHandle.ne { top: -9px; right: -9px; cursor: nesw-resize; }
-body.canvas-page .shapeResizeHandle.nw { top: -9px; left: -9px; cursor: nwse-resize; }
-body.canvas-page .shapeResizeHandle.se { right: -9px; bottom: -9px; cursor: nwse-resize; }
-body.canvas-page .shapeResizeHandle.sw { left: -9px; bottom: -9px; cursor: nesw-resize; }
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle).ne { top: var(--corner-offset); right: var(--corner-offset); cursor: nesw-resize; }
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle).nw { top: var(--corner-offset); left: var(--corner-offset); cursor: nwse-resize; }
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle).se { right: var(--corner-offset); bottom: var(--corner-offset); cursor: nwse-resize; }
+body.canvas-page :is(.shapeResizeHandle, .resizeHandle).sw { left: var(--corner-offset); bottom: var(--corner-offset); cursor: nesw-resize; }
 
 body.canvas-page .note {
     position: absolute;
@@ -914,46 +885,6 @@ body.canvas-page .note.selected .noteResizeBorder,
 body.canvas-page .note.resizing .noteResizeBorder {
     box-shadow: inset 0 0 0 1px var(--accent-soft);
 }
-
-body.canvas-page .resizeHandle {
-    position: absolute;
-    pointer-events: auto;
-}
-
-body.canvas-page .resizeHandle.n,
-body.canvas-page .resizeHandle.s {
-    left: 12px;
-    right: 12px;
-    height: 6px;
-    cursor: ns-resize;
-}
-
-body.canvas-page .resizeHandle.n { top: 0; }
-body.canvas-page .resizeHandle.s { bottom: 0; }
-
-body.canvas-page .resizeHandle.e,
-body.canvas-page .resizeHandle.w {
-    top: 12px;
-    bottom: 12px;
-    width: 6px;
-    cursor: ew-resize;
-}
-
-body.canvas-page .resizeHandle.e { right: 0; }
-body.canvas-page .resizeHandle.w { left: 0; }
-
-body.canvas-page .resizeHandle.ne,
-body.canvas-page .resizeHandle.nw,
-body.canvas-page .resizeHandle.se,
-body.canvas-page .resizeHandle.sw {
-    width: 12px;
-    height: 12px;
-}
-
-body.canvas-page .resizeHandle.ne { top: 0; right: 0; cursor: nesw-resize; }
-body.canvas-page .resizeHandle.nw { top: 0; left: 0; cursor: nwse-resize; }
-body.canvas-page .resizeHandle.se { bottom: 0; right: 0; cursor: nwse-resize; }
-body.canvas-page .resizeHandle.sw { bottom: 0; left: 0; cursor: nesw-resize; }
 
 body.add-mode-active .note .resizeHandle,
 body.remove-mode-active .note .resizeHandle,
@@ -1050,7 +981,9 @@ body.canvas-page .note.title-only .resizeHandle.w {
 }
 
 body.remove-mode-active,
-body.remove-mode-active * {
+body.remove-mode-active *,
+body.add-mode-active,
+body.add-mode-active * {
     user-select: none !important;
     -webkit-user-select: none !important;
 }
@@ -1083,11 +1016,6 @@ body.canvas-page .noteImage img {
     display: block;
     object-fit: contain;
     max-width: 100%;
-}
-
-body.canvas-page .imageButton {
-    background: #1565c0;
-    padding: 6px 10px;
 }
 
 body.canvas-page .note.selected {
@@ -1176,25 +1104,12 @@ body.canvas-page .note.selected {
     padding: 8px 12px;
 }
 
-.note.addition-highlight {
-    box-shadow: 0 0 0 2px var(--accent-highlight), 0 5px 15px rgba(0,0,0,0.5);
-}
-
 .selectionBox {
     position: fixed;
     pointer-events: none;
     border: 2px dashed var(--accent-hover);
     background: color-mix(in srgb, var(--accent-hover) 12%, transparent);
     z-index: 2000;
-}
-
-body.canvas-page .delete {
-    background: #b71c1c;
-    padding: 6px 10px;
-}
-
-body.canvas-page .connectMode {
-    background: #1565c0;
 }
 
 body.canvas-page svg {
@@ -1232,12 +1147,6 @@ body.canvas-page .line {
 
 body.canvas-page svg.remove-mode-active .line:hover {
     stroke: #f44336;
-}
-
-body.add-mode-active,
-body.add-mode-active * {
-    user-select: none !important;
-    -webkit-user-select: none !important;
 }
 
 body.canvas-page .addLine {
@@ -1293,7 +1202,6 @@ body.canvas-overview-mode .noteTitleInput {
 }
 
 body.canvas-overview-mode .note textarea,
-body.canvas-overview-mode .imageButton,
 body.canvas-overview-mode .addNoteContentButton,
 body.canvas-overview-mode .noteResizeBorder {
     display: none !important;

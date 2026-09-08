@@ -32,11 +32,7 @@ const AppSettings = {
             "-": "minus",
             spacebar: "space",
             esc: "escape",
-            del: "delete",
-            arrowup: "arrowup",
-            arrowdown: "arrowdown",
-            arrowleft: "arrowleft",
-            arrowright: "arrowright"
+            del: "delete"
         };
         const normalized = String(key || "").toLowerCase();
         return aliases[normalized] || normalized;
@@ -82,17 +78,19 @@ const AppSettings = {
                 themeColor: this.normalizeColor(stored.themeColor),
                 shortcuts
             };
-        } catch (error) {
+        } catch {
             return defaults;
         }
     },
 
     save() {
         localStorage.setItem(this.storageKey, JSON.stringify(this.settings));
-        sessionStorage.setItem("visualSettingsPendingBackup", "1");
         this.applyTheme();
-        window.dispatchEvent(new CustomEvent("visualsettingschange", { detail: this.settings }));
-        if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
+        if (window.LocalBackupManager) {
+            window.LocalBackupManager.notifyChange();
+        } else {
+            sessionStorage.setItem("visualSettingsPendingBackup", "1");
+        }
     },
 
     mixColor(color, target, amount) {
@@ -134,7 +132,7 @@ const AppSettings = {
     },
 
     getShortcut(action) {
-        return this.settings.shortcuts[action] || this.getDefaultShortcuts()[action] || "";
+        return this.settings.shortcuts[action] || "";
     },
 
     setShortcut(action, binding) {
@@ -217,7 +215,7 @@ const AppSettings = {
                 return "index.html";
             }
             return `${filename}${url.search}`;
-        } catch (error) {
+        } catch {
             return "index.html";
         }
     },

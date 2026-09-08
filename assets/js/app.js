@@ -1,34 +1,13 @@
-function exposeTaskActions(taskTracker) {
-    window.addTask = taskTracker.addTask.bind(taskTracker);
-    window.addCategory = taskTracker.addCategory.bind(taskTracker);
-    window.deleteTask = taskTracker.deleteTask.bind(taskTracker);
-    window.toggleStep = taskTracker.toggleStep.bind(taskTracker);
-    window.addStep = taskTracker.addStep.bind(taskTracker);
-    window.removeStep = taskTracker.removeStep.bind(taskTracker);
-    window.editTask = taskTracker.editTask.bind(taskTracker);
-    window.editStep = taskTracker.editStep.bind(taskTracker);
-    window.moveStepUp = taskTracker.moveStepUp.bind(taskTracker);
-    window.moveStepDown = taskTracker.moveStepDown.bind(taskTracker);
-    window.toggleNotes = taskTracker.toggleNotes.bind(taskTracker);
-    window.updateNotes = taskTracker.updateNotes.bind(taskTracker);
-    window.togglePinned = taskTracker.togglePinned.bind(taskTracker);
-    window.startStepDrag = taskTracker.startStepDrag.bind(taskTracker);
-    window.dropStep = taskTracker.dropStep.bind(taskTracker);
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"]/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"
+    })[character]);
 }
 
-function exposeVisualNoteActions(visualNotes) {
-    window.createNote = visualNotes.createNote.bind(visualNotes);
-    window.saveBoard = visualNotes.saveBoard.bind(visualNotes);
-    window.saveProject = visualNotes.saveProject.bind(visualNotes);
-    window.updateProjectTitle = visualNotes.updateProjectTitle.bind(visualNotes);
-    window.deleteNote = visualNotes.deleteNote.bind(visualNotes);
-    window.toggleRemoveMode = visualNotes.toggleRemoveMode.bind(visualNotes);
-    window.toggleAddMode = visualNotes.toggleAddMode.bind(visualNotes);
-    window.toggleColorMode = visualNotes.toggleColorMode.bind(visualNotes);
-    window.toggleShapesMode = visualNotes.toggleShapesMode.bind(visualNotes);
-    window.toggleSnappingMode = visualNotes.toggleSnappingMode.bind(visualNotes);
-    window.applyColor = visualNotes.applyColor.bind(visualNotes);
-    window.exportBoardImage = visualNotes.exportBoardImage.bind(visualNotes);
+function exposeActions(controller, actions) {
+    actions.forEach(action => {
+        window[action] = controller[action].bind(controller);
+    });
 }
 
 function setupToolbarMenus() {
@@ -70,11 +49,18 @@ function setupToolbarMenus() {
 window.addEventListener("DOMContentLoaded", () => {
     setupToolbarMenus();
     if (window.TaskTracker) {
-        exposeTaskActions(window.TaskTracker);
+        exposeActions(window.TaskTracker, [
+            "addTask", "addCategory", "deleteTask", "toggleStep", "addStep", "removeStep",
+            "editTask", "editStep", "toggleNotes", "updateNotes", "togglePinned",
+            "startStepDrag", "dropStep"
+        ]);
         window.TaskTracker.init();
     }
     if (window.VisualNotes) {
-        exposeVisualNoteActions(window.VisualNotes);
+        exposeActions(window.VisualNotes, [
+            "createNote", "updateProjectTitle", "toggleRemoveMode", "toggleAddMode",
+            "toggleColorMode", "toggleShapesMode", "toggleSnappingMode", "exportBoardImage"
+        ]);
         window.VisualNotes.init();
     }
     if (window.ProjectsPage) {
