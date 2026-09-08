@@ -32,6 +32,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 - Pan and zoom through complex boards.
 - Export an entire board as a high-quality PNG image.
 - Keep the workspace uncluttered with dedicated **Edit**, **Save**, and **Export** menus.
+- Personalize the app-wide accent color and remap keyboard shortcuts from **Settings**.
 
 ### ✅ Turn ideas into action
 
@@ -43,7 +44,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 
 ### 🔒 Keep everything local
 
-Your projects and tasks stay on your device. Browser storage keeps the app fast, while the canvas's **Save** menu—and the **Backups** panel on other pages—can download a complete workspace backup or mirror changed data to a local JSON file every five minutes in supported browsers. Pending changes are also written when you use the app's menu-return buttons or press **Ctrl/Cmd + S**. Visual Notes has no server and sends no workspace data anywhere.
+Your projects, tasks, theme, and shortcut preferences stay on your device. Browser storage keeps the app fast, while the canvas's **Save** menu—and the **Backups** panel on other pages—can download a complete workspace backup or mirror changed data to a local JSON file every five minutes in supported browsers. Pending changes are also written when you use the app's menu-return buttons or press **Ctrl/Cmd + S**. Visual Notes has no server and sends no workspace data anywhere.
 
 ## How it fits together
 
@@ -80,6 +81,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 
 | Action | Control |
 | --- | --- |
+| Change the theme or shortcuts | Open **Settings** from the main menu or Visual Notes toolbar |
 | Create a node | **Edit → New Node** |
 | Add a note inside a node | Select one title-only node, then use the **+** beneath its title; an empty note collapses automatically |
 | Resize a node | Left-drag any border or corner; image nodes keep their proportions |
@@ -108,6 +110,8 @@ Then open `index.html`. There is nothing to install and no build command to run.
 
 ## Keyboard and mouse shortcuts
 
+These are the default bindings. Select any keyboard binding on the **Settings** page and press a new key combination to replace it.
+
 | Shortcut | Action |
 | --- | --- |
 | `A` | Toggle **Add Connections** |
@@ -133,6 +137,7 @@ The single-letter tool shortcuts work only when you are not typing and no nodes 
 visual-notes/
 ├── index.html                # Main navigation
 ├── projects.html             # Visual project library
+├── settings.html             # Theme and keyboard preferences
 ├── visual-notes.html         # Visual notes workspace
 ├── tasks.html                # Task tracker
 └── assets/
@@ -140,11 +145,13 @@ visual-notes/
     │   └── styles.css        # Shared dark interface
     └── js/
         ├── app.js            # Page initialization and action bindings
+        ├── app-settings.js   # Shared theme, shortcuts, and settings navigation
         ├── board-image-exporter.js # Full-board PNG renderer and download
         ├── canvas-utils.js   # Canvas coordinates, bounds, and geometry
         ├── history-manager.js # 30-step undo and redo history
         ├── project-manager.js # Project persistence
         ├── projects-page.js  # Project library interface
+        ├── settings-page.js  # Settings page interactions
         ├── task-tracker.js   # Task tracker behavior
         └── visual-notes.js   # Canvas and note interactions
 ```

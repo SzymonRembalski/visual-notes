@@ -2388,15 +2388,22 @@ const VisualNotes = {
             
             // Keyboard shortcuts
             document.addEventListener("keydown", e => {
-                const historyShortcut = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z";
-                if (historyShortcut) {
+                const activeElement = document.activeElement;
+                const activeTag = activeElement && activeElement.tagName;
+                const typing = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeElement.isContentEditable;
+                const matchesShortcut = action => window.AppSettings && window.AppSettings.matchesShortcut(e, action);
+                const redoShortcut = matchesShortcut("redo");
+                const undoShortcut = matchesShortcut("undo");
+                const historyShortcut = redoShortcut ? "redo" : undoShortcut ? "undo" : null;
+                const historyAllowedWhileTyping = historyShortcut && window.AppSettings.shortcutUsesModifier(historyShortcut);
+                if (historyShortcut && (!typing || historyAllowedWhileTyping)) {
                     e.preventDefault();
                     e.stopPropagation();
                     if (e.target && e.target.classList &&
                         (e.target.classList.contains("noteTitleInput") || e.target.classList.contains("shapeTitleInput"))) {
                         e.target.blur();
                     }
-                    if (e.shiftKey) {
+                    if (historyShortcut === "redo") {
                         self.redo();
                     } else {
                         self.undo();
@@ -2404,39 +2411,41 @@ const VisualNotes = {
                     return;
                 }
 
-                const activeTag = document.activeElement && document.activeElement.tagName;
-                const typing = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement.isContentEditable;
                 if (typing) return;
 
-                if (e.key === "Delete" && self.shapeMode && self.selectedShapeId &&
-                    !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (matchesShortcut("deleteSelection") && self.shapeMode && self.selectedShapeId) {
                     e.preventDefault();
                     self.deleteShape(self.selectedShapeId);
                     return;
                 }
-                if (e.key === "Delete" && self.selectedNotes.length > 0 && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (matchesShortcut("deleteSelection") && self.selectedNotes.length > 0) {
                     e.preventDefault();
                     self.deleteSelectedNotes();
+                    return;
                 }
                 if (!self.selectedNotes.length) {
-                    if (e.key.toLowerCase() === 'a' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    if (matchesShortcut("addConnections")) {
                         e.preventDefault();
                         self.toggleAddMode();
+                        return;
                     }
-                    if (e.key.toLowerCase() === 'r' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    if (matchesShortcut("removeConnections")) {
                         e.preventDefault();
                         self.toggleRemoveMode();
+                        return;
                     }
-                    if (e.key.toLowerCase() === 'c' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    if (matchesShortcut("colorMode")) {
                         e.preventDefault();
                         self.toggleColorMode();
+                        return;
                     }
-                    if (e.key.toLowerCase() === 's' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    if (matchesShortcut("shapesMode")) {
                         e.preventDefault();
                         self.toggleShapesMode();
+                        return;
                     }
                 }
-                if (e.key.toLowerCase() === "b" && (e.ctrlKey || e.metaKey)) {
+                if (matchesShortcut("newNode")) {
                     e.preventDefault();
                     self.createNote();
                 }

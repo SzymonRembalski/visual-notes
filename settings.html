@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings · Visual Notes</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/app-settings.js"></script>
+</head>
+<body class="settings-page">
+    <main class="settingsShell">
+        <header class="settingsHeader">
+            <div>
+                <p class="settingsEyebrow">Visual Notes</p>
+                <h1>Settings</h1>
+                <p>Personalize the app without changing your projects.</p>
+            </div>
+            <a href="index.html" class="button button-link settingsBack" data-settings-back>Back</a>
+        </header>
+
+        <section class="settingsCard" aria-labelledby="themeHeading">
+            <div class="settingsCardHeading">
+                <div>
+                    <h2 id="themeHeading">Theme color</h2>
+                    <p>Choose the accent used for buttons, selections, and active tools.</p>
+                </div>
+                <button type="button" id="resetThemeButton" class="settingsSecondaryButton">Reset theme</button>
+            </div>
+            <div class="themeControls">
+                <label class="themePicker" for="themeColorInput">
+                    <span>Custom color</span>
+                    <input id="themeColorInput" type="color" value="#388e3c">
+                    <output id="themeColorValue" for="themeColorInput">#388E3C</output>
+                </label>
+                <div class="themePresets" aria-label="Theme color presets">
+                    <button type="button" class="themePreset" data-color="#388e3c" style="--preset-color:#388e3c" aria-label="Green theme" title="Green"></button>
+                    <button type="button" class="themePreset" data-color="#426c9b" style="--preset-color:#426c9b" aria-label="Blue theme" title="Blue"></button>
+                    <button type="button" class="themePreset" data-color="#71558f" style="--preset-color:#71558f" aria-label="Purple theme" title="Purple"></button>
+                    <button type="button" class="themePreset" data-color="#9b713f" style="--preset-color:#9b713f" aria-label="Amber theme" title="Amber"></button>
+                    <button type="button" class="themePreset" data-color="#984f55" style="--preset-color:#984f55" aria-label="Red theme" title="Red"></button>
+                </div>
+            </div>
+        </section>
+
+        <section class="settingsCard" aria-labelledby="shortcutsHeading">
+            <div class="settingsCardHeading">
+                <div>
+                    <h2 id="shortcutsHeading">Keyboard shortcuts</h2>
+                    <p>Select a binding, then press the key combination you want to use.</p>
+                </div>
+                <button type="button" id="resetShortcutsButton" class="settingsSecondaryButton">Reset all</button>
+            </div>
+            <div id="shortcutList" class="shortcutList"></div>
+            <p id="settingsStatus" class="settingsStatus" role="status" aria-live="polite">Changes are saved automatically.</p>
+        </section>
+    </main>
+    <script src="assets/js/settings-page.js"></script>
+</body>
+</html>

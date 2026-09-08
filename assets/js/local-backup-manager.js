@@ -8,11 +8,11 @@ const LocalBackupManager = {
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
         "visualNotes", "visualConnections", "visualShapes", "visualTitle",
         "visualCoordinateVersion", "visualPanX", "visualPanY", "visualZoom",
-        "visualSnappingEnabled"
+        "visualSnappingEnabled", "visualAppSettings"
     ],
     jsonStorageKeys: new Set([
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
-        "visualNotes", "visualConnections", "visualShapes"
+        "visualNotes", "visualConnections", "visualShapes", "visualAppSettings"
     ]),
     arrayStorageKeys: new Set([
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
@@ -370,7 +370,13 @@ const LocalBackupManager = {
             root.querySelector(".saveBackupNow").hidden = true;
         }
         document.addEventListener("keydown", event => {
-            if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== "s") return;
+            const matchesSave = window.AppSettings
+                ? window.AppSettings.matchesShortcut(event, "save")
+                : (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "s";
+            if (!matchesSave) return;
+            const target = event.target;
+            const typing = target && (target.matches?.("input,textarea") || target.isContentEditable);
+            if (typing && window.AppSettings && !window.AppSettings.shortcutUsesModifier("save")) return;
             event.preventDefault();
             event.stopPropagation();
             this.saveNow();
@@ -394,6 +400,10 @@ const LocalBackupManager = {
 
     async init() {
         this.createInterface();
+        if (sessionStorage.getItem("visualSettingsPendingBackup") === "1") {
+            this.dirty = true;
+            sessionStorage.removeItem("visualSettingsPendingBackup");
+        }
         this.startBackupInterval();
         if ("showSaveFilePicker" in window && "indexedDB" in window) {
             try {
