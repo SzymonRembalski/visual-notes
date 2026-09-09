@@ -25,7 +25,6 @@ const LocalBackupManager = {
     writing: false,
     writeQueued: false,
     queuedUserInitiated: false,
-    panel: null,
     statusElement: null,
     restoreNoticeShown: false,
 
@@ -308,10 +307,11 @@ const LocalBackupManager = {
     createInterface() {
         const menuHost = document.getElementById("saveMenuPanel");
         if (!menuHost) return;
-        const menuDetails = menuHost ? menuHost.closest(".toolbarMenu") : null;
+        const menuDetails = menuHost.closest(".toolbarMenu");
         const root = document.createElement("div");
-        root.className = menuHost ? "backupControls toolbarBackupControls" : "backupControls";
-        const panelContents = `
+        root.className = "backupControls";
+        root.innerHTML = `
+            <section class="backupPanel" aria-label="Local backup controls">
                 <div class="backupPanelHeader">
                     <strong>Local backups</strong>
                     <button type="button" class="backupClose" aria-label="Close backup controls">&times;</button>
@@ -324,41 +324,22 @@ const LocalBackupManager = {
                     <button type="button" class="downloadBackup">Download backup</button>
                     <button type="button" class="restoreBackup">Restore backup</button>
                 </div>
-                <input class="backupFileInput" type="file" accept="application/json,.json" hidden>`;
-        root.innerHTML = menuHost ? `
-            <section class="backupPanel" aria-label="Local backup controls">
-                ${panelContents}
-            </section>` : `
-            <button type="button" class="backupToggle" aria-expanded="false">Backups</button>
-            <section class="backupPanel" hidden aria-label="Local backup controls">
-                ${panelContents}
+                <input class="backupFileInput" type="file" accept="application/json,.json" hidden>
             </section>`;
-        (menuHost || document.body).appendChild(root);
-        this.panel = root.querySelector(".backupPanel");
+        menuHost.appendChild(root);
         this.statusElement = root.querySelector(".backupStatus");
-        const toggle = menuDetails
-            ? menuDetails.querySelector(".backupToggle")
-            : root.querySelector(".backupToggle");
+        const toggle = menuDetails.querySelector(".backupToggle");
         const setOpen = open => {
-            if (menuDetails) {
-                menuDetails.open = open;
-            } else {
-                this.panel.hidden = !open;
-            }
+            menuDetails.open = open;
             toggle.setAttribute("aria-expanded", String(open));
         };
-        if (menuDetails) {
-            menuDetails.addEventListener("toggle", () => {
-                toggle.setAttribute("aria-expanded", String(menuDetails.open));
-            });
-        } else {
-            toggle.onclick = () => setOpen(this.panel.hidden);
-        }
+        toggle.setAttribute("aria-expanded", String(menuDetails.open));
+        menuDetails.addEventListener("toggle", () => {
+            toggle.setAttribute("aria-expanded", String(menuDetails.open));
+        });
         root.querySelector(".backupClose").onclick = () => setOpen(false);
         root.querySelector(".connectBackup").onclick = () => this.connectFile();
-        root.querySelector(".saveBackupNow").onclick = async () => {
-            await this.saveNow();
-        };
+        root.querySelector(".saveBackupNow").onclick = () => this.saveNow();
         root.querySelector(".downloadBackup").onclick = () => this.downloadBackup();
         const input = root.querySelector(".backupFileInput");
         root.querySelector(".restoreBackup").onclick = () => input.click();
@@ -370,6 +351,20 @@ const LocalBackupManager = {
             root.querySelector(".connectBackup").textContent = "Download backup file";
             root.querySelector(".saveBackupNow").hidden = true;
         }
+        this.renderStatus();
+        const currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.get("backupRestored") === "1") {
+            currentUrl.searchParams.delete("backupRestored");
+            window.history.replaceState(null, "", currentUrl.href);
+            this.setStatus("Backup restored successfully", "success");
+            setOpen(true);
+            this.restoreNoticeShown = true;
+        }
+    },
+
+    async init() {
+        this.createInterface();
+        // Saving remains available on pages that have no visible backup controls.
         document.addEventListener("keydown", event => {
             const matchesSave = window.AppSettings
                 ? window.AppSettings.matchesShortcut(event, "save")
@@ -388,19 +383,6 @@ const LocalBackupManager = {
             event.preventDefault();
             this.saveBeforeNavigation(link);
         });
-        this.renderStatus();
-        const currentUrl = new URL(window.location.href);
-        if (currentUrl.searchParams.get("backupRestored") === "1") {
-            currentUrl.searchParams.delete("backupRestored");
-            window.history.replaceState(null, "", currentUrl.href);
-            this.setStatus("Backup restored successfully", "success");
-            setOpen(true);
-            this.restoreNoticeShown = true;
-        }
-    },
-
-    async init() {
-        this.createInterface();
         if (sessionStorage.getItem("visualSettingsPendingBackup") === "1") {
             this.dirty = true;
             sessionStorage.removeItem("visualSettingsPendingBackup");
@@ -408,12 +390,14 @@ const LocalBackupManager = {
         this.startBackupInterval();
         if ("showSaveFilePicker" in window && "indexedDB" in window) {
             try {
-                this.fileHandle = await this.loadHandle();
+                const rememberedHandle = await this.loadHandle();
+                // A file selected while IndexedDB was loading takes precedence.
+                if (!this.fileHandle) this.fileHandle = rememberedHandle;
                 if (!this.restoreNoticeShown) {
                     this.renderStatus(await this.hasWritePermission(false));
                 }
             } catch (error) {
-                this.fileHandle = null;
+                // A failed lookup must not discard a file selected this session.
             }
         }
     }

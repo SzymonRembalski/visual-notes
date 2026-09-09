@@ -37,6 +37,7 @@ const VisualNotes = {
     canvasResizeStep: 250,
     historyManager: new HistoryManager(30),
     historyTransaction: null,
+    connectionElements: [],
     captureHistoryState() {
         return {
             notes: this.notes,
@@ -78,7 +79,6 @@ const VisualNotes = {
 
         const titleInput = document.getElementById("projectTitleInput");
         if (titleInput) titleInput.value = this.projectTitle;
-        this.updateCanvasBounds();
         this.saveBoard();
         this.render();
         this.applyTransform();
@@ -152,8 +152,9 @@ const VisualNotes = {
         document.body.style.webkitUserSelect = this.previousBodyWebkitUserSelect || "";
         document.onselectstart = null;
     },
-    updateCanvasBounds() {
+    updateCanvasBounds(syncItems = true) {
         const next = this.calculateCanvasBounds();
+        const originChanged = next.left !== this.canvasBounds.left || next.top !== this.canvasBounds.top;
         this.canvasBounds = next;
         const width = next.right - next.left;
         const height = next.bottom - next.top;
@@ -164,12 +165,12 @@ const VisualNotes = {
         if (canvas) {
             canvas.style.width = width + "px";
             canvas.style.height = height + "px";
-            this.syncLayerGeometry(canvas, ".note", this.notes, "noteId");
+            if (syncItems || originChanged) this.syncLayerGeometry(canvas, ".note", this.notes, "noteId");
         }
         if (shapesLayer) {
             shapesLayer.style.width = width + "px";
             shapesLayer.style.height = height + "px";
-            this.syncLayerGeometry(shapesLayer, ".canvasShape", this.shapes, "shapeId");
+            if (syncItems || originChanged) this.syncLayerGeometry(shapesLayer, ".canvasShape", this.shapes, "shapeId");
         }
         if (svg) {
             svg.style.left = "0px";
@@ -401,6 +402,7 @@ const VisualNotes = {
             : requestedPosition;
         const deltaX = nextPosition.x - this.selectedNote.x;
         const deltaY = nextPosition.y - this.selectedNote.y;
+        if (deltaX === 0 && deltaY === 0) return;
 
         const notesById = new Map(this.notes.map(note => [note.id, note]));
         this.selectedNotes.forEach(noteId => {
@@ -412,7 +414,7 @@ const VisualNotes = {
 
         this.updateCanvasBounds();
         this.applyTransform();
-        this.drawConnections(false);
+        this.updateMovedConnections(this.selectedNotes);
     },
     loadBoard() {
         const params = new URLSearchParams(window.location.search);
@@ -618,7 +620,6 @@ const VisualNotes = {
         };
         this.performHistoryChange(() => this.shapes.push(shape));
         this.selectedShapeId = shape.id;
-        this.updateCanvasBounds();
         this.saveBoard();
         this.render();
         this.applyTransform();
@@ -638,7 +639,6 @@ const VisualNotes = {
             this.shapes = this.shapes.filter(shape => String(shape.id) !== String(id));
         });
         if (String(this.selectedShapeId) === String(id)) this.selectedShapeId = null;
-        this.updateCanvasBounds();
         this.saveBoard();
         this.render();
         this.applyTransform();
@@ -987,7 +987,6 @@ const VisualNotes = {
     colorPanelElement: null,
     colorPicker: null,
     customColorButton: null,
-    colorApplyButton: null,
     colorPickButton: null,
     colorPickMode: false,
     setConnectionMode(mode, enabled, finishRemoveDrag = false) {
@@ -1128,6 +1127,7 @@ const VisualNotes = {
             this.applyTransform();
         }
         svg.innerHTML = "";
+        this.connectionElements = [];
 
         // defs for gradients
         const defs = this.createSvgElement("defs");
@@ -1140,58 +1140,39 @@ const VisualNotes = {
             if (!a || !b) return;
             const connKey = this.getConnectionKey(c.a, c.b);
 
-            const geometry = CanvasUtils.getOrthogonalConnection(a, b);
-            const { x: x1, y: y1 } = geometry.start;
-            const { x: x2, y: y2 } = geometry.end;
-
-            // Determine colors (default gray for notes without color)
-            const defaultGray = '#aaa';
-            const colorA = a.color || defaultGray;
-            const colorB = b.color || defaultGray;
-
-            let strokeRef = null;
-            if (colorA && colorB && colorA === colorB) {
-                // same color: solid stroke
-                strokeRef = colorA;
-            } else {
-                // different colors: create a gradient
+            const colorA = a.color || '#aaa';
+            const colorB = b.color || '#aaa';
+            let strokeRef = colorA;
+            let gradient = null;
+            if (colorA !== colorB) {
                 const gradId = `grad-${c.a}-${c.b}`;
-                // remove existing def if present
                 const existing = defs.querySelector(`#${gradId}`);
                 if (existing) existing.remove();
-                const grad = this.createSvgElement("linearGradient", {
-                    id: gradId, gradientUnits: "userSpaceOnUse", x1, y1, x2, y2
+                gradient = this.createSvgElement("linearGradient", {
+                    id: gradId, gradientUnits: "userSpaceOnUse"
                 });
                 const stop1 = this.createSvgElement("stop", { offset: "0%", "stop-color": colorA });
                 const stop2 = this.createSvgElement("stop", { offset: "100%", "stop-color": colorB });
-                grad.appendChild(stop1);
-                grad.appendChild(stop2);
-                defs.appendChild(grad);
+                gradient.append(stop1, stop2);
+                defs.appendChild(gradient);
                 strokeRef = `url(#${gradId})`;
             }
 
-            const line = this.createSvgElement("path", { d: geometry.path, fill: "none", class: "line" });
+            const line = this.createSvgElement("path", { fill: "none", class: "line" });
             line.dataset.conn = connKey;
             // Prefer inline styles so CSS defaults don't override colors/gradients
-            if (strokeRef) {
-                line.setAttribute('stroke', strokeRef);
-                line.style.stroke = strokeRef;
-            } else {
-                line.style.stroke = '#aaa';
-            }
+            line.style.stroke = strokeRef;
             line.style.strokeWidth = '2';
             line.style.strokeLinecap = 'round';
             line.style.strokeLinejoin = 'round';
-            line.addEventListener("click", e => {
+            const removeOnClick = e => {
                 e.stopPropagation();
-                if (this.removeMode) {
-                    this.removeConnection(c.a, c.b);
-                }
-            });
+                if (this.removeMode) this.removeConnection(c.a, c.b);
+            };
+            line.addEventListener("click", removeOnClick);
 
             // Add invisible wider stroke for better clickability
             const bgLine = this.createSvgElement("path", {
-                d: geometry.path,
                 fill: "none",
                 stroke: "transparent",
                 "stroke-width": 20,
@@ -1200,14 +1181,30 @@ const VisualNotes = {
             bgLine.style.pointerEvents = "all";
             bgLine.style.cursor = "pointer";
             bgLine.dataset.conn = connKey;
-            bgLine.addEventListener("click", e => {
-                e.stopPropagation();
-                if (this.removeMode) {
-                    this.removeConnection(c.a, c.b);
-                }
-            });
-            svg.appendChild(bgLine);
-            svg.appendChild(line);
+            bgLine.addEventListener("click", removeOnClick);
+            const elements = { a, b, line, bgLine, gradient };
+            this.updateConnectionGeometry(elements);
+            this.connectionElements.push(elements);
+            svg.append(bgLine, line);
+        });
+    },
+    updateConnectionGeometry({ a, b, line, bgLine, gradient }) {
+        const { path, start, end } = CanvasUtils.getOrthogonalConnection(a, b);
+        line.setAttribute("d", path);
+        bgLine.setAttribute("d", path);
+        if (gradient) {
+            gradient.setAttribute("x1", start.x);
+            gradient.setAttribute("y1", start.y);
+            gradient.setAttribute("x2", end.x);
+            gradient.setAttribute("y2", end.y);
+        }
+    },
+    updateMovedConnections(noteIds) {
+        const movedIds = new Set(noteIds);
+        this.connectionElements.forEach(elements => {
+            if (movedIds.has(elements.a.id) || movedIds.has(elements.b.id)) {
+                this.updateConnectionGeometry(elements);
+            }
         });
     },
     startRemoveDrag(event) {
@@ -1255,7 +1252,7 @@ const VisualNotes = {
         const touched = new Set();
         for (let note of this.notes) {
             for (let seg of CanvasUtils.getRectangleSegments(note)) {
-                if (this.lineIntersects(this.addDragStart, end, seg)) {
+                if (CanvasUtils.lineIntersects(this.addDragStart, end, seg)) {
                     touched.add(note.id);
                     break;
                 }
@@ -1320,7 +1317,7 @@ const VisualNotes = {
             const b = notesById.get(c.b);
             if (!a || !b) return;
             const geometry = CanvasUtils.getOrthogonalConnection(a, b);
-            if (geometry.segments.some(segment => this.lineIntersects(this.removeDragStart, end, segment))) {
+            if (geometry.segments.some(segment => CanvasUtils.lineIntersects(this.removeDragStart, end, segment))) {
                 crossed.add(this.getConnectionKey(c.a, c.b));
             }
         });
@@ -1376,9 +1373,6 @@ const VisualNotes = {
             this.panY,
             this.zoom
         );
-    },
-    lineIntersects(a, b, c) {
-        return CanvasUtils.lineIntersects(a, b, c);
     },
     stopMove() {
         if (this.selectedNote) {
@@ -1507,7 +1501,7 @@ const VisualNotes = {
         Object.assign(note, rectangle);
         this.updateCanvasBounds();
         this.applyTransform();
-        this.drawConnections(false);
+        this.updateMovedConnections([note.id]);
         this.updateTextareaOverflow(document.querySelector(`.note[data-note-id="${note.id}"] textarea`));
     },
     stopResize() {
@@ -1708,9 +1702,7 @@ const VisualNotes = {
 
             div.onmousedown = e => {
                 if (e.button !== 0) return;
-                if (self.shapeMode) return;
-                if (self.removeMode) return;
-                if (self.addMode) return;
+                if (self.shapeMode || self.removeMode || self.addMode) return;
                 if (self.colorMode) {
                     e.stopPropagation();
                     e.preventDefault();
@@ -1738,18 +1730,14 @@ const VisualNotes = {
                 self.beginHistoryTransaction();
                 
                 // If clicking on already selected note, drag all selected notes
-                if (selectedNoteIds.has(note.id)) {
-                    self.selectedNote = note;
-                    self.offsetX = pointer.x - note.x;
-                    self.offsetY = pointer.y - note.y;
-                } else {
+                if (!selectedNoteIds.has(note.id)) {
                     // Clicking on unselected note: select only it and drag
                     self.selectedNotes = [note.id];
                     self.render();
-                    self.selectedNote = note;
-                    self.offsetX = pointer.x - note.x;
-                    self.offsetY = pointer.y - note.y;
                 }
+                self.selectedNote = note;
+                self.offsetX = pointer.x - note.x;
+                self.offsetY = pointer.y - note.y;
                 self.setTextSelectionLocked(true);
                 self.setDragHandlers(e2 => self.moveNote(e2), () => self.stopMove());
             };
@@ -1903,14 +1891,9 @@ const VisualNotes = {
         document.body.classList.toggle("canvas-overview-mode", overviewActive);
         document.body.style.setProperty("--overview-title-scale", String(1 / this.zoom));
         const transform = `translate(${this.panX + bounds.left * this.zoom}px, ${this.panY + bounds.top * this.zoom}px) scale(${this.zoom})`;
-        if (canvas) {
-            canvas.style.transform = transform;
-            canvas.style.transformOrigin = "0 0";
-        }
-        if (shapesLayer) {
-            shapesLayer.style.transform = transform;
-            shapesLayer.style.transformOrigin = "0 0";
-        }
+        [canvas, shapesLayer, svg].forEach(layer => {
+            if (layer) layer.style.transform = transform;
+        });
         if (grid) {
             // Paint only the viewport in screen pixels, independent of canvas bounds.
             // CSS sizes the dots in em; only spacing and camera alignment use pixels.
@@ -1921,10 +1904,6 @@ const VisualNotes = {
                 `${(this.panX - dotCenterOffset) % spacing}px ` +
                 `${(this.panY - dotCenterOffset) % spacing}px`;
             grid.style.setProperty("--grid-zoom", String(this.zoom));
-        }
-        if (svg) {
-            svg.style.transform = transform;
-            svg.style.transformOrigin = "0 0";
         }
         this.updateNavigationBars();
     },
@@ -1944,13 +1923,13 @@ const VisualNotes = {
         const deltaY = event.clientY - this.panStartY;
         this.panX = this.panStartPanX + deltaX;
         this.panY = this.panStartPanY + deltaY;
-        this.updateCanvasBounds();
+        this.updateCanvasBounds(false);
         this.applyTransform();
     },
     stopPan() {
         this.panning = false;
         this.clearDragHandlers();
-        this.updateCanvasBounds();
+        this.updateCanvasBounds(false);
         this.applyTransform();
         this.saveBoard();
     },
@@ -1963,7 +1942,7 @@ const VisualNotes = {
         this.zoom = target.zoom;
         this.panX = target.panX;
         this.panY = target.panY;
-        this.updateCanvasBounds();
+        this.updateCanvasBounds(false);
         this.applyTransform();
         this.saveBoard();
     },
@@ -1991,7 +1970,7 @@ const VisualNotes = {
             this.zoom = start.zoom + (animationTarget.zoom - start.zoom) * eased;
             this.panX = start.panX + (animationTarget.panX - start.panX) * eased;
             this.panY = start.panY + (animationTarget.panY - start.panY) * eased;
-            this.updateCanvasBounds();
+            this.updateCanvasBounds(false);
             this.applyTransform();
 
             if (progress < 1) {
@@ -2003,7 +1982,7 @@ const VisualNotes = {
             this.panY = animationTarget.panY;
             this.zoomAnimationFrame = null;
             this.zoomAnimationTarget = null;
-            this.updateCanvasBounds();
+            this.updateCanvasBounds(false);
             this.applyTransform();
             this.saveBoard();
         };
@@ -2086,7 +2065,6 @@ const VisualNotes = {
             this.colorPicker = colorPanel.querySelector('.colorPicker');
             this.customColorButton = colorPanel.querySelector('.customColorBtn');
             this.colorPickButton = colorPanel.querySelector('.pickColorBtn');
-            this.colorApplyButton = colorPanel.querySelector('.applyColorBtn');
             colorPanel.querySelectorAll('.colorSwatch').forEach(button => {
                 button.onclick = () => this.selectColor(button.dataset.color);
             });
@@ -2098,9 +2076,7 @@ const VisualNotes = {
             if (this.colorPickButton) {
                 this.colorPickButton.onclick = () => this.setColorPickMode(!this.colorPickMode);
             }
-            if (this.colorApplyButton) {
-                this.colorApplyButton.onclick = () => this.applyColor();
-            }
+            colorPanel.querySelector('.applyColorBtn').onclick = () => this.applyColor();
             this.selectColor(null);
             
             // Canvas background click for drag-select - check coordinates against note positions
@@ -2245,9 +2221,6 @@ const VisualNotes = {
                 if (self.addDragActive) {
                     self.endAddDrag();
                 }
-                if (self.colorMode) {
-                    // nothing to end on mouseup for color mode
-                }
             });
             
             // Right-click pan
@@ -2261,13 +2234,11 @@ const VisualNotes = {
                 }
             });
 
-            window.addEventListener("beforeunload", () => {
-                self.commitHistoryTransaction();
-                self.saveBoard();
-            });
-            window.addEventListener("pagehide", () => {
-                self.commitHistoryTransaction();
-                self.saveBoard();
+            ["beforeunload", "pagehide"].forEach(event => {
+                window.addEventListener(event, () => {
+                    self.commitHistoryTransaction();
+                    self.saveBoard();
+                });
             });
             window.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "hidden") {
@@ -2275,7 +2246,6 @@ const VisualNotes = {
                 }
             });
             window.addEventListener("resize", () => {
-                self.updateCanvasBounds();
                 self.render();
                 self.applyTransform();
             });

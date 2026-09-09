@@ -44,7 +44,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 
 ### 🔒 Keep everything local
 
-Your projects, tasks, theme, and shortcut preferences stay on your device. Browser storage keeps the app fast, while the canvas's **Save** menu—and the **Backups** panel on other pages—can download a complete workspace backup or mirror changed data to a local JSON file every five minutes in supported browsers. Pending changes are also written when you use the app's menu-return buttons or press **Ctrl/Cmd + S**. Visual Notes has no server and sends no workspace data anywhere.
+Your projects, tasks, theme, and shortcut preferences stay on your device. Browser storage keeps the app fast, while the canvas's **Save** menu can download a complete workspace backup or mirror changed data to a local JSON file every five minutes in supported browsers. Background backups, menu-return saving, and **Ctrl/Cmd + S** also work on the Main Menu, Projects, and Tasks pages, without displaying backup controls there. Visual Notes has no server and sends no workspace data anywhere.
 
 ## How it fits together
 
@@ -75,7 +75,7 @@ cd visual-notes
 Then open `index.html`. There is nothing to install and no build command to run.
 
 > [!IMPORTANT]
-> Browser data belongs to the profile and origin where you created it. On the canvas, use **Save → Choose auto-backup file** or **Save → Download backup** to keep a copy that survives clearing browser data. Use **Save → Restore backup** to restore it. The same options remain under **Backups** on the other pages.
+> Browser data belongs to the profile and origin where you created it. On the canvas, use **Save → Choose auto-backup file** or **Save → Download backup** to keep a copy that survives clearing browser data. Use **Save → Restore backup** to restore it.
 
 ## Useful canvas controls
 

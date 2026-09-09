@@ -23,21 +23,21 @@ class HistoryManager {
     }
 
     undo(currentState) {
-        if (!this.past.length) return null;
-        this.future.push(this.clone(currentState));
-        if (this.future.length > this.limit) {
-            this.future.splice(0, this.future.length - this.limit);
-        }
-        return this.clone(this.past.pop());
+        return this.move(this.past, this.future, currentState);
     }
 
     redo(currentState) {
-        if (!this.future.length) return null;
-        this.past.push(this.clone(currentState));
-        if (this.past.length > this.limit) {
-            this.past.splice(0, this.past.length - this.limit);
+        return this.move(this.future, this.past, currentState);
+    }
+
+    move(source, destination, currentState) {
+        if (!source.length) return null;
+        destination.push(this.clone(currentState));
+        if (destination.length > this.limit) {
+            destination.splice(0, destination.length - this.limit);
         }
-        return this.clone(this.future.pop());
+        // Popped snapshots are no longer retained by history, so ownership can transfer.
+        return source.pop();
     }
 }
 

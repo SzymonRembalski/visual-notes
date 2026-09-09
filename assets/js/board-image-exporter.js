@@ -5,21 +5,9 @@ const BoardImageExporter = {
     preferredScale: 2,
 
     getBounds(notes, shapes) {
-        const items = [...notes, ...shapes];
-        if (!items.length) return null;
-
-        let left = Infinity;
-        let top = Infinity;
-        let right = -Infinity;
-        let bottom = -Infinity;
-        items.forEach(item => {
-            const width = item.width || CanvasUtils.defaultNoteWidth;
-            const height = item.height || CanvasUtils.defaultNoteHeight;
-            left = Math.min(left, item.x);
-            top = Math.min(top, item.y);
-            right = Math.max(right, item.x + width);
-            bottom = Math.max(bottom, item.y + height);
-        });
+        const bounds = CanvasUtils.getNotesBounds([...notes, ...shapes]);
+        if (!bounds) return null;
+        const { left, top, right, bottom } = bounds;
 
         return {
             left: left - this.padding,

@@ -7,6 +7,12 @@
     --accent-contrast: #ffffff;
 }
 
+#canvas,
+#shapes,
+#connections {
+    transform-origin: 0 0;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -347,13 +353,6 @@ body.canvas-page #toolbar .button-link {
     min-width: 170px;
 }
 
-.backupControls {
-    position: fixed;
-    right: 18px;
-    bottom: 18px;
-    z-index: 4000;
-}
-
 .backupToggle {
     background: #1565c0;
     box-shadow: 0 5px 18px rgba(0, 0, 0, 0.4);
@@ -370,33 +369,8 @@ body.canvas-page #toolbar .button-link {
 }
 
 .backupPanel {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    width: min(360px, calc(100vw - 36px));
-    padding: 18px;
-    border: 1px solid #4a4a4a;
-    border-radius: 16px;
-    background: #252525;
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
-}
-
-.backupPanel[hidden] {
-    display: none;
-}
-
-.toolbarBackupControls {
-    position: static;
-}
-
-.toolbarBackupControls .backupPanel {
-    position: static;
     width: 100%;
     padding: 4px;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
 }
 
 .backupPanelHeader {
@@ -909,22 +883,26 @@ body.canvas-page .noteHeader {
     color: white;
 }
 
-body.canvas-page .noteTitle {
+body.canvas-page .noteTitle,
+body.canvas-page .noteTitleInput {
     display: inline-block;
     width: auto;
-    flex: none;
     min-width: 40px;
-    white-space: nowrap;
     background: transparent;
     color: white;
     padding: 0 4px;
     font-size: 1rem;
     font-weight: bold;
     outline: none;
+    text-align: center;
+}
+
+body.canvas-page .noteTitle {
+    flex: none;
+    white-space: nowrap;
     user-select: text;
     -webkit-user-select: text;
     cursor: text;
-    text-align: center;
 }
 
 body.canvas-page .noteTitle:empty::before {
@@ -935,17 +913,7 @@ body.canvas-page .noteTitle:empty::before {
 }
 
 body.canvas-page .noteTitleInput {
-    display: inline-block;
-    width: auto;
-    min-width: 40px;
-    background: transparent;
     border: none;
-    color: white;
-    padding: 0 4px;
-    font-size: 1rem;
-    font-weight: bold;
-    outline: none;
-    text-align: center;
 }
 
 body.canvas-page .addNoteContentButton {
