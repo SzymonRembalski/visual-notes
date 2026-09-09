@@ -307,6 +307,7 @@ const LocalBackupManager = {
 
     createInterface() {
         const menuHost = document.getElementById("saveMenuPanel");
+        if (!menuHost) return;
         const menuDetails = menuHost ? menuHost.closest(".toolbarMenu") : null;
         const root = document.createElement("div");
         root.className = menuHost ? "backupControls toolbarBackupControls" : "backupControls";
