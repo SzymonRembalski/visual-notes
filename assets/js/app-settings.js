@@ -1,6 +1,6 @@
 const AppSettings = {
     storageKey: "visualAppSettings",
-    defaultThemeColor: "#388e3c",
+    defaultThemeColor: "#91bda0",
     shortcutDefinitions: [
         { id: "addConnections", label: "Add Connections", defaultBinding: "a" },
         { id: "removeConnections", label: "Remove Connections", defaultBinding: "r" },
@@ -63,6 +63,8 @@ const AppSettings = {
 
     load() {
         const defaults = {
+            appearance: "graphite",
+            quickTools: true,
             themeColor: this.defaultThemeColor,
             shortcuts: this.getDefaultShortcuts()
         };
@@ -75,6 +77,8 @@ const AppSettings = {
                 if (normalized) shortcuts[definition.id] = normalized;
             });
             return {
+                appearance: stored.appearance === "paper" ? "paper" : "graphite",
+                quickTools: stored.quickTools !== false,
                 themeColor: this.normalizeColor(stored.themeColor),
                 shortcuts
             };
@@ -112,14 +116,28 @@ const AppSettings = {
 
     applyTheme() {
         const color = this.normalizeColor(this.settings && this.settings.themeColor);
-        const defaultTheme = color === this.defaultThemeColor;
         const root = document.documentElement;
+        root.dataset.appearance = this.settings.appearance;
+        root.dataset.quickTools = String(this.settings.quickTools);
         root.style.setProperty("--accent-color", color);
-        root.style.setProperty("--accent-hover", defaultTheme ? "#4caf50" : this.mixColor(color, "#ffffff", 0.14));
-        root.style.setProperty("--accent-soft", defaultTheme ? "#66bb6a" : this.mixColor(color, "#ffffff", 0.25));
-        root.style.setProperty("--accent-focus", defaultTheme ? "#6ddc75" : this.mixColor(color, "#ffffff", 0.4));
-        root.style.setProperty("--accent-highlight", defaultTheme ? "#8bc34a" : this.mixColor(color, "#ffffff", 0.32));
+        const target = this.settings.appearance === "paper" ? "#24332a" : "#ffffff";
+        root.style.setProperty("--accent-hover", this.mixColor(color, target, 0.14));
+        root.style.setProperty("--accent-soft", this.mixColor(color, target, 0.25));
+        root.style.setProperty("--accent-focus", this.mixColor(color, target, 0.4));
+        root.style.setProperty("--accent-highlight", this.mixColor(color, target, 0.32));
         root.style.setProperty("--accent-contrast", this.getContrastColor(color));
+        const toggle = document.getElementById("appearanceToggle");
+        if (toggle && window.WorkspaceUI) {
+            toggle.innerHTML = WorkspaceUI.icon(this.settings.appearance === "paper" ? "moon" : "sun");
+            const label = `Switch to ${this.settings.appearance === "paper" ? "Graphite" : "Paper"} appearance`;
+            toggle.setAttribute("aria-label", label);
+            toggle.title = label;
+        }
+    },
+
+    toggleAppearance() {
+        this.settings.appearance = this.settings.appearance === "paper" ? "graphite" : "paper";
+        this.save();
     },
 
     setThemeColor(color) {

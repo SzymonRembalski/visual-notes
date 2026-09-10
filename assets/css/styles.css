@@ -1,10 +1,31 @@
 :root {
-    --accent-color: #388e3c;
-    --accent-hover: #4caf50;
-    --accent-soft: #66bb6a;
-    --accent-focus: #6ddc75;
-    --accent-highlight: #8bc34a;
-    --accent-contrast: #ffffff;
+    color-scheme: dark;
+    --toolbar-height: 66px;
+    --page-bg: #151817;
+    --header-bg: #1b201d;
+    --surface: #202522;
+    --surface-hover: #2d3630;
+    --text: #e3e9e3;
+    --muted: #9ca99f;
+    --border: #353f37;
+    --dots: #354039;
+    --accent-color: #91bda0;
+    --accent-hover: #a0c6ad;
+    --accent-soft: #add0b8;
+    --accent-focus: #bdd7c6;
+    --accent-highlight: #b4d2be;
+    --accent-contrast: #171717;
+}
+:root[data-appearance="paper"] {
+    color-scheme: light;
+    --page-bg: #f3f4ef;
+    --header-bg: #fafbf8;
+    --surface: #ffffff;
+    --surface-hover: #e8ede6;
+    --text: #24332a;
+    --muted: #647168;
+    --border: #d5ddd4;
+    --dots: #bfc9bf;
 }
 
 #canvas,
@@ -22,8 +43,8 @@ body {
     margin: 0;
     min-height: 100%;
     font-family: "Segoe UI", Arial, sans-serif;
-    background: #1b1b1b;
-    color: white;
+    background: var(--page-bg);
+    color: var(--text);
 }
 
 html.canvas-root,
@@ -72,7 +93,7 @@ body.menu-page {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #1e1e1e;
+    background: var(--page-bg);
 }
 
 .menu-container {
@@ -100,7 +121,7 @@ body.menu-page {
 body.task-page {
     min-height: 100vh;
     margin: 30px;
-    background: #1e1e1e;
+    background: var(--page-bg);
 }
 
 body.task-page h1 {
@@ -122,11 +143,11 @@ body.task-page table {
 body.task-page th,
 body.task-page td {
     padding: 10px;
-    border: 1px solid #555;
+    border: 1px solid var(--border);
 }
 
 body.task-page th {
-    background: #333;
+    background: var(--surface);
     text-align: left;
 }
 
@@ -152,13 +173,13 @@ body.task-page .step {
     gap: 6px;
     padding: 6px 10px;
     border-radius: 8px;
-    background: #333;
+    background: var(--surface);
 }
 
 body.task-page .dragHandle {
     cursor: grab;
     padding: 0 6px;
-    background: #555;
+    background: var(--border);
     border-radius: 6px;
     user-select: none;
 }
@@ -182,9 +203,9 @@ body.task-page input,
 body.task-page textarea,
 body.task-page select {
     width: 100%;
-    background: #252525;
-    color: white;
-    border: 1px solid #555;
+    background: var(--header-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 8px;
 }
@@ -194,7 +215,7 @@ body.task-page textarea {
 }
 
 body.task-page .note {
-    background: #222;
+    background: var(--surface);
     padding: 12px;
     margin-top: 10px;
     border-radius: 10px;
@@ -224,7 +245,7 @@ body.task-page .completeMessage {
     top: 40%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: #333;
+    background: var(--surface);
     padding: 30px;
     border-radius: 15px;
     font-size: 28px;
@@ -236,7 +257,7 @@ body.task-page .completeMessage {
 body.canvas-page {
     margin: 0;
     overflow: hidden;
-    background: #1b1b1b;
+    background: var(--page-bg);
     transition: background-color 180ms ease;
 }
 
@@ -253,12 +274,13 @@ body.canvas-page #toolbar {
     top: 0;
     left: 0;
     width: 100%;
-    height: 50px;
-    background: #252525;
+    min-height: 66px;
+    border-bottom: 1px solid var(--border);
+    background: var(--header-bg);
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 14px;
+    padding: 10px 24px;
     z-index: 1000;
 }
 
@@ -283,10 +305,11 @@ body.canvas-page #toolbar .button-link {
     align-items: center;
     gap: 7px;
     min-height: 36px;
-    padding: 8px 12px;
+    padding: 8px 10px;
+    font-size: 13px;
     border-radius: 9px;
-    background: #333;
-    color: white;
+    background: transparent;
+    color: var(--muted);
     cursor: pointer;
     list-style: none;
     user-select: none;
@@ -301,14 +324,14 @@ body.canvas-page #toolbar .button-link {
     content: "";
     width: 6px;
     height: 6px;
-    border-right: 2px solid #aaa;
-    border-bottom: 2px solid #aaa;
+    border-right: 2px solid var(--muted);
+    border-bottom: 2px solid var(--muted);
     transform: translateY(-2px) rotate(45deg);
     transition: transform 150ms ease;
 }
 
 .toolbarMenu[open] > summary {
-    background: #444;
+    background: var(--surface-hover);
 }
 
 .toolbarMenu[open] > summary::after {
@@ -321,9 +344,9 @@ body.canvas-page #toolbar .button-link {
     left: 0;
     min-width: 220px;
     padding: 7px;
-    border: 1px solid #4a4a4a;
+    border: 1px solid var(--border);
     border-radius: 12px;
-    background: #292929;
+    background: var(--surface);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.48);
 }
 
@@ -333,11 +356,12 @@ body.canvas-page #toolbar .button-link {
     width: 100%;
     padding: 9px 11px;
     background: transparent;
+    color: var(--text);
     text-align: left;
 }
 
 .toolbarMenuPanel button:hover {
-    background: #3b3b3b;
+    background: var(--surface-hover);
     transform: none;
 }
 
@@ -386,7 +410,7 @@ body.canvas-page #toolbar .button-link {
     height: 32px;
     padding: 0;
     border-radius: 50%;
-    background: #444;
+    background: var(--surface-hover);
     font-size: 1.2rem;
 }
 
@@ -397,13 +421,13 @@ body.canvas-page #toolbar .button-link {
 }
 
 .backupDescription {
-    color: #ccc;
+    color: var(--muted);
 }
 
 .backupStatus {
     padding: 10px 12px;
     border-radius: 9px;
-    background: #333;
+    background: var(--surface);
     font-size: 0.9rem;
 }
 
@@ -440,7 +464,8 @@ body.canvas-page #toolbar .button-link {
 
 .backupActions .restoreBackup {
     grid-column: 1 / -1;
-    background: #555;
+    background: var(--border);
+    color: var(--text);
 }
 
 body.canvas-page #toolbar button.active {
@@ -451,14 +476,15 @@ body.canvas-page #toolbar button.active {
 
 body.canvas-page #projectTitleInput {
     flex: 1;
-    min-width: 180px;
+    min-width: 0;
+    width: 100%;
     background: transparent;
-    color: white;
+    color: var(--text);
     border: none;
     border-bottom: 1px solid transparent;
     border-radius: 0;
-    padding: 6px 4px;
-    font-size: 1.15rem;
+    padding: 2px 0;
+    font-size: 0.95rem;
     font-weight: 600;
     text-overflow: ellipsis;
     outline: none;
@@ -467,7 +493,7 @@ body.canvas-page #projectTitleInput {
 }
 
 body.canvas-page #projectTitleInput:hover {
-    color: #e7e7e7;
+    color: var(--text);
 }
 
 body.canvas-page #projectTitleInput:focus {
@@ -478,7 +504,7 @@ body.projects-page {
     min-height: 100vh;
     margin: 0;
     padding: 30px;
-    background: #1e1e1e;
+    background: var(--page-bg);
 }
 
 body.projects-page .projects-toolbar {
@@ -501,8 +527,8 @@ body.projects-page .project-list {
 }
 
 body.projects-page .project-card {
-    background: #252525;
-    border: 1px solid #444;
+    background: var(--header-bg);
+    border: 1px solid var(--surface-hover);
     border-radius: 16px;
     padding: 18px;
     display: flex;
@@ -527,7 +553,7 @@ body.projects-page .deleteProjectButton {
 
 body.canvas-page #canvas {
     position: absolute;
-    top: 50px;
+    top: var(--toolbar-height);
     left: 0;
     width: 1600px;
     height: 1000px;
@@ -544,13 +570,13 @@ body.projects-page .project-card h2:empty::before {
 
 body.canvas-page #grid {
     position: fixed;
-    top: 50px;
+    top: var(--toolbar-height);
     left: 0;
     right: 0;
     bottom: 0;
     /* em-sized dots follow zoom, with rem-based limits for visibility and accessibility. */
     font-size: clamp(0.38rem, calc(0.225rem + 0.775rem * var(--grid-zoom, 1)), 1rem);
-    background-image: radial-gradient(circle, #555 0.075em, transparent 0.09375em);
+    background-image: radial-gradient(circle, var(--dots) 0.075em, transparent 0.09375em);
     background-size: 45px 45px;
     pointer-events: none;
     z-index: 800;
@@ -558,7 +584,7 @@ body.canvas-page #grid {
 
 body.canvas-page #shapes {
     position: absolute;
-    top: 50px;
+    top: var(--toolbar-height);
     left: 0;
     width: 1600px;
     height: 1000px;
@@ -589,7 +615,7 @@ body.canvas-page .horizontalNavigator {
 }
 
 body.canvas-page .verticalNavigator {
-    top: 68px;
+    top: calc(var(--toolbar-height) + 18px);
     right: 12px;
     bottom: 112px;
     width: 5px;
@@ -623,16 +649,16 @@ body.canvas-page .canvasShape {
     position: absolute;
     min-width: 160px;
     min-height: 100px;
-    border: 2px solid rgba(255, 255, 255, 0.24);
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--muted) 4%, transparent);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
     pointer-events: none;
 }
 
 body.canvas-page .canvasShape.has-custom-color {
-    border-color: color-mix(in srgb, var(--shape-color) 72%, transparent);
-    background: color-mix(in srgb, var(--shape-color) 18%, transparent);
+    border-color: color-mix(in srgb, var(--shape-color) 48%, transparent);
+    background: color-mix(in srgb, var(--shape-color) 8%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--shape-color) 10%, transparent);
 }
 
@@ -692,7 +718,7 @@ body.canvas-page .canvasShape.shapeDraft {
 
 body.canvas-page .shapeTitle {
     position: absolute;
-    top: -17px;
+    top: -13px;
     left: 16px;
     z-index: 5;
     max-width: calc(100% - 64px);
@@ -700,11 +726,13 @@ body.canvas-page .shapeTitle {
     text-overflow: ellipsis;
     white-space: nowrap;
     padding: 5px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 999px;
-    background: #2b2b2b;
-    color: #ddd;
-    font-size: 1.3rem;
+    border: none;
+    border-radius: 4px;
+    background: var(--page-bg);
+    color: var(--text);
+    font-size: 0.75rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
     font-weight: 600;
     line-height: 1;
     pointer-events: none;
@@ -732,10 +760,10 @@ body.canvas-page .shapeTitleInput {
     border: 1px solid var(--accent-soft);
     border-radius: 999px;
     outline: none;
-    background: #222;
-    color: white;
+    background: var(--surface);
+    color: var(--text);
     padding: 4px 10px;
-    font: 600 1.3rem/1 "Segoe UI", Arial, sans-serif;
+    font: 600 0.875rem/1 "Segoe UI", Arial, sans-serif;
 }
 
 body.canvas-page .shapeDeleteButton {
@@ -818,11 +846,11 @@ body.canvas-page .note {
     width: 225px;
     min-height: 45px;
     height: auto;
-    background: var(--note-bg, #333);
-    border-radius: 10px;
+    background: var(--note-bg, var(--surface));
+    border-radius: 11px;
     padding: 12px;
     cursor: move;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
     pointer-events: auto;
     display: flex;
     flex-direction: column;
@@ -849,7 +877,7 @@ body.canvas-page .noteResizeBorder {
     position: absolute;
     inset: 0;
     z-index: 2;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 0 0 1px var(--border);
     border-radius: inherit;
     pointer-events: none;
 }
@@ -877,10 +905,10 @@ body.shapes-mode-active.color-pick-mode-active .shapeTitle {
 body.canvas-page .noteHeader {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 8px;
     margin-bottom: 4px;
-    color: white;
+    color: var(--note-text, var(--text));
 }
 
 body.canvas-page .noteTitle,
@@ -889,12 +917,12 @@ body.canvas-page .noteTitleInput {
     width: auto;
     min-width: 40px;
     background: transparent;
-    color: white;
+    color: var(--note-text, var(--text));
     padding: 0 4px;
-    font-size: 1rem;
-    font-weight: bold;
+    font-size: 0.875rem;
+    font-weight: 600;
     outline: none;
-    text-align: center;
+    text-align: left;
 }
 
 body.canvas-page .noteTitle {
@@ -907,7 +935,7 @@ body.canvas-page .noteTitle {
 
 body.canvas-page .noteTitle:empty::before {
     content: attr(data-placeholder);
-    color: #aaa;
+    color: var(--muted);
     font-style: italic;
     font-weight: normal;
 }
@@ -924,7 +952,7 @@ body.canvas-page .addNoteContentButton {
     width: 30px;
     height: 30px;
     padding: 0;
-    border: 2px solid #1b1b1b;
+    border: 2px solid var(--page-bg);
     border-radius: 50%;
     background: var(--accent-color);
     color: var(--accent-contrast);
@@ -962,11 +990,13 @@ body.canvas-page .note textarea {
     resize: none;
     overflow-x: hidden;
     overflow-y: hidden;
-    background: #222;
-    color: white;
-    border: 1px solid #555;
-    border-radius: 5px;
-    padding: 8px;
+    background: transparent;
+    color: var(--note-text, var(--muted));
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--note-text, var(--border)) 45%, transparent);
+    border-radius: 0;
+    padding: 10px 4px 0;
+    font: 13px/1.5 "Segoe UI", Arial, sans-serif;
     margin-top: 0;
     user-select: text;
     -webkit-user-select: text;
@@ -987,22 +1017,27 @@ body.canvas-page .noteImage img {
 }
 
 body.canvas-page .note.selected {
-    box-shadow: 0 0 0 2px var(--accent-hover), 0 5px 15px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 1px var(--accent-soft), 0 0 0 4px color-mix(in srgb, var(--accent-color) 10%, transparent);
 }
 
 .colorPanel {
     position: fixed;
-    right: 28px;
-    bottom: 28px;
-    background: rgba(28,28,28,0.95);
-    border: 1px solid #444;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    flex-wrap: wrap;
+    justify-content: center;
+    bottom: 98px;
+    background: var(--surface);
+    border: 1px solid var(--surface-hover);
     padding: 10px;
     border-radius: 12px;
     display: flex;
     gap: 8px;
     align-items: center;
     z-index: 2100;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
 }
 
 .colorPalette {
@@ -1012,8 +1047,8 @@ body.canvas-page .note.selected {
 }
 
 .colorPanel .colorSwatch {
-    width: 32px;
-    height: 32px;
+    width: 26px;
+    height: 26px;
     padding: 0;
     border: 2px solid rgba(255, 255, 255, 0.14);
     border-radius: 50%;
@@ -1024,12 +1059,12 @@ body.canvas-page .note.selected {
 .colorPanel .colorSwatch.defaultColorSwatch {
     background:
         linear-gradient(135deg, transparent 42%, #d6d6d6 43%, #d6d6d6 52%, transparent 53%),
-        #333;
+        var(--surface);
 }
 
 .colorPanel .colorSwatch.selected,
 .colorPanel .customColorBtn.selected {
-    border-color: white;
+    border-color: var(--text);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-soft) 70%, transparent);
 }
 
@@ -1039,7 +1074,7 @@ body.canvas-page .note.selected {
     gap: 7px;
     padding: 7px 10px;
     border: 2px solid transparent;
-    background: #444;
+    background: var(--surface-hover);
 }
 
 .customColorPreview {
@@ -1059,7 +1094,7 @@ body.canvas-page .note.selected {
 }
 
 .colorPanel button.pickColorBtn {
-    background: #444;
+    background: var(--surface-hover);
     padding: 8px 12px;
 }
 
@@ -1080,7 +1115,7 @@ body.canvas-page .note.selected {
     z-index: 2000;
 }
 
-body.canvas-page svg {
+body.canvas-page #connections {
     position: absolute;
     top: 0;
     left: 0;
@@ -1104,7 +1139,7 @@ body.canvas-page .line.removal-highlight {
 }
 
 body.canvas-page .line {
-    stroke: #aaa;
+    stroke: var(--muted);
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -1161,7 +1196,7 @@ body.canvas-overview-mode .noteTitleInput {
     padding: 3px 7px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
-    background: var(--note-bg, #333);
+    background: var(--note-bg, var(--surface));
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     font-size: 0.8rem;
     line-height: 1.2;
@@ -1185,7 +1220,7 @@ body.canvas-overview-mode .noteImage {
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
-    background: #222;
+    background: var(--surface);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     transform: scale(var(--overview-title-scale, 5)) translateY(24px);
     transform-origin: top left;
@@ -1253,7 +1288,7 @@ body.settings-page {
     padding: 36px 20px 60px;
     background:
         radial-gradient(circle at top right, color-mix(in srgb, var(--accent-color) 16%, transparent), transparent 34rem),
-        #1b1b1b;
+        var(--page-bg);
 }
 
 .settingsShell {
@@ -1276,7 +1311,7 @@ body.settings-page {
 
 .settingsHeader p {
     margin: 0;
-    color: #bbb;
+    color: var(--muted);
 }
 
 .settingsHeader .settingsEyebrow {
@@ -1294,9 +1329,9 @@ body.settings-page {
 .settingsCard {
     margin-bottom: 20px;
     padding: 24px;
-    border: 1px solid #3f3f3f;
+    border: 1px solid var(--border);
     border-radius: 18px;
-    background: rgba(38, 38, 38, 0.94);
+    background: var(--surface);
     box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
 }
 
@@ -1315,14 +1350,14 @@ body.settings-page {
 
 .settingsCardHeading p {
     margin: 0;
-    color: #aaa;
+    color: var(--muted);
     line-height: 1.45;
 }
 
 button.settingsSecondaryButton,
 button.shortcutReset {
-    background: #444;
-    color: white;
+    background: var(--surface-hover);
+    color: var(--text);
 }
 
 .themeControls {
@@ -1338,7 +1373,7 @@ button.shortcutReset {
     grid-template-columns: auto auto auto;
     align-items: center;
     gap: 12px;
-    color: #ddd;
+    color: var(--text);
     font-weight: 600;
 }
 
@@ -1346,14 +1381,14 @@ button.shortcutReset {
     width: 48px;
     height: 38px;
     padding: 3px;
-    border: 1px solid #555;
+    border: 1px solid var(--border);
     border-radius: 9px;
-    background: #222;
+    background: var(--surface);
     cursor: pointer;
 }
 
 .themePicker output {
-    color: #aaa;
+    color: var(--muted);
     font-family: Consolas, monospace;
     font-size: 0.9rem;
 }
@@ -1374,7 +1409,7 @@ button.themePreset {
 }
 
 button.themePreset.selected {
-    border-color: white;
+    border-color: var(--text);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 55%, transparent);
 }
 
@@ -1391,7 +1426,7 @@ button.themePreset.selected {
     min-height: 52px;
     padding: 8px 10px 8px 14px;
     border-radius: 11px;
-    background: #202020;
+    background: var(--page-bg);
 }
 
 .shortcutLabel {
@@ -1399,8 +1434,8 @@ button.themePreset.selected {
 }
 
 button.shortcutBinding {
-    background: #343434;
-    color: white;
+    background: var(--surface-hover);
+    color: var(--text);
     font-family: Consolas, monospace;
     font-size: 0.86rem;
 }
@@ -1419,7 +1454,7 @@ button.shortcutReset {
 .settingsStatus {
     min-height: 22px;
     margin: 18px 2px 0;
-    color: #aaa;
+    color: var(--muted);
 }
 
 .settingsStatus[data-state="success"] {
@@ -1465,3 +1500,68 @@ button.shortcutReset {
     }
 }
 
+/* Workspace chrome shares the canvas surface and accent tokens. */
+.workspaceBrand { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border: 1px solid var(--border); border-radius: 9px; color: var(--accent-color); text-decoration: none; }
+.workspaceBrand svg { display: block; width: 19px; height: 19px; }
+.workspaceIdentity { flex: 1; min-width: 100px; max-width: 480px; }
+.workspaceBreadcrumb { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+.workspaceBreadcrumb a { color: inherit; text-decoration: none; }
+.workspaceBreadcrumb a:hover { color: var(--text); }
+.toolbarMenus { margin-left: auto; }
+.workspaceSaveStatus { display: flex; align-items: center; gap: 6px; margin-left: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.workspaceSaveStatus svg { width: 14px; height: 14px; flex: none; color: var(--accent-color); }
+.workspaceSaveStatus[data-saved="false"] svg { visibility: hidden; }
+body.canvas-page .toolbarSettings, .workspaceIconButton { background: transparent; color: var(--muted); padding: 8px; font-size: 13px; }
+.workspaceIconButton { display: grid; place-items: center; }
+.workspaceIconButton svg, .workspaceControls svg { width: 18px; height: 18px; flex: none; }
+.workspaceControls { z-index: 2100; }
+.quickTools, .zoomControls { position: fixed; display: flex; align-items: center; gap: 3px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--header-bg); box-shadow: 0 6px 24px rgba(0,0,0,0.18); }
+.quickTools { bottom: 30px; left: 50%; transform: translateX(-50%); }
+.quickTools button, .zoomControls button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.quickTools button[aria-pressed="true"] { color: var(--accent-soft); background: color-mix(in srgb, var(--accent-color) 12%, transparent); }
+.quickTools button:hover, .zoomControls button:hover { transform: none; background: var(--surface-hover); color: var(--text); }
+button:disabled { cursor: default; opacity: 0.4; transform: none; }
+.zoomControls { right: 28px; bottom: 30px; border-radius: 11px; padding: 2px; }
+.zoomControls button { width: 30px; height: 32px; padding: 5px; font-size: 18px; }
+.zoomControls output { min-width: 42px; font-size: 11px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.zoomControls #centerView { border-left: 1px solid var(--border); border-radius: 0; margin-left: 3px; width: 37px; }
+.workspaceHint { position: fixed; bottom: 40px; left: 28px; margin: 0; font-size: 11px; color: var(--muted); pointer-events: none; z-index: 960; }
+.colorSelectionLabel { font-size: 11px; color: var(--muted); padding: 0 5px; }
+.colorPanel .customColorBtn, .colorPanel .pickColorBtn { color: var(--text); font-size: 12px; }
+.colorPanel .applyColorBtn { color: var(--accent-contrast); font-size: 12px; }
+body.canvas-page .note.title-only .noteHeader { justify-content: center; margin-bottom: 0; }
+body.canvas-page .note.title-only :is(.noteTitle, .noteTitleInput) { text-align: center; }
+body.canvas-page .noteTitle:empty::before { color: var(--note-text, var(--muted)); }
+body.task-page :is(.addStep, .removeStep, .delete), .deleteProjectButton, .shapeDeleteButton { color: #fff; }
+[data-quick-tools="false"] .quickTools { display: none; }
+[data-quick-tools="false"] .colorPanel { bottom: 84px; }
+.appearanceControls { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; }
+.appearanceControls label { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.appearanceControls select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.appearanceControls input { accent-color: var(--accent-color); }
+:root[data-appearance="paper"] body.canvas-page.add-mode-active { background-color: #e7efe5; }
+:root[data-appearance="paper"] body.canvas-page.remove-mode-active { background-color: #f3e7e3; }
+:root[data-appearance="paper"] .backupStatus[data-state="success"] { color: #37683d; }
+:root[data-appearance="paper"] .backupStatus[data-state="warning"] { color: #715711; }
+:root[data-appearance="paper"] :is(.backupStatus, .settingsStatus)[data-state="error"] { color: #a33131; }
+@media (max-width: 1100px) {
+    .workspaceHint, .workspaceSaveStatus { display: none; }
+    .workspaceIdentity { max-width: none; }
+}
+@media (max-width: 740px) {
+    body.canvas-page #toolbar { flex-wrap: wrap; gap: 4px 8px; padding: 8px 12px; }
+    .workspaceIdentity { flex-basis: calc(100% - 48px); }
+    .toolbarMenus { margin-left: 0; margin-right: auto; }
+    .toolbarMenuPanel { position: fixed; top: calc(var(--toolbar-height) + 6px); left: 12px; right: auto; }
+    .saveMenuPanel { width: min(360px, calc(100vw - 24px)); }
+    .quickTools { left: 12px; bottom: 28px; transform: none; gap: 0; padding: 4px; }
+    .quickTools button { padding: 10px; }
+    .quickTools button span { display: none; }
+    .zoomControls { right: 12px; bottom: 84px; }
+    .colorPanel { bottom: 132px; padding: 8px; gap: 6px; }
+    .colorSelectionLabel { flex-basis: 100%; text-align: center; }
+    [data-quick-tools="false"] .colorPanel { bottom: 132px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
+}

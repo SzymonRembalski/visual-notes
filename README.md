@@ -32,6 +32,9 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 - Pan and zoom through complex boards.
 - Export an entire board as a high-quality PNG image.
 - Keep the workspace uncluttered with dedicated **Edit**, **Save**, and **Export** menus.
+- Use the floating quick tools for selection, new nodes, connections, shapes, and colors. Hide the dock in **Settings → Workspace** if you prefer the menus and shortcuts.
+- Choose **Graphite** or **Paper** appearance with the sun/moon button or in Settings. PNG exports use the selected appearance.
+- Select a node or group to open its color palette, choose a preset or custom color, then press **Apply**. **Pick** samples an existing item's color.
 - Personalize the app-wide accent color and remap keyboard shortcuts from **Settings**.
 
 ### ✅ Turn ideas into action

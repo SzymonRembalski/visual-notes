@@ -174,7 +174,7 @@ const VisualNotes = {
         }
         if (svg) {
             svg.style.left = "0px";
-            svg.style.top = "50px";
+            svg.style.top = `${CanvasUtils.toolbarHeight}px`;
             svg.setAttribute("width", width);
             svg.setAttribute("height", height);
             svg.setAttribute("viewBox", `${next.left} ${next.top} ${width} ${height}`);
@@ -227,6 +227,11 @@ const VisualNotes = {
     },
     saveBoard() {
         if (this.suspendPersistence) return;
+        const status = document.getElementById("workspaceSaveLabel");
+        if (status) {
+            status.textContent = "Saving…";
+            status.parentElement.dataset.saved = "false";
+        }
         if (this.projectId) {
             const projects = ProjectManager.loadProjects();
             const projectIndex = projects.findIndex(p => String(p.id) === String(this.projectId));
@@ -263,6 +268,10 @@ const VisualNotes = {
             localStorage.setItem("visualZoom", String(this.zoom));
             localStorage.setItem("visualSnappingEnabled", String(this.snappingEnabled));
             if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
+        }
+        if (status) {
+            status.textContent = "Saved on this device";
+            status.parentElement.dataset.saved = "true";
         }
     },
     async exportBoardImage() {
@@ -506,6 +515,7 @@ const VisualNotes = {
         button.classList.toggle("active", active);
         button.textContent = active ? activeLabel : inactiveLabel;
         button.setAttribute("aria-pressed", String(active));
+        window.WorkspaceUI?.update();
     },
     updateSnappingButton() {
         this.updateToggleButton("snapBtn", this.snappingEnabled, "Snap: ON", "Snap: OFF");
@@ -745,6 +755,7 @@ const VisualNotes = {
     },
 
     renderShapes() {
+        window.WorkspaceUI?.update();
         const shapesLayer = document.getElementById("shapes");
         if (!shapesLayer) return;
         shapesLayer.querySelectorAll(".canvasShape:not(.shapeDraft)").forEach(element => element.remove());
@@ -882,7 +893,7 @@ const VisualNotes = {
     },
 
     isIgnoreElement(target) {
-        return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls,.canvasNavigator");
+        return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls,.canvasNavigator,.workspaceControls,.colorPanel");
     },
 
     startTitleEdit(item, titleElement, shapeTitle = false) {
@@ -1011,6 +1022,7 @@ const VisualNotes = {
     toggleConnectionMode(mode) {
         const enabled = !this[`${mode}Mode`];
         if (enabled) {
+            if (this.colorMode) this.toggleColorMode();
             if (this.shapeMode) this.setShapeMode(false);
             const otherMode = mode === "add" ? "remove" : "add";
             if (this[`${otherMode}Mode`]) this.setConnectionMode(otherMode, false, mode === "add");
@@ -1032,7 +1044,6 @@ const VisualNotes = {
             this.setColorPickMode(false);
         }
         this.updateToggleButton("colorBtn", this.colorMode, "Color: ON", "Color Mode");
-        if (this.colorPanelElement) this.colorPanelElement.style.display = this.colorMode ? "flex" : "none";
         document.body.classList.toggle("color-mode-active", this.colorMode);
     },
 
@@ -1062,6 +1073,7 @@ const VisualNotes = {
     },
 
     setColorPickMode(enabled) {
+        if (enabled && !this.colorMode) this.toggleColorMode();
         this.colorPickMode = Boolean(enabled && this.colorMode);
         document.body.classList.toggle('color-pick-mode-active', this.colorPickMode);
         if (this.colorPickButton) {
@@ -1568,7 +1580,10 @@ const VisualNotes = {
             div.style.setProperty('--node-width', `${note.width || CanvasUtils.defaultNoteWidth}px`);
             div.style.setProperty('--node-height', `${note.height || CanvasUtils.defaultNoteHeight}px`);
             // apply custom background color if present
-            div.style.setProperty('--note-bg', note.color || '#333');
+            if (note.color) {
+                div.style.setProperty('--note-bg', note.color);
+                div.style.setProperty('--note-text', AppSettings.getContrastColor(note.color));
+            }
             if (imageOnlyNote) {
                 div.innerHTML = `
         ${note.imageSrc ? `<div class="noteImage"><img src="${escapeHtml(note.imageSrc)}" alt="Note image">` +
@@ -1879,6 +1894,7 @@ const VisualNotes = {
         this.updateNavigationBars();
     },
     applyTransform() {
+        window.WorkspaceUI?.update();
         const canvas = document.getElementById("canvas");
         const shapesLayer = document.getElementById("shapes");
         const grid = document.getElementById("grid");
@@ -2015,6 +2031,7 @@ const VisualNotes = {
     },
     init() {
         if (document.getElementById("canvas")) {
+            window.WorkspaceUI?.syncToolbarHeight();
             this.loadBoard();
             this.historyManager.clear();
             this.historyTransaction = null;
@@ -2042,11 +2059,12 @@ const VisualNotes = {
             document.body.appendChild(selectionBox);
             this.selectionBoxElement = selectionBox;
 
-            // Create the themed color palette (hidden until Color Mode is active).
+            // The palette appears for a selection or while Color Mode is active.
             const colorPanel = document.createElement('div');
-            colorPanel.className = 'colorPanel';
+            colorPanel.className = 'colorPanel workspaceControls';
             colorPanel.style.display = 'none';
             colorPanel.innerHTML = `
+                <span class="colorSelectionLabel">Select a node or group</span>
                 <div class="colorPalette" role="group" aria-label="Preset colors">
                     ${this.colorPresets.map(({ name, value }) => `
                         <button type="button" class="colorSwatch${value ? "" : " defaultColorSwatch"}" data-color="${value || ""}"${value ? ` style="--swatch-color: ${value}"` : ""} aria-label="${name}" title="${name}" aria-pressed="false"></button>
@@ -2127,17 +2145,19 @@ const VisualNotes = {
             });
             
             // Mouse wheel zoom - attach to document since canvas has pointer-events:none
-            document.addEventListener("wheel", e => self.handleZoom(e), { passive: false });
+            document.addEventListener("wheel", e => {
+                if (!e.target.closest("#toolbar,.workspaceControls")) self.handleZoom(e);
+            }, { passive: false });
 
             // Pressing the mouse wheel centers on the selection, or all notes as a fallback.
             document.addEventListener("mousedown", e => {
-                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls,.exportImageButton,.canvasNavigator")) return;
+                if (e.button !== 1 || e.target.closest("#toolbar,.workspaceControls,.backupControls,.exportImageButton,.canvasNavigator")) return;
                 e.preventDefault();
                 e.stopPropagation();
                 self.centerCameraOnSelectionOrNotes();
             }, true);
             document.addEventListener("auxclick", e => {
-                if (e.button !== 1 || e.target.closest("#toolbar,.backupControls,.exportImageButton")) return;
+                if (e.button !== 1 || e.target.closest("#toolbar,.workspaceControls,.backupControls,.exportImageButton")) return;
                 e.preventDefault();
             }, true);
             
@@ -2227,7 +2247,7 @@ const VisualNotes = {
             document.addEventListener("contextmenu", e => e.preventDefault());
             document.addEventListener("mousedown", e => {
                 if (e.button === 2) {
-                    const ignoreElement = e.target.closest("#toolbar,.colorPanel,.backupControls,.exportImageButton,.canvasNavigator");
+                    const ignoreElement = e.target.closest("#toolbar,.workspaceControls,.backupControls,.exportImageButton,.canvasNavigator");
                     if (ignoreElement) return;
                     // Right-click always starts panning (add-mode uses left-click like remove-mode)
                     self.startPan(e);
@@ -2246,6 +2266,7 @@ const VisualNotes = {
                 }
             });
             window.addEventListener("resize", () => {
+                window.WorkspaceUI?.syncToolbarHeight();
                 self.render();
                 self.applyTransform();
             });
@@ -2290,6 +2311,7 @@ const VisualNotes = {
             document.addEventListener("dragover", preventDragDefault);
             document.addEventListener("drop", handleDrop);
             
+            window.WorkspaceUI?.init();
             self.applyTransform();
         }
     }

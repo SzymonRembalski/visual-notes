@@ -85,6 +85,20 @@ const SettingsPage = {
 
     init() {
         this.statusElement = document.getElementById("settingsStatus");
+        const appearance = document.getElementById("appearanceSelect");
+        appearance.value = AppSettings.settings.appearance;
+        appearance.onchange = () => {
+            AppSettings.settings.appearance = appearance.value;
+            AppSettings.save();
+            this.setStatus("Appearance saved.", "success");
+        };
+        const quickTools = document.getElementById("quickToolsToggle");
+        quickTools.checked = AppSettings.settings.quickTools;
+        quickTools.onchange = () => {
+            AppSettings.settings.quickTools = quickTools.checked;
+            AppSettings.save();
+            this.setStatus("Quick tools preference saved.", "success");
+        };
         const colorInput = document.getElementById("themeColorInput");
         if (colorInput) {
             colorInput.addEventListener("input", () => {

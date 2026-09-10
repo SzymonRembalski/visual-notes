@@ -18,6 +18,13 @@
             <a href="index.html" class="button button-link settingsBack" data-settings-back>Back</a>
         </header>
 
+        <section class="settingsCard" aria-labelledby="appearanceHeading">
+            <div class="settingsCardHeading"><div><h2 id="appearanceHeading">Workspace</h2><p>Choose a comfortable canvas and keep your favorite tools close.</p></div></div>
+            <div class="appearanceControls">
+                <label for="appearanceSelect">Appearance <select id="appearanceSelect"><option value="graphite">Graphite</option><option value="paper">Paper</option></select></label>
+                <label><input type="checkbox" id="quickToolsToggle">Show quick tools on the canvas</label>
+            </div>
+        </section>
         <section class="settingsCard" aria-labelledby="themeHeading">
             <div class="settingsCardHeading">
                 <div>
@@ -29,11 +36,11 @@
             <div class="themeControls">
                 <label class="themePicker" for="themeColorInput">
                     <span>Custom color</span>
-                    <input id="themeColorInput" type="color" value="#388e3c">
-                    <output id="themeColorValue" for="themeColorInput">#388E3C</output>
+                    <input id="themeColorInput" type="color" value="#91bda0">
+                    <output id="themeColorValue" for="themeColorInput">#91BDA0</output>
                 </label>
                 <div class="themePresets" aria-label="Theme color presets">
-                    <button type="button" class="themePreset" data-color="#388e3c" style="--preset-color:#388e3c" aria-label="Green theme" title="Green"></button>
+                    <button type="button" class="themePreset" data-color="#91bda0" style="--preset-color:#91bda0" aria-label="Sage theme" title="Sage"></button>
                     <button type="button" class="themePreset" data-color="#426c9b" style="--preset-color:#426c9b" aria-label="Blue theme" title="Blue"></button>
                     <button type="button" class="themePreset" data-color="#71558f" style="--preset-color:#71558f" aria-label="Purple theme" title="Purple"></button>
                     <button type="button" class="themePreset" data-color="#9b713f" style="--preset-color:#9b713f" aria-label="Amber theme" title="Amber"></button>
