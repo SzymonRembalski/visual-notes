@@ -4,6 +4,7 @@ const AppIcons = {
         waypoints: '<path d="m10.586 5.414-5.172 5.172m13.172 2.828-5.172 5.172M6 12h12"/><circle cx="12" cy="20" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="4" cy="12" r="2"/>',
         search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
         plus: '<path d="M12 5v14M5 12h14"/>',
+        check: '<path d="m20 6-11 11-5-5"/>',
         arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
         trash: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>',
         select: '<path d="m5 3 14 9-7 1-3 7Z"/>',

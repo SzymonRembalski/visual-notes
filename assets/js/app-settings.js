@@ -239,6 +239,11 @@ const AppSettings = {
     },
 
     configureSettingsNavigation() {
+        const appearanceToggle = document.getElementById("appearanceToggle");
+        if (appearanceToggle) {
+            appearanceToggle.onclick = () => this.toggleAppearance();
+            this.applyTheme();
+        }
         const currentTarget = this.getCurrentPageTarget();
         document.querySelectorAll("a[data-settings-link]").forEach(link => {
             link.href = `settings.html?from=${encodeURIComponent(currentTarget)}`;

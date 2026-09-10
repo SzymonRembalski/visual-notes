@@ -13,7 +13,6 @@ const ProjectsPage = {
         document.getElementById("newProjectButton").onclick = () => this.createProject();
         document.getElementById("projectSearch").oninput = () => this.render();
         document.getElementById("projectSort").onchange = () => this.render();
-        document.getElementById("appearanceToggle").onclick = () => AppSettings.toggleAppearance();
         window.addEventListener("pageshow", event => {
             if (!event.persisted) return;
             this.projects = ProjectManager.loadProjects();
@@ -35,7 +34,6 @@ const ProjectsPage = {
                 document.getElementById("newProjectButton").focus();
             }
         };
-        AppSettings.applyTheme();
         this.render();
     },
     title(project) {

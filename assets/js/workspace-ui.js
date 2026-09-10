@@ -57,13 +57,11 @@ const WorkspaceUI = {
             button.onclick = action;
             dock.appendChild(button);
         });
-        document.getElementById("appearanceToggle").onclick = () => AppSettings.toggleAppearance();
         document.getElementById("centerView").innerHTML = AppIcons.icon("center");
         document.getElementById("centerView").onclick = () => VisualNotes.centerCameraOnSelectionOrNotes();
         ["zoomOut", "zoomIn"].forEach((id, index) => {
             document.getElementById(id).onclick = () => VisualNotes.handleZoom({ deltaY: index ? -1 : 1, preventDefault() {} });
         });
-        AppSettings.applyTheme();
         this.lastState = null;
         this.update();
     }

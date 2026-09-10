@@ -5,17 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visual Notes</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/app-icons.js"></script>
     <script src="assets/js/app-settings.js"></script>
 </head>
 <body class="menu-page">
-    <div class="menu-container">
-        <h1>Visual Notes</h1>
+    <header class="appHeader">
+        <span class="workspaceBrand" data-icon="waypoints" aria-hidden="true"></span>
+        <span class="appWordmark">Visual Notes</span>
+        <nav aria-label="Workspace navigation">
+            <button type="button" class="workspaceIconButton" id="appearanceToggle" aria-label="Switch appearance"></button>
+            <a href="settings.html" data-settings-link data-backup-before-leave>Settings</a>
+        </nav>
+    </header>
+    <main class="menu-container">
+        <h1 class="menuHeading">Visual Notes</h1>
         <div class="menu-buttons">
-            <a href="tasks.html" class="button menu-button">Task Tracker</a>
-            <a href="projects.html" class="button menu-button">Visual Notes</a>
-            <a href="settings.html" class="button menu-button" data-settings-link>Settings</a>
+            <a href="projects.html" class="menu-card menuCanvasCard" data-backup-before-leave>
+                <div class="menuCardArt menuCanvasArt" aria-hidden="true">
+                    <svg viewBox="0 0 440 168" fill="none">
+                        <rect class="menuArtGroup" x="207" y="13" width="197" height="142" rx="14"/>
+                        <path class="menuArtLine" d="M150 84h38V46h48m-48 38v38h48"/>
+                        <rect class="menuArtNode" x="36" y="63" width="114" height="42" rx="8"/>
+                        <rect class="menuArtNode" x="236" y="28" width="140" height="36" rx="8"/>
+                        <rect class="menuArtNode" x="236" y="104" width="140" height="36" rx="8"/>
+                        <path class="menuArtLabel" d="M57 84h72m130-38h65m-65 76h85"/>
+                        <circle class="menuArtDot" cx="188" cy="84" r="4"/>
+                    </svg>
+                </div>
+                <div class="menuCardContent">
+                    <span class="menuCardEyebrow">Room to explore</span>
+                    <h2>Visual Notes</h2>
+                    <p>Map a thought, connect the pieces, and see the bigger picture.</p>
+                    <span class="menuCardAction">Open projects <span data-icon="arrow" aria-hidden="true"></span></span>
+                </div>
+            </a>
+            <a href="tasks.html" class="menu-card menuTasksCard" data-backup-before-leave>
+                <div class="menuCardArt menuTasksArt" aria-hidden="true">
+                    <div class="menuTaskRow isDone"><span class="menuTaskCheck" data-icon="check"></span><span class="menuTaskLine"></span><span class="menuTaskTag"></span></div>
+                    <div class="menuTaskRow"><span class="menuTaskCheck"></span><span class="menuTaskLine"></span><span class="menuTaskTag"></span></div>
+                    <div class="menuTaskRow"><span class="menuTaskCheck"></span><span class="menuTaskLine"></span><span class="menuTaskTag"></span></div>
+                </div>
+                <div class="menuCardContent">
+                    <span class="menuCardEyebrow">One step at a time</span>
+                    <h2>Task Tracker</h2>
+                    <p>Break work into small steps and keep your next move in sight.</p>
+                    <span class="menuCardAction">Open tasks <span data-icon="arrow" aria-hidden="true"></span></span>
+                </div>
+            </a>
         </div>
-    </div>
+        <footer class="menuFooter"><span data-icon="waypoints" aria-hidden="true"></span>A space of your own. Saved on your device.</footer>
+    </main>
     <script src="assets/js/local-backup-manager.js"></script>
 </body>
 </html>
