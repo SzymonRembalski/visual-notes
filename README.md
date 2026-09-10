@@ -21,6 +21,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 ### 🧠 Think visually
 
 - Create multiple visual-note projects.
+- Browse board previews, search by project name, and sort by last edit, creation date, or name on the Projects page.
 - Place, move, resize, and edit nodes on a large canvas. Each node has a title and can optionally contain a note.
 - New nodes begin as compact, title-only cards; select one and use its **+** button to add note content.
 - Connect related nodes with structured, right-angle paths to build clear idea maps.

@@ -5,17 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visual Notes Projects</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/app-icons.js"></script>
     <script src="assets/js/app-settings.js"></script>
 </head>
 <body class="projects-page">
-    <div class="projects-toolbar">
-        <h1>Visual Notes Projects</h1>
-        <button id="newProjectButton" class="button">New Project</button>
-        <a href="index.html" class="button button-link" data-backup-before-leave>Back to Menu</a>
-    </div>
-    <div id="projectList" class="project-list"></div>
+    <header class="projectsHeader">
+        <a href="index.html" class="workspaceBrand" aria-label="Back to Menu" data-icon="waypoints" data-backup-before-leave></a>
+        <a href="index.html" class="projectsWordmark" data-backup-before-leave>Visual Notes</a>
+        <span class="projectsHeaderDivider" aria-hidden="true">/</span><span class="projectsHeaderCurrent">Projects</span>
+        <nav aria-label="Workspace navigation">
+            <button type="button" class="workspaceIconButton" id="appearanceToggle" aria-label="Switch appearance"></button>
+            <a href="settings.html" data-settings-link data-backup-before-leave>Settings</a>
+            <a href="index.html" data-backup-before-leave>Back to Menu</a>
+        </nav>
+    </header>
+    <main class="projectsShell">
+        <div class="projects-toolbar">
+            <div><p class="projectsEyebrow">Your workspace</p><h1>Projects</h1><p class="projectsIntro">A little space for your next big idea.</p></div>
+            <button type="button" id="newProjectButton" class="button"><span data-icon="plus" aria-hidden="true"></span>New Project</button>
+        </div>
+        <div class="projectFilters">
+            <label class="projectSearch"><span data-icon="search" aria-hidden="true"></span><input id="projectSearch" type="search" placeholder="Find a project…" aria-label="Search projects" autocomplete="off"></label>
+            <label class="projectSort">Sort by <select id="projectSort"><option value="recent">Last edited</option><option value="name">Name A–Z</option><option value="created">Newest created</option></select></label>
+        </div>
+        <p id="projectCount" class="projectCount" role="status" aria-live="polite"></p>
+        <div id="projectList" class="project-list"></div>
+        <footer class="projectsFooter">Your ideas stay on this device.<span>Back up your workspace from any board’s Save menu.</span></footer>
+    </main>
     <script src="assets/js/local-backup-manager.js"></script>
     <script src="assets/js/project-manager.js"></script>
+    <script src="assets/js/canvas-utils.js"></script>
     <script src="assets/js/projects-page.js"></script>
     <script src="assets/js/app.js"></script>
 </body>

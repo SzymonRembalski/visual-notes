@@ -127,8 +127,8 @@ const AppSettings = {
         root.style.setProperty("--accent-highlight", this.mixColor(color, target, 0.32));
         root.style.setProperty("--accent-contrast", this.getContrastColor(color));
         const toggle = document.getElementById("appearanceToggle");
-        if (toggle && window.WorkspaceUI) {
-            toggle.innerHTML = WorkspaceUI.icon(this.settings.appearance === "paper" ? "moon" : "sun");
+        if (toggle && window.AppIcons) {
+            toggle.innerHTML = AppIcons.icon(this.settings.appearance === "paper" ? "moon" : "sun");
             const label = `Switch to ${this.settings.appearance === "paper" ? "Graphite" : "Paper"} appearance`;
             toggle.setAttribute("aria-label", label);
             toggle.title = label;
@@ -229,7 +229,7 @@ const AppSettings = {
             const currentDirectory = window.location.pathname.slice(0, window.location.pathname.lastIndexOf("/") + 1);
             const targetDirectory = url.pathname.slice(0, url.pathname.lastIndexOf("/") + 1);
             const filename = url.pathname.split("/").pop();
-            if (targetDirectory !== currentDirectory || !["index.html", "visual-notes.html"].includes(filename)) {
+            if (targetDirectory !== currentDirectory || !["index.html", "projects.html", "visual-notes.html"].includes(filename)) {
                 return "index.html";
             }
             return `${filename}${url.search}`;

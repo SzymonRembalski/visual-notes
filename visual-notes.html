@@ -5,17 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visual Notes</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/app-icons.js"></script>
     <script src="assets/js/app-settings.js"></script>
 </head>
 <body class="canvas-page">
     <div id="toolbar">
-        <a href="projects.html" class="workspaceBrand" aria-label="Back to Projects" data-backup-before-leave>
-            <!-- Lucide waypoints; license in assets/lucide-LICENSE.txt. -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m10.586 5.414-5.172 5.172m13.172 2.828-5.172 5.172M6 12h12"/>
-                <circle cx="12" cy="20" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="4" cy="12" r="2"/>
-            </svg>
-        </a>
+        <a href="projects.html" class="workspaceBrand" aria-label="Back to Projects" data-icon="waypoints" data-backup-before-leave></a>
         <div class="workspaceIdentity">
             <div class="workspaceBreadcrumb"><a href="index.html" data-backup-before-leave>Visual Notes</a><span>/</span><a href="projects.html" data-backup-before-leave>Projects</a></div>
             <input id="projectTitleInput" class="projectTitleInput" type="text" aria-label="Project title" placeholder="Project title" title="Click to edit project title" oninput="updateProjectTitle(this.value)">
