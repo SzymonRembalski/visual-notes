@@ -42,9 +42,9 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 
 - Create tasks and break them into smaller steps.
 - Track completion with automatic progress counts and percentages.
-- Reorder tasks and steps with drag and drop.
+- Reorder tasks and steps with drag handles or up/down controls.
 - Pin important tasks and attach extra notes.
-- Organize work into custom categories.
+- Assign tasks to custom categories and filter the list to in-progress or completed work.
 
 ### 🔒 Keep everything local
 

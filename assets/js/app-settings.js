@@ -229,7 +229,7 @@ const AppSettings = {
             const currentDirectory = window.location.pathname.slice(0, window.location.pathname.lastIndexOf("/") + 1);
             const targetDirectory = url.pathname.slice(0, url.pathname.lastIndexOf("/") + 1);
             const filename = url.pathname.split("/").pop();
-            if (targetDirectory !== currentDirectory || !["index.html", "projects.html", "visual-notes.html"].includes(filename)) {
+            if (targetDirectory !== currentDirectory || !["index.html", "projects.html", "tasks.html", "visual-notes.html"].includes(filename)) {
                 return "index.html";
             }
             return `${filename}${url.search}`;

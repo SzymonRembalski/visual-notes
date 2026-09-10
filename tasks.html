@@ -5,28 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Tracker</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/app-icons.js"></script>
     <script src="assets/js/app-settings.js"></script>
 </head>
 <body class="task-page">
-    <h1>Task Tracker</h1>
-    <div id="controls">
-        <button onclick="addTask()">+ New Task</button>
-        <button onclick="addCategory()">+ Category</button>
-        <a href="index.html" class="button button-link" data-backup-before-leave>Back to Menu</a>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th></th>
-                <th>Task</th>
-                <th>Steps</th>
-                <th>Progress</th>
-                <th>%</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-    </table>
+    <header class="appHeader">
+        <a href="index.html" class="workspaceBrand" aria-label="Back to Menu" data-icon="waypoints" data-backup-before-leave></a>
+        <a href="index.html" class="appWordmark" data-backup-before-leave>Visual Notes</a>
+        <span class="appHeaderDivider" aria-hidden="true">/</span><span class="appHeaderCurrent">Tasks</span>
+        <nav aria-label="Workspace navigation">
+            <button type="button" class="workspaceIconButton" id="appearanceToggle" aria-label="Switch appearance"></button>
+            <a href="settings.html" data-settings-link data-backup-before-leave>Settings</a>
+            <a href="index.html" data-backup-before-leave>Back to Menu</a>
+        </nav>
+    </header>
+    <main class="taskShell">
+        <div class="taskPageHeading">
+            <div><h1>Task Tracker</h1><p id="taskSummary" role="status" aria-live="polite"></p></div>
+            <div id="controls">
+                <button type="button" class="taskSecondary" onclick="addCategory()">Add category</button>
+                <button type="button" id="newTaskButton" onclick="addTask()"><span data-icon="plus" aria-hidden="true"></span>New Task</button>
+            </div>
+        </div>
+        <div class="taskFilterBar">
+            <div class="taskFilters" role="group" aria-label="Filter tasks">
+                <button type="button" data-task-filter="all" aria-pressed="true">All tasks</button>
+                <button type="button" data-task-filter="active" aria-pressed="false">In progress</button>
+                <button type="button" data-task-filter="done" aria-pressed="false">Completed</button>
+            </div>
+            <span class="taskReorderHint">Drag the handles to reorder</span>
+        </div>
+        <div id="taskList" class="taskList" aria-label="Tasks"></div>
+    </main>
     <script src="assets/js/local-backup-manager.js"></script>
     <script src="assets/js/task-tracker.js"></script>
     <script src="assets/js/app.js"></script>
