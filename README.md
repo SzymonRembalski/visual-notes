@@ -100,6 +100,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Simplified overview | Use `0.2×`–`0.3×` to show readable titles, image previews, shapes, and connections |
 | Image-only nodes | Display without titles in both normal and simplified views |
 | Select several nodes | Drag on empty canvas or `Shift` + click |
+| Move selected nodes or a shape | Arrow keys; with snapping on, move to the next grid point on that axis; with snapping off, move 1 pixel. Hold `Shift` for 10 steps. Select a shape in **Shapes Mode** |
 | Delete selected nodes | `Delete`; preceding nodes automatically reconnect to following nodes across the deleted section |
 | Undo the last change | `Ctrl` + `Z` |
 | Redo an undone change | `Ctrl` + `Shift` + `Z` |
@@ -133,6 +134,7 @@ These are the default bindings. Select any keyboard binding on the **Settings** 
 | `Ctrl/Cmd + Shift + Z` | Redo an undone change |
 | `Delete` | Delete the selected nodes, or the selected shape in Shapes Mode |
 | `Shift + click` | Add or remove a node from the current selection |
+| Arrow keys / `Shift` + arrow keys | Move the selection by one / ten steps; holding an arrow is one undoable movement |
 | `Escape` | Close an open toolbar menu or cancel node/shape title editing |
 | Mouse wheel | Zoom in or out |
 | Middle-click | Center on selected nodes, or all nodes and visible drawings when nothing is selected |

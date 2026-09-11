@@ -39,6 +39,7 @@ const VisualNotes = {
     canvasResizeStep: 250,
     historyManager: new HistoryManager(30),
     historyTransaction: null,
+    keyboardMoving: false,
     connectionElements: [],
     captureHistoryState() {
         return {
@@ -54,6 +55,7 @@ const VisualNotes = {
         this.historyTransaction = this.historyManager.clone(this.captureHistoryState());
     },
     commitHistoryTransaction() {
+        this.keyboardMoving = false;
         if (!this.historyTransaction) return false;
         const before = this.historyTransaction;
         const after = this.captureHistoryState();
@@ -438,6 +440,40 @@ const VisualNotes = {
         this.updateCanvasBounds();
         this.applyTransform();
         this.updateMovedConnections(this.selectedNotes);
+    },
+    moveSelectionWithArrow(event) {
+        const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+        const direction = directions[event.key];
+        if (!direction || event.ctrlKey || event.metaKey || event.altKey || document.onmousemove ||
+            this.addMode || this.removeMode || window.DrawingLayer?.tool) return false;
+        const selectedIds = new Set(this.selectedNotes);
+        const items = this.shapeMode
+            ? this.shapes.filter(shape => String(shape.id) === String(this.selectedShapeId))
+            : this.notes.filter(note => selectedIds.has(note.id));
+        if (!items.length) return false;
+        const axis = direction[0] ? "x" : "y";
+        const sign = direction[0] || direction[1];
+        const steps = event.shiftKey ? 10 : 1;
+        const anchor = items[0][axis];
+        const spacing = CanvasUtils.gridSpacing;
+        const delta = this.snappingEnabled
+            ? ((sign > 0 ? Math.floor(anchor / spacing) : Math.ceil(anchor / spacing)) + sign * steps) * spacing - anchor
+            : sign * steps;
+        if (!this.keyboardMoving) {
+            this.commitHistoryTransaction();
+            this.beginHistoryTransaction();
+            this.keyboardMoving = true;
+        }
+        items.forEach(item => { item[axis] += delta; });
+        this.updateCanvasBounds();
+        this.applyTransform();
+        if (!this.shapeMode) this.updateMovedConnections(this.selectedNotes);
+        return true;
+    },
+    finishKeyboardMove() {
+        if (!this.keyboardMoving) return;
+        this.commitHistoryTransaction();
+        this.saveBoard();
     },
     loadBoard() {
         window.DrawingLayer?.setTool(null);
@@ -2230,10 +2266,16 @@ const VisualNotes = {
             }, true);
             
             // Keyboard shortcuts
+            document.addEventListener("pointerdown", () => self.finishKeyboardMove(), true);
+            document.addEventListener("keyup", e => {
+                if (e.key.startsWith("Arrow")) self.finishKeyboardMove();
+            });
+            window.addEventListener("blur", () => self.finishKeyboardMove());
             document.addEventListener("keydown", e => {
                 const activeElement = document.activeElement;
                 const activeTag = activeElement && activeElement.tagName;
-                const typing = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeElement.isContentEditable;
+                const typing = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' || activeElement.isContentEditable;
+                if (!e.repeat || !e.key.startsWith("Arrow") || typing) self.finishKeyboardMove();
                 const matchesShortcut = action => window.AppSettings && window.AppSettings.matchesShortcut(e, action);
                 const redoShortcut = matchesShortcut("redo");
                 const undoShortcut = matchesShortcut("undo");
@@ -2291,7 +2333,9 @@ const VisualNotes = {
                 if (matchesShortcut("newNode")) {
                     e.preventDefault();
                     self.createNote();
+                    return;
                 }
+                if (self.moveSelectionWithArrow(e)) e.preventDefault();
             });
             document.addEventListener("mousemove", e => {
                 if (self.removeDragActive) {
