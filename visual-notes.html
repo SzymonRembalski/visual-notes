@@ -19,6 +19,8 @@
             <details id="editMenu" class="toolbarMenu">
                 <summary class="toolbarMenuTrigger">Edit</summary>
                 <div class="toolbarMenuPanel editMenuPanel" aria-label="Editing tools">
+                    <button type="button" id="drawBtn" onclick="DrawingLayer.toggleTool()" aria-pressed="false" data-close-menu>Draw</button>
+                    <button type="button" id="drawingVisibilityBtn" onclick="DrawingLayer.toggleVisibility()" aria-pressed="true" data-close-menu>Hide drawings</button>
                     <button type="button" onclick="createNote()" data-close-menu>New Node</button>
                     <button type="button" id="addBtn" onclick="toggleAddMode()" data-close-menu>Add Connections</button>
                     <button type="button" id="removeBtn" onclick="toggleRemoveMode()" data-close-menu>Remove Connections</button>
@@ -49,6 +51,15 @@
     <div id="shapes" aria-label="Canvas groups" aria-hidden="true"></div>
     <svg id="connections"></svg>
     <div id="canvas"></div>
+    <svg id="drawingLayer" aria-label="Drawing layer"><g id="drawingStrokes"></g></svg>
+    <div id="drawingControls" class="workspaceControls drawingControls" role="group" aria-label="Drawing tools" hidden>
+        <button type="button" id="drawingPen" aria-pressed="true" onclick="DrawingLayer.setTool('pen')">Pen</button>
+        <button type="button" id="drawingEraser" aria-pressed="false" onclick="DrawingLayer.setTool('eraser')" title="Sweep over a stroke to erase it">Erase strokes</button>
+        <label>Color<input type="color" id="drawingColor" value="#91bda0" aria-label="Pen color"></label>
+        <label>Size<select id="drawingSize" aria-label="Pen size"><option value="2">Fine</option><option value="4" selected>Medium</option><option value="8">Bold</option></select></label>
+        <button type="button" onclick="DrawingLayer.toggleVisibility()">Hide layer</button>
+        <button type="button" onclick="DrawingLayer.setTool(null)">Done</button>
+    </div>
     <nav id="quickTools" class="workspaceControls quickTools" aria-label="Quick tools"></nav>
     <p id="workspaceHint" class="workspaceHint">Right-drag to pan <span>·</span> Scroll to zoom</p>
     <div class="workspaceControls zoomControls" aria-label="Canvas view">
@@ -66,6 +77,7 @@
     <script src="assets/js/local-backup-manager.js"></script>
     <script src="assets/js/project-manager.js"></script>
     <script src="assets/js/canvas-utils.js"></script>
+    <script src="assets/js/drawing-layer.js"></script>
     <script src="assets/js/board-image-exporter.js"></script>
     <script src="assets/js/history-manager.js"></script>
     <script src="assets/js/workspace-ui.js"></script>

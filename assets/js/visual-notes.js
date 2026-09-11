@@ -2,6 +2,8 @@ const VisualNotes = {
     notes: JSON.parse(localStorage.getItem("visualNotes")) || [],
     connections: JSON.parse(localStorage.getItem("visualConnections")) || [],
     shapes: JSON.parse(localStorage.getItem("visualShapes")) || [],
+    drawings: [],
+    drawingsVisible: true,
     projectId: null,
     suspendPersistence: false,
     projectTitle: localStorage.getItem("visualTitle") ?? "Untitled Project",
@@ -43,6 +45,7 @@ const VisualNotes = {
             notes: this.notes,
             connections: this.connections,
             shapes: this.shapes,
+            drawings: this.drawings,
             projectTitle: this.projectTitle
         };
     },
@@ -69,6 +72,7 @@ const VisualNotes = {
         this.notes = state.notes || [];
         this.connections = state.connections || [];
         this.shapes = state.shapes || [];
+        this.drawings = state.drawings || [];
         this.projectTitle = typeof state.projectTitle === "string" ? state.projectTitle : "Untitled Project";
         this.selectedNote = null;
         this.selectedNotes = [];
@@ -84,6 +88,7 @@ const VisualNotes = {
         this.applyTransform();
     },
     undo() {
+        window.DrawingLayer?.finish();
         this.commitHistoryTransaction();
         const state = this.historyManager.undo(this.captureHistoryState());
         if (!state) return false;
@@ -91,6 +96,7 @@ const VisualNotes = {
         return true;
     },
     redo() {
+        window.DrawingLayer?.finish();
         this.commitHistoryTransaction();
         const state = this.historyManager.redo(this.captureHistoryState());
         if (!state) return false;
@@ -241,6 +247,8 @@ const VisualNotes = {
                 notes: this.notes,
                 connections: this.connections,
                 shapes: this.shapes,
+                drawings: this.drawings,
+                drawingsVisible: this.drawingsVisible,
                 panX: this.panX,
                 panY: this.panY,
                 zoom: this.zoom,
@@ -261,6 +269,8 @@ const VisualNotes = {
             localStorage.setItem("visualNotes", JSON.stringify(this.notes));
             localStorage.setItem("visualConnections", JSON.stringify(this.connections));
             localStorage.setItem("visualShapes", JSON.stringify(this.shapes));
+            localStorage.setItem("visualDrawings", JSON.stringify(this.drawings));
+            localStorage.setItem("visualDrawingsVisible", String(this.drawingsVisible));
             localStorage.setItem("visualTitle", this.projectTitle);
             localStorage.setItem("visualCoordinateVersion", String(this.coordinateVersion));
             localStorage.setItem("visualPanX", String(this.panX));
@@ -275,6 +285,7 @@ const VisualNotes = {
         }
     },
     async exportBoardImage() {
+        window.DrawingLayer?.finish();
         const button = document.getElementById("exportImageBtn");
         const originalLabel = button ? button.textContent : "Export PNG";
         if (!window.BoardImageExporter) {
@@ -291,7 +302,9 @@ const VisualNotes = {
                 title: this.projectTitle,
                 notes: this.notes,
                 connections: this.connections,
-                shapes: this.shapes
+                shapes: this.shapes,
+                drawings: this.drawings,
+                drawingsVisible: this.drawingsVisible
             });
             if (button) button.textContent = "Saved!";
         } catch (error) {
@@ -306,6 +319,7 @@ const VisualNotes = {
         }
     },
     createNote() {
+        window.DrawingLayer?.setTool(null);
         const { x, y } = this.getVisibleCenter();
         this.createNoteAt(
             x - CanvasUtils.defaultNoteWidth / 2,
@@ -426,6 +440,7 @@ const VisualNotes = {
         this.updateMovedConnections(this.selectedNotes);
     },
     loadBoard() {
+        window.DrawingLayer?.setTool(null);
         const params = new URLSearchParams(window.location.search);
         const projectId = params.get("projectId");
         this.projectId = projectId;
@@ -441,6 +456,8 @@ const VisualNotes = {
             this.notes = project.notes || [];
             this.connections = project.connections || [];
             this.shapes = project.shapes || [];
+            this.drawings = DrawingLayer.normalize(project.drawings);
+            this.drawingsVisible = project.drawingsVisible !== false;
             this.needsInitialCenter = typeof project.panX !== "number" || typeof project.panY !== "number";
             this.panX = typeof project.panX === "number" ? project.panX : 0;
             this.panY = typeof project.panY === "number" ? project.panY : 0;
@@ -460,6 +477,8 @@ const VisualNotes = {
             this.notes = loadedNotes;
             this.connections = loadedConnections;
             this.shapes = loadedShapes;
+            this.drawings = DrawingLayer.normalize(JSON.parse(localStorage.getItem("visualDrawings") || "[]"));
+            this.drawingsVisible = localStorage.getItem("visualDrawingsVisible") !== "false";
             this.projectTitle = localStorage.getItem("visualTitle") ?? "Untitled Project";
             this.snappingEnabled = localStorage.getItem("visualSnappingEnabled") !== "false";
             const storedCoordinateVersion = Number(localStorage.getItem("visualCoordinateVersion")) || 1;
@@ -485,6 +504,8 @@ const VisualNotes = {
             this.notes = [];
             this.connections = [];
             this.shapes = [];
+            this.drawings = [];
+            this.drawingsVisible = true;
             this.projectTitle = "Untitled Project";
             this.snappingEnabled = true;
             this.needsInitialCenter = true;
@@ -508,6 +529,7 @@ const VisualNotes = {
         }
         this.updateSnappingButton();
         this.render();
+        window.DrawingLayer?.updateControls();
     },
     updateToggleButton(id, active, activeLabel, inactiveLabel) {
         const button = document.getElementById(id);
@@ -545,6 +567,7 @@ const VisualNotes = {
     shapeResizeOrigin: null,
 
     setShapeMode(enabled) {
+        if (enabled) window.DrawingLayer?.setTool(null);
         this.shapeMode = Boolean(enabled);
         const shapesLayer = document.getElementById("shapes");
 
@@ -893,7 +916,7 @@ const VisualNotes = {
     },
 
     isIgnoreElement(target) {
-        return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls,.canvasNavigator,.workspaceControls,.colorPanel");
+        return target.closest("input,textarea,button,select,a,.resizeHandle,#toolbar,.backupControls,.canvasNavigator,.workspaceControls,.colorPanel,#drawingLayer");
     },
 
     startTitleEdit(item, titleElement, shapeTitle = false) {
@@ -1001,6 +1024,7 @@ const VisualNotes = {
     colorPickButton: null,
     colorPickMode: false,
     setConnectionMode(mode, enabled, finishRemoveDrag = false) {
+        if (enabled) window.DrawingLayer?.setTool(null);
         const addMode = mode === "add";
         const property = `${mode}Mode`;
         const className = `${mode}-mode-active`;
@@ -1036,6 +1060,7 @@ const VisualNotes = {
         this.toggleConnectionMode("add");
     },
     toggleColorMode() {
+        if (!this.colorMode) window.DrawingLayer?.setTool(null);
         this.colorMode = !this.colorMode;
         if (this.colorMode) {
             if (this.addMode) this.setConnectionMode("add", false);
@@ -1529,6 +1554,7 @@ const VisualNotes = {
         this.render();
     },
     render() {
+        window.DrawingLayer?.render();
         const canvas = document.getElementById("canvas");
         if (!canvas) return;
         const notes = this.notes;
@@ -1894,6 +1920,7 @@ const VisualNotes = {
         this.updateNavigationBars();
     },
     applyTransform() {
+        window.DrawingLayer?.syncView();
         window.WorkspaceUI?.update();
         const canvas = document.getElementById("canvas");
         const shapesLayer = document.getElementById("shapes");
@@ -1963,9 +1990,11 @@ const VisualNotes = {
         this.saveBoard();
     },
     centerCameraOnSelectionOrNotes() {
+        window.DrawingLayer?.finish();
         const selectedIds = new Set(this.selectedNotes);
         const selectedNotes = this.notes.filter(note => selectedIds.has(note.id));
-        this.centerCameraOnNotes(selectedNotes.length ? selectedNotes : this.notes);
+        const drawingBounds = this.drawingsVisible ? window.DrawingLayer?.getBounds(this.drawings) : null;
+        this.centerCameraOnNotes(selectedNotes.length ? selectedNotes : [...this.notes, ...(drawingBounds ? [drawingBounds] : [])]);
     },
     animateZoom(target) {
         if (this.zoomAnimationFrame) cancelAnimationFrame(this.zoomAnimationFrame);
@@ -2005,6 +2034,7 @@ const VisualNotes = {
         this.zoomAnimationFrame = requestAnimationFrame(step);
     },
     handleZoom(event) {
+        window.DrawingLayer?.finish();
         event.preventDefault();
         const zoomSpeed = 0.1;
         const delta = event.deltaY > 0 ? -zoomSpeed : zoomSpeed;
@@ -2312,6 +2342,7 @@ const VisualNotes = {
             document.addEventListener("drop", handleDrop);
             
             window.WorkspaceUI?.init();
+            window.DrawingLayer?.init();
             self.applyTransform();
         }
     }

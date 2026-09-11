@@ -6,17 +6,17 @@ const LocalBackupManager = {
     handleKey: "workspaceBackup",
     storageKeys: [
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
-        "visualNotes", "visualConnections", "visualShapes", "visualTitle",
+        "visualNotes", "visualConnections", "visualShapes", "visualDrawings", "visualDrawingsVisible", "visualTitle",
         "visualCoordinateVersion", "visualPanX", "visualPanY", "visualZoom",
         "visualSnappingEnabled", "visualAppSettings"
     ],
     jsonStorageKeys: new Set([
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
-        "visualNotes", "visualConnections", "visualShapes", "visualAppSettings"
+        "visualNotes", "visualConnections", "visualShapes", "visualDrawings", "visualAppSettings"
     ]),
     arrayStorageKeys: new Set([
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
-        "visualNotes", "visualConnections", "visualShapes"
+        "visualNotes", "visualConnections", "visualShapes", "visualDrawings"
     ]),
     fileHandle: null,
     backupIntervalMs: 5 * 60 * 1000,

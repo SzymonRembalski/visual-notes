@@ -18,7 +18,7 @@ const ProjectManager = {
         const projects = this.loadProjects();
         return projects.find(project => String(project.id) === String(id)) || null;
     },
-    createProject({ title, notes, connections, shapes, panX, panY, zoom, snappingEnabled, coordinateVersion }) {
+    createProject({ title, notes, connections, shapes, drawings, drawingsVisible, panX, panY, zoom, snappingEnabled, coordinateVersion }) {
         const projects = this.loadProjects();
         const project = {
             id: Date.now().toString(),
@@ -26,6 +26,8 @@ const ProjectManager = {
             notes: notes || [],
             connections: connections || [],
             shapes: shapes || [],
+            drawings: drawings || [],
+            drawingsVisible: drawingsVisible !== false,
             panX: typeof panX === "number" ? panX : null,
             panY: typeof panY === "number" ? panY : null,
             zoom: typeof zoom === "number" ? zoom : 1,

@@ -10,8 +10,9 @@ const BoardImageExporter = {
             .map(name => [name, style.getPropertyValue(`--${name}`).trim()]));
     },
 
-    getBounds(notes, shapes) {
-        const bounds = CanvasUtils.getNotesBounds([...notes, ...shapes]);
+    getBounds(notes, shapes, drawings = []) {
+        const drawingBounds = window.DrawingLayer?.getBounds(drawings);
+        const bounds = CanvasUtils.getNotesBounds([...notes, ...shapes, ...(drawingBounds ? [drawingBounds] : [])]);
         if (!bounds) return null;
         const { left, top, right, bottom } = bounds;
 
@@ -299,8 +300,9 @@ const BoardImageExporter = {
     async createImage(board) {
         const notes = board.notes || [];
         const shapes = board.shapes || [];
-        const bounds = this.getBounds(notes, shapes);
-        if (!bounds) throw new Error("Add at least one note or shape before exporting an image.");
+        const drawings = board.drawingsVisible === false ? [] : (board.drawings || []);
+        const bounds = this.getBounds(notes, shapes, drawings);
+        if (!bounds) throw new Error("Add a note, shape, or drawing before exporting an image.");
 
         const width = Math.max(1, bounds.right - bounds.left);
         const height = Math.max(1, bounds.bottom - bounds.top);
@@ -320,6 +322,7 @@ const BoardImageExporter = {
         this.drawShapes(context, shapes, palette);
         this.drawConnections(context, board.connections || [], notes, palette);
         await this.drawNotes(context, notes, palette);
+        window.DrawingLayer?.drawToContext(context, drawings);
 
         return {
             blob: await this.canvasToBlob(canvas),

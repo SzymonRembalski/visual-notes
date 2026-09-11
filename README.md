@@ -26,6 +26,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 - New nodes begin as compact, title-only cards; select one and use its **+** button to add note content.
 - Connect related nodes with structured, right-angle paths to build clear idea maps.
 - Draw titled, resizable, translucent colored background shapes to visually group related nodes.
+- Sketch over the board on a separate drawing layer, with pen colors, line sizes, and a stroke eraser. Hide or show your drawings without deleting them.
 - Color groups of nodes and see connections blend between their colors.
 - Reset nodes or shapes to the app's original theme with the **Default** color preset, restoring standard connection colors.
 - Select and move several nodes together.
@@ -33,7 +34,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 - Pan and zoom through complex boards.
 - Export an entire board as a high-quality PNG image.
 - Keep the workspace uncluttered with dedicated **Edit**, **Save**, and **Export** menus.
-- Use the floating quick tools for selection, new nodes, connections, shapes, and colors. Hide the dock in **Settings → Workspace** if you prefer the menus and shortcuts.
+- Use the floating quick tools for selection, new nodes, connections, shapes, colors, and drawing. Hide the dock in **Settings → Workspace** if you prefer the menus and shortcuts.
 - Choose **Graphite** or **Paper** appearance with the sun/moon button or in Settings. PNG exports use the selected appearance.
 - Select a node or group to open its color palette, choose a preset or custom color, then press **Apply**. **Pick** samples an existing item's color.
 - Personalize the app-wide accent color and remap keyboard shortcuts from **Settings**.
@@ -90,7 +91,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Add a note inside a node | Select one title-only node, then use the **+** beneath its title; an empty note collapses automatically |
 | Resize a node | Left-drag any border or corner; image nodes keep their proportions |
 | Move around the canvas | Right-click and drag |
-| Center the camera | Select one or more nodes and press the mouse wheel; without a selection, it centers on all nodes |
+| Center the camera | Select one or more nodes and press the mouse wheel; without a selection, it centers on all nodes and visible drawings |
 | Navigate a larger node area | Drag or click the horizontal and vertical position bars |
 | Save to the connected backup file | **Ctrl/Cmd + S** |
 | Save the full board as an image | **Export → Export PNG** |
@@ -107,6 +108,9 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Reset colors | Choose the crossed-out **Default** swatch and apply it to remove custom node or shape colors |
 | Reuse a board color | In **Color Mode**, choose **Pick**, then click a node or shape |
 | Create a background group | Use **Edit → Shapes Mode**, then drag on empty canvas |
+| Draw over the board | Choose **Draw** in the quick tools or **Edit** menu, then drag with a mouse, pen, or touch; choose **Done** to return to editing |
+| Erase drawings | Choose **Erase strokes** in the drawing controls and sweep across strokes; each gesture can be undone |
+| Hide or show drawings | Use **Edit → Hide drawings / Show drawings**; hidden strokes stay saved and are omitted from PNG exports |
 | Color a background group | Enable **Shapes Mode** and **Color Mode** from **Edit**, select a shape, choose a color, and apply |
 | Edit a group | In **Shapes Mode**, drag it to move, click its title to rename, or drag an edge/corner to resize |
 | Delete a group | Select it in **Shapes Mode**, then press `Delete` or use its × button |
@@ -130,7 +134,7 @@ These are the default bindings. Select any keyboard binding on the **Settings** 
 | `Shift + click` | Add or remove a node from the current selection |
 | `Escape` | Close an open toolbar menu or cancel node/shape title editing |
 | Mouse wheel | Zoom in or out |
-| Middle-click | Center on selected nodes, or all nodes when nothing is selected |
+| Middle-click | Center on selected nodes, or all nodes and visible drawings when nothing is selected |
 | Right-click and drag | Move the camera |
 
 The single-letter tool shortcuts work only when you are not typing and no nodes are selected. This prevents editing text or working with a selection from changing modes accidentally. `Ctrl/Cmd + B` is also disabled while typing.
@@ -152,6 +156,7 @@ visual-notes/
         ├── app-settings.js   # Shared theme, shortcuts, and settings navigation
         ├── board-image-exporter.js # Full-board PNG renderer and download
         ├── canvas-utils.js   # Canvas coordinates, bounds, and geometry
+        ├── drawing-layer.js  # Freehand drawing layer, pen, and stroke eraser
         ├── history-manager.js # 30-step undo and redo history
         ├── project-manager.js # Project persistence
         ├── projects-page.js  # Project library interface
