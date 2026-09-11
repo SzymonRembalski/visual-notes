@@ -30,6 +30,7 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 - Color groups of nodes and see connections blend between their colors.
 - Reset nodes or shapes to the app's original theme with the **Default** color preset, restoring standard connection colors.
 - Select and move several nodes together.
+- Delete a node or a selected section of a chain while reconnecting the preceding nodes to the following ones. Branches stay separate, and undo restores the original nodes and links.
 - Optionally snap nodes and shapes to the canvas dots while moving or resizing them.
 - Pan and zoom through complex boards.
 - Export an entire board as a high-quality PNG image.
@@ -99,7 +100,7 @@ Then open `index.html`. There is nothing to install and no build command to run.
 | Simplified overview | Use `0.2×`–`0.3×` to show readable titles, image previews, shapes, and connections |
 | Image-only nodes | Display without titles in both normal and simplified views |
 | Select several nodes | Drag on empty canvas or `Shift` + click |
-| Delete selected nodes | `Delete` |
+| Delete selected nodes | `Delete`; preceding nodes automatically reconnect to following nodes across the deleted section |
 | Undo the last change | `Ctrl` + `Z` |
 | Redo an undone change | `Ctrl` + `Shift` + `Z` |
 | Connect nodes | Use **Edit → Add Connections**, then draw through nodes |

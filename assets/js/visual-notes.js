@@ -957,14 +957,52 @@ const VisualNotes = {
         if (!this.selectedNotes.length) return;
         const deletedIds = new Set(this.selectedNotes);
         this.performHistoryChange(() => {
+            this.connections = this.getConnectionsWithoutNotes(deletedIds);
             this.notes = this.notes.filter(note => !deletedIds.has(note.id));
-            this.connections = this.connections.filter(connection =>
-                !deletedIds.has(connection.a) && !deletedIds.has(connection.b)
-            );
         });
+        this.selectedNote = null;
         this.selectedNotes = [];
+        deletedIds.forEach(id => this.expandedNoteIds.delete(id));
         this.saveBoard();
         this.render();
+    },
+    getConnectionsWithoutNotes(deletedIds) {
+        const remainingIds = new Set(this.notes.filter(note => !deletedIds.has(note.id)).map(note => note.id));
+        const connections = [];
+        const outgoing = new Map();
+        const entries = new Map();
+        this.connections.forEach(connection => {
+            const { a, b } = connection;
+            if (!deletedIds.has(a) && !deletedIds.has(b)) {
+                connections.push(connection);
+            } else {
+                const links = deletedIds.has(a) ? outgoing : entries;
+                if (!links.has(a)) links.set(a, []);
+                links.get(a).push(b);
+            }
+        });
+        const keys = new Set(connections.map(({ a, b }) => this.getConnectionKey(a, b)));
+        // Follow the saved a -> b order through deleted notes only, keeping sibling branches separate.
+        entries.forEach((starts, a) => {
+            if (!remainingIds.has(a)) return;
+            const pending = [...starts];
+            const visited = new Set();
+            while (pending.length) {
+                const b = pending.pop();
+                if (visited.has(b)) continue;
+                visited.add(b);
+                if (deletedIds.has(b)) {
+                    for (const next of outgoing.get(b) || []) pending.push(next);
+                } else if (remainingIds.has(b) && a !== b) {
+                    const key = this.getConnectionKey(a, b);
+                    if (!keys.has(key)) {
+                        keys.add(key);
+                        connections.push({ a, b });
+                    }
+                }
+            }
+        });
+        return connections;
     },
     getConnectionKey(a, b) {
         return `${Math.min(a, b)}-${Math.max(a, b)}`;
