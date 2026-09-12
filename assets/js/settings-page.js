@@ -7,6 +7,16 @@ const SettingsPage = {
         this.statusElement.textContent = message;
         this.statusElement.dataset.state = state;
     },
+    finishRecording(message, state = "success") {
+        this.recordingAction = null;
+        this.renderShortcuts();
+        this.setStatus(message, state);
+    },
+    setThemeColor(color, message = "Theme color saved.") {
+        AppSettings.setThemeColor(color);
+        this.renderTheme();
+        this.setStatus(message, "success");
+    },
 
     renderTheme() {
         const input = document.getElementById("themeColorInput");
@@ -33,17 +43,6 @@ const SettingsPage = {
             </div>
         `).join("");
 
-        list.querySelectorAll(".shortcutBinding").forEach(button => {
-            button.addEventListener("click", () => this.startRecording(button.dataset.action));
-        });
-        list.querySelectorAll(".shortcutReset").forEach(button => {
-            button.addEventListener("click", () => {
-                AppSettings.resetShortcut(button.dataset.resetAction);
-                this.recordingAction = null;
-                this.renderShortcuts();
-                this.setStatus("Shortcut restored to its default.", "success");
-            });
-        });
     },
 
     startRecording(action) {
@@ -63,9 +62,7 @@ const SettingsPage = {
         event.preventDefault();
         event.stopPropagation();
         if (event.key === "Escape") {
-            this.recordingAction = null;
-            this.renderShortcuts();
-            this.setStatus("Shortcut change cancelled.");
+            this.finishRecording("Shortcut change cancelled.", "neutral");
             return;
         }
         const binding = AppSettings.eventToBinding(event);
@@ -78,52 +75,43 @@ const SettingsPage = {
             return;
         }
         AppSettings.setShortcut(this.recordingAction, binding);
-        this.recordingAction = null;
-        this.renderShortcuts();
-        this.setStatus(`Shortcut changed to ${AppSettings.formatBinding(binding)}.`, "success");
+        this.finishRecording(`Shortcut changed to ${AppSettings.formatBinding(binding)}.`);
     },
 
     init() {
         this.statusElement = document.getElementById("settingsStatus");
-        const appearance = document.getElementById("appearanceSelect");
-        appearance.value = AppSettings.settings.appearance;
-        appearance.onchange = () => {
-            AppSettings.settings.appearance = appearance.value;
-            AppSettings.save();
-            this.setStatus("Appearance saved.", "success");
+        document.getElementById("shortcutList").onclick = event => {
+            const button = event.target.closest(".shortcutBinding, .shortcutReset");
+            if (!button) return;
+            if (button.dataset.action) this.startRecording(button.dataset.action);
+            else {
+                AppSettings.resetShortcut(button.dataset.resetAction);
+                this.finishRecording("Shortcut restored to its default.");
+            }
         };
-        const quickTools = document.getElementById("quickToolsToggle");
-        quickTools.checked = AppSettings.settings.quickTools;
-        quickTools.onchange = () => {
-            AppSettings.settings.quickTools = quickTools.checked;
-            AppSettings.save();
-            this.setStatus("Quick tools preference saved.", "success");
-        };
+        [
+            ["appearanceSelect", "appearance", "value", "Appearance saved."],
+            ["quickToolsToggle", "quickTools", "checked", "Quick tools preference saved."]
+        ].forEach(([id, setting, property, message]) => {
+            const control = document.getElementById(id);
+            control[property] = AppSettings.settings[setting];
+            control.onchange = () => {
+                AppSettings.settings[setting] = control[property];
+                AppSettings.save();
+                this.setStatus(message, "success");
+            };
+        });
         const colorInput = document.getElementById("themeColorInput");
-        if (colorInput) {
-            colorInput.addEventListener("input", () => {
-                AppSettings.setThemeColor(colorInput.value);
-                this.renderTheme();
-                this.setStatus("Theme color saved.", "success");
-            });
-        }
+        colorInput?.addEventListener("input", () => this.setThemeColor(colorInput.value));
         document.querySelectorAll(".themePreset").forEach(button => {
-            button.addEventListener("click", () => {
-                AppSettings.setThemeColor(button.dataset.color);
-                this.renderTheme();
-                this.setStatus("Theme color saved.", "success");
-            });
+            button.onclick = () => this.setThemeColor(button.dataset.color);
         });
         document.getElementById("resetThemeButton")?.addEventListener("click", () => {
-            AppSettings.resetTheme();
-            this.renderTheme();
-            this.setStatus("Theme restored to the Visual Notes default.", "success");
+            this.setThemeColor(AppSettings.defaultThemeColor, "Theme restored to the Visual Notes default.");
         });
         document.getElementById("resetShortcutsButton")?.addEventListener("click", () => {
             AppSettings.resetShortcuts();
-            this.recordingAction = null;
-            this.renderShortcuts();
-            this.setStatus("All shortcuts restored to their defaults.", "success");
+            this.finishRecording("All shortcuts restored to their defaults.");
         });
         document.addEventListener("keydown", event => this.captureShortcut(event), true);
         this.renderTheme();
