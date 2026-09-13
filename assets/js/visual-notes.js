@@ -1,13 +1,13 @@
 const VisualNotes = {
     ...BoardCamera,
-    notes: JSON.parse(localStorage.getItem("visualNotes")) || [],
-    connections: JSON.parse(localStorage.getItem("visualConnections")) || [],
-    shapes: JSON.parse(localStorage.getItem("visualShapes")) || [],
+    notes: [],
+    connections: [],
+    shapes: [],
     drawings: [],
     drawingsVisible: true,
     projectId: null,
     suspendPersistence: false,
-    projectTitle: localStorage.getItem("visualTitle") ?? "Untitled Project",
+    projectTitle: "Untitled Project",
     selectedNote: null,
     selectedNotes: [],
     resizeDirections: ["n", "ne", "e", "se", "s", "sw", "w", "nw"],
@@ -117,47 +117,7 @@ const VisualNotes = {
             status.textContent = "Saving…";
             status.parentElement.dataset.saved = "false";
         }
-        if (this.projectId) {
-            const projects = ProjectManager.loadProjects();
-            const projectIndex = projects.findIndex(p => String(p.id) === String(this.projectId));
-            const projectData = {
-                id: this.projectId,
-                title: this.projectTitle,
-                notes: this.notes,
-                connections: this.connections,
-                shapes: this.shapes,
-                drawings: this.drawings,
-                drawingsVisible: this.drawingsVisible,
-                panX: this.panX,
-                panY: this.panY,
-                zoom: this.zoom,
-                snappingEnabled: this.snappingEnabled,
-                coordinateVersion: this.coordinateVersion,
-                modifiedAt: Date.now()
-            };
-            if (projectIndex >= 0) {
-                projects[projectIndex] = {
-                    ...projects[projectIndex],
-                    ...projectData
-                };
-            } else {
-                projects.unshift(projectData);
-            }
-            ProjectManager.saveProjects(projects);
-        } else {
-            localStorage.setItem("visualNotes", JSON.stringify(this.notes));
-            localStorage.setItem("visualConnections", JSON.stringify(this.connections));
-            localStorage.setItem("visualShapes", JSON.stringify(this.shapes));
-            localStorage.setItem("visualDrawings", JSON.stringify(this.drawings));
-            localStorage.setItem("visualDrawingsVisible", String(this.drawingsVisible));
-            localStorage.setItem("visualTitle", this.projectTitle);
-            localStorage.setItem("visualCoordinateVersion", String(this.coordinateVersion));
-            localStorage.setItem("visualPanX", String(this.panX));
-            localStorage.setItem("visualPanY", String(this.panY));
-            localStorage.setItem("visualZoom", String(this.zoom));
-            localStorage.setItem("visualSnappingEnabled", String(this.snappingEnabled));
-            if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
-        }
+        BoardStorage.save(this.projectId, BoardStorage.getDocument(this), BoardStorage.getView(this));
         if (status) {
             status.textContent = "Saved on this device";
             status.parentElement.dataset.saved = "true";
@@ -178,12 +138,7 @@ const VisualNotes = {
         }
         try {
             await window.BoardImageExporter.download({
-                title: this.projectTitle,
-                notes: this.notes,
-                connections: this.connections,
-                shapes: this.shapes,
-                drawings: this.drawings,
-                drawingsVisible: this.drawingsVisible
+                ...BoardStorage.getDocument(this), drawingsVisible: this.drawingsVisible
             });
             if (button) button.textContent = "Saved!";
         } catch (error) {
@@ -357,12 +312,9 @@ const VisualNotes = {
         const params = new URLSearchParams(window.location.search);
         const projectId = params.get("projectId");
         this.projectId = projectId;
-        let project = null;
+        const stored = BoardStorage.load(projectId);
+        const project = projectId ? stored : null;
         let boardNeedsUpgrade = false;
-
-        if (projectId) {
-            project = ProjectManager.getProjectById(projectId);
-        }
 
         if (project) {
             this.projectTitle = typeof project.title === "string" ? project.title : "Untitled Project";
@@ -384,23 +336,23 @@ const VisualNotes = {
                 boardNeedsUpgrade = true;
             }
         } else if (!projectId) {
-            this.notes = JSON.parse(localStorage.getItem("visualNotes")) || [];
-            this.connections = JSON.parse(localStorage.getItem("visualConnections")) || [];
-            this.shapes = JSON.parse(localStorage.getItem("visualShapes")) || [];
-            this.drawings = DrawingLayer.normalize(JSON.parse(localStorage.getItem("visualDrawings") || "[]"));
-            this.drawingsVisible = localStorage.getItem("visualDrawingsVisible") !== "false";
-            this.projectTitle = localStorage.getItem("visualTitle") ?? "Untitled Project";
-            this.snappingEnabled = localStorage.getItem("visualSnappingEnabled") !== "false";
-            const storedCoordinateVersion = Number(localStorage.getItem("visualCoordinateVersion")) || 1;
+            this.notes = stored.notes;
+            this.connections = stored.connections;
+            this.shapes = stored.shapes;
+            this.drawings = DrawingLayer.normalize(stored.drawings);
+            this.drawingsVisible = stored.drawingsVisible !== "false";
+            this.projectTitle = stored.title ?? "Untitled Project";
+            this.snappingEnabled = stored.snappingEnabled !== "false";
+            const storedCoordinateVersion = Number(stored.coordinateVersion) || 1;
             if (storedCoordinateVersion < this.coordinateVersion && this.notes.length) {
                 this.migrateLegacyCoordinates(false);
                 boardNeedsUpgrade = true;
             } else {
-                const storedPanX = Number(localStorage.getItem("visualPanX"));
-                const storedPanY = Number(localStorage.getItem("visualPanY"));
-                const storedZoom = Number(localStorage.getItem("visualZoom"));
+                const storedPanX = Number(stored.panX);
+                const storedPanY = Number(stored.panY);
+                const storedZoom = Number(stored.zoom);
                 const hasStoredView = Number.isFinite(storedPanX) && Number.isFinite(storedPanY) &&
-                    localStorage.getItem("visualPanX") !== null && localStorage.getItem("visualPanY") !== null;
+                    stored.panX !== null && stored.panY !== null;
                 if (hasStoredView) {
                     this.panX = storedPanX;
                     this.panY = storedPanY;

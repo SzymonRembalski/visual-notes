@@ -157,6 +157,8 @@ visual-notes/
     └── js/
         ├── app.js            # Page initialization and action bindings
         ├── app-settings.js   # Shared theme, shortcuts, and settings navigation
+        ├── board-camera.js   # Camera, zoom, viewport bounds and navigation
+        ├── board-storage.js  # Local board storage and document/view data boundaries
         ├── board-image-exporter.js # Full-board PNG renderer and download
         ├── canvas-utils.js   # Canvas coordinates, bounds, and geometry
         ├── drawing-layer.js  # Freehand drawing layer, pen, and stroke eraser
@@ -171,6 +173,9 @@ visual-notes/
 ## Built with
 
 Plain HTML, CSS, and JavaScript — intentionally. The project stays easy to open, understand, modify, and carry anywhere.
+
+For the backend development plan and current storage boundary, see [docs/backend-plan.md](docs/backend-plan.md).
+Developers can run the storage regression tests with `node --test tests/board-storage.test.cjs`; Node.js is only needed for these tests, not to open the current app.
 
 ---
 
