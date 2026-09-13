@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Trigger Portainer redeploy
         run: |
-          curl -s -X PUT \
+          curl -v -f -X PUT \
             "https://portainer.rafalcaban.com/api/stacks/12/git/redeploy?endpointId=3" \
             -H "X-API-Key: ${{ secrets.PORTAINER_API_TOKEN }}" \
             -H "Content-Type: application/json" \
