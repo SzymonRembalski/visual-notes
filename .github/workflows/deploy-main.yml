@@ -18,3 +18,10 @@ jobs:
             -H "X-API-Key: ${{ secrets.PORTAINER_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"RepullImageAndRedeploy": true}'
+      - name: Debug secret lengths
+        run: |
+          echo "Client ID length: ${#CF_ID}"
+          echo "Client Secret length: ${#CF_SECRET}"
+        env:
+          CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
