@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Trigger Portainer redeploy
         run: |
-          curl -v -f -X PUT \
+          curl -v --fail-with-body -X PUT \
             "https://portainer.rafalcaban.com/api/stacks/12/git/redeploy?endpointId=3" \
             -u "${{ secrets.NPM_BASIC_AUTH_USER }}:${{ secrets.NPM_BASIC_AUTH_PASS }}" \
             -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
