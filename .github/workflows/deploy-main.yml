@@ -9,6 +9,20 @@ jobs:
   redeploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Authenticate to Portainer and get JWT
+        id: auth
+        run: |
+          JWT=$(curl -s -X POST \
+            "https://portainer.rafalcaban.com/api/auth" \
+            -u "${{ secrets.NPM_BASIC_AUTH_USER }}:${{ secrets.NPM_BASIC_AUTH_PASS }}" \
+            -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
+            -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"${{ secrets.PORTAINER_ADMIN_USER }}","password":"${{ secrets.PORTAINER_ADMIN_PASSWORD }}"}' \
+            | grep -o '"jwt":"[^"]*"' | cut -d'"' -f4)
+          echo "::add-mask::$JWT"
+          echo "jwt=$JWT" >> "$GITHUB_OUTPUT"
+
       - name: Trigger Portainer redeploy
         run: |
           curl -v --fail-with-body -X PUT \
@@ -16,13 +30,6 @@ jobs:
             -u "${{ secrets.NPM_BASIC_AUTH_USER }}:${{ secrets.NPM_BASIC_AUTH_PASS }}" \
             -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
             -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
-            -H "X-API-Key: ${{ secrets.PORTAINER_API_TOKEN }}" \
+            -H "Authorization: Bearer ${{ steps.auth.outputs.jwt }}" \
             -H "Content-Type: application/json" \
             -d '{"RepullImageAndRedeploy": true}'
-      - name: Debug secret lengths
-        run: |
-          echo "Client ID length: ${#CF_ID}"
-          echo "Client Secret length: ${#CF_SECRET}"
-        env:
-          CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
