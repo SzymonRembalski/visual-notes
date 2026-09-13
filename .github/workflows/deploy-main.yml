@@ -13,7 +13,7 @@ jobs:
         id: auth
         run: |
           RESPONSE=$(curl -s -X POST \
-            "https://portainer.rafalcaban.com/api/auth" \
+            "https://portainer-api.rafalcaban.com/api/auth" \
             -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
             -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
             -H "Content-Type: application/json" \
@@ -26,10 +26,9 @@ jobs:
       - name: Trigger Portainer redeploy
         run: |
           curl -v --fail-with-body -X PUT \
-            "https://portainer.rafalcaban.com/api/stacks/12/git/redeploy?endpointId=3" \
+            "https://portainer-api.rafalcaban.com/api/stacks/12/git/redeploy?endpointId=3" \
             -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
             -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
             -H "Authorization: Bearer ${{ steps.auth.outputs.jwt }}" \
             -H "Content-Type: application/json" \
             -d '{"RepullImageAndRedeploy": true}'
-      
