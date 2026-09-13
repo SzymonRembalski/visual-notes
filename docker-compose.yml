@@ -1,0 +1,11 @@
+services:
+  visual-notes:
+    build: .
+    restart: unless-stopped
+    networks:
+      - npm_network
+
+networks:
+  npm_network:
+    external: true
+    name: nginx-proxy-manager_default
