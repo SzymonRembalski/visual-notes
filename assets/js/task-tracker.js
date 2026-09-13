@@ -15,6 +15,10 @@ const TaskTracker = {
         localStorage.setItem("categoriesV2", JSON.stringify(this.categories));
         if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
     },
+    saveAndRender() {
+        this.save();
+        this.render();
+    },
     load() {
         try {
             let tasks = JSON.parse(localStorage.getItem("tasksV2"));
@@ -24,7 +28,7 @@ const TaskTracker = {
             if (Array.isArray(tasks)) {
                 this.tasks = tasks;
             }
-        } catch (error) {
+        } catch {
             this.tasks = [];
         }
 
@@ -36,7 +40,7 @@ const TaskTracker = {
             if (Array.isArray(categories) && categories.length) {
                 this.categories = categories;
             }
-        } catch (error) {
+        } catch {
             this.categories = [
                 {
                     id: 1,
@@ -63,14 +67,9 @@ const TaskTracker = {
             ]
         };
 
-        if (afterIndex === null) {
-            this.tasks.unshift(task);
-        } else {
-            this.tasks.splice(afterIndex + 1, 0, task);
-        }
+        this.tasks.splice(afterIndex === null ? 0 : afterIndex + 1, 0, task);
 
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     addCategory() {
         const name = prompt("Category name:");
@@ -82,49 +81,42 @@ const TaskTracker = {
             color: "#444"
         });
 
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     deleteTask(index) {
         if (confirm("Delete task?")) {
             this.tasks.splice(index, 1);
-            this.save();
-            this.render();
+            this.saveAndRender();
         }
     },
     toggleStep(taskIndex, stepIndex) {
         const step = this.tasks[taskIndex].steps[stepIndex];
         step.done = !step.done;
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     addStep(index) {
         this.tasks[index].steps.push({
             text: "Step " + (this.tasks[index].steps.length + 1),
             done: false
         });
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     removeStep(index) {
         if (this.tasks[index].steps.length <= 1) return;
         this.tasks[index].steps.pop();
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     editTask(index) {
         const newName = prompt("Task name:", this.tasks[index].name);
         if (!newName) return;
         this.tasks[index].name = newName;
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     editStep(taskIndex, stepIndex) {
         const value = prompt("Step name:", this.tasks[taskIndex].steps[stepIndex].text);
         if (!value) return;
         this.tasks[taskIndex].steps[stepIndex].text = value;
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     startStepDrag(taskIndex, stepIndex, event) {
         event.stopPropagation();
@@ -137,24 +129,15 @@ const TaskTracker = {
         if (!this.draggedStep) return;
         event.stopPropagation();
         const { taskIndex: sourceTask, stepIndex: sourceIndex } = this.draggedStep;
-        if (sourceTask !== taskIndex) {
-            this.draggedStep = null;
-            return;
-        }
-        if (sourceIndex === stepIndex) {
-            this.draggedStep = null;
-            return;
-        }
-
         this.draggedStep = null;
+        if (sourceTask !== taskIndex) return;
         this.moveItem(this.tasks[taskIndex].steps, sourceIndex, stepIndex);
     },
     moveItem(items, from, to) {
         if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return;
         const [item] = items.splice(from, 1);
         items.splice(to, 0, item);
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     moveTask(index, delta) {
         this.moveItem(this.tasks, index, index + delta);
@@ -167,13 +150,11 @@ const TaskTracker = {
     setCategory(index, name) {
         if (!this.categories.some(category => category.name === name)) return;
         this.tasks[index].category = name;
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     toggleNotes(index) {
         this.tasks[index].expanded = !this.tasks[index].expanded;
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     updateNotes(index, text) {
         this.tasks[index].notes = text;
@@ -181,12 +162,11 @@ const TaskTracker = {
     },
     togglePinned(index) {
         this.tasks[index].pinned = !this.tasks[index].pinned;
-        this.save();
-        this.render();
+        this.saveAndRender();
     },
     calculateProgress(task) {
         const total = task.steps.length;
-        const done = task.steps.filter(step => step.done).length;
+        const done = task.steps.reduce((count, step) => count + Number(Boolean(step.done)), 0);
         return {
             done,
             total,
@@ -197,7 +177,8 @@ const TaskTracker = {
         const list = document.getElementById("taskList");
         if (!list) return;
         const focusKey = document.activeElement?.dataset.focusKey;
-        const completed = this.tasks.filter(task => this.calculateProgress(task).percent === 100).length;
+        const progressByTask = this.tasks.map(task => this.calculateProgress(task));
+        const completed = progressByTask.filter(progress => progress.percent === 100).length;
         const total = this.tasks.length;
         document.getElementById("taskSummary").textContent = total
             ? `${total - completed} in progress · ${completed} completed` : "A clear space for what comes next.";
@@ -205,15 +186,16 @@ const TaskTracker = {
             button.setAttribute("aria-pressed", String(button.dataset.taskFilter === this.filter));
         });
         list.innerHTML = "";
+        const categoryNames = this.categories.map(category => category.name);
         this.tasks.forEach((task, index) => {
-            const progress = this.calculateProgress(task);
+            const progress = progressByTask[index];
             const complete = progress.percent === 100;
             if ((this.filter === "active" && complete) || (this.filter === "done" && !complete)) return;
             const card = document.createElement("article");
             card.className = `taskCard${complete ? " completed" : ""}${task.pinned ? " pinned" : ""}`;
             card.dataset.index = index;
             card.setAttribute("aria-labelledby", `taskTitle${index}`);
-            const categories = [...new Set([task.category || "GENERAL", ...this.categories.map(category => category.name)])];
+            const categories = [...new Set([task.category || "GENERAL", ...categoryNames])];
             card.innerHTML = `
                 <div class="taskCardHeader">
                     <span class="taskDrag" draggable="true" title="Drag to reorder task" aria-hidden="true">${AppIcons.icon("grip")}</span>

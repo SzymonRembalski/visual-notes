@@ -9,14 +9,14 @@ const ProjectsPage = {
     init() {
         const list = document.getElementById("projectList");
         if (!list) return;
-        this.projects = ProjectManager.loadProjects();
-        document.getElementById("newProjectButton").onclick = () => this.createProject();
-        document.getElementById("projectSearch").oninput = () => this.render();
-        document.getElementById("projectSort").onchange = () => this.render();
-        window.addEventListener("pageshow", event => {
-            if (!event.persisted) return;
+        const reload = () => {
             this.projects = ProjectManager.loadProjects();
             this.render();
+        };
+        document.getElementById("newProjectButton").onclick = () => this.createProject();
+        document.getElementById("projectSearch").oninput = document.getElementById("projectSort").onchange = () => this.render();
+        window.addEventListener("pageshow", event => {
+            if (event.persisted) reload();
         });
         list.onclick = event => {
             if (event.target.closest("[data-create-project]")) this.createProject();
@@ -29,12 +29,11 @@ const ProjectsPage = {
             const button = event.target.closest(".deleteProjectButton");
             if (button && confirm("Delete this project?")) {
                 ProjectManager.deleteProject(button.dataset.id);
-                this.projects = ProjectManager.loadProjects();
-                this.render();
+                reload();
                 document.getElementById("newProjectButton").focus();
             }
         };
-        this.render();
+        reload();
     },
     title(project) {
         return typeof project.title === "string" && project.title.trim() ? project.title : "Untitled Project";
@@ -45,10 +44,17 @@ const ProjectsPage = {
     },
     preview(project) {
         // Bound thumbnail detail; opening a board still shows every item.
-        const items = values => (Array.isArray(values) ? values : []).filter(item =>
-            item && Number.isFinite(item.x) && Number.isFinite(item.y));
-        const notes = items(project.notes).slice(0, 80);
-        const shapes = items(project.shapes).slice(0, 20);
+        const items = (values, limit) => {
+            const result = [];
+            for (const item of Array.isArray(values) ? values : []) {
+                if (!item || !Number.isFinite(item.x) || !Number.isFinite(item.y)) continue;
+                result.push(item);
+                if (result.length === limit) break;
+            }
+            return result;
+        };
+        const notes = items(project.notes, 80);
+        const shapes = items(project.shapes, 20);
         if (!notes.length && !shapes.length) {
             return `<div class="projectPreview projectPreviewEmpty">${AppIcons.icon("node")}<span>A fresh canvas</span></div>`;
         }
@@ -71,16 +77,19 @@ const ProjectsPage = {
     render() {
         const query = document.getElementById("projectSearch").value.trim().toLocaleLowerCase();
         const sort = document.getElementById("projectSort").value;
+        const field = sort === "created" ? "createdAt" : "modifiedAt";
+        const compareNames = new Intl.Collator(undefined, { numeric: true }).compare;
+        const dateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
         const projects = this.projects.filter(project => this.title(project).toLocaleLowerCase().includes(query));
-        projects.sort((a, b) => sort === "name" ? this.title(a).localeCompare(this.title(b), undefined, { numeric: true })
-            : this.timestamp(b, sort === "created" ? "createdAt" : "modifiedAt") - this.timestamp(a, sort === "created" ? "createdAt" : "modifiedAt"));
+        projects.sort((a, b) => sort === "name" ? compareNames(this.title(a), this.title(b))
+            : this.timestamp(b, field) - this.timestamp(a, field));
         document.getElementById("projectCount").textContent = query ? `${projects.length} of ${this.projects.length} projects` : `${projects.length} ${projects.length === 1 ? "project" : "projects"}`;
         const list = document.getElementById("projectList");
         list.innerHTML = projects.map(project => {
             const title = escapeHtml(this.title(project));
             const time = this.timestamp(project);
             const date = time ? new Date(time) : null;
-            const modified = date ? date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Not dated";
+            const modified = date ? dateFormat.format(date) : "Not dated";
             const count = Array.isArray(project.notes) ? project.notes.length : 0;
             return `<article class="project-card" data-id="${escapeHtml(project.id)}">
                 <a class="openProjectButton" href="visual-notes.html?projectId=${encodeURIComponent(project.id)}" aria-label="Open ${title}" data-backup-before-leave>

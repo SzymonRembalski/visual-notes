@@ -1,8 +1,7 @@
 class HistoryManager {
     constructor(limit = 30) {
         this.limit = limit;
-        this.past = [];
-        this.future = [];
+        this.clear();
     }
 
     clone(state) {
@@ -14,11 +13,15 @@ class HistoryManager {
         this.future = [];
     }
 
-    record(state) {
-        this.past.push(this.clone(state));
-        if (this.past.length > this.limit) {
-            this.past.splice(0, this.past.length - this.limit);
+    push(stack, state) {
+        stack.push(this.clone(state));
+        if (stack.length > this.limit) {
+            stack.splice(0, stack.length - this.limit);
         }
+    }
+
+    record(state) {
+        this.push(this.past, state);
         this.future = [];
     }
 
@@ -32,10 +35,7 @@ class HistoryManager {
 
     move(source, destination, currentState) {
         if (!source.length) return null;
-        destination.push(this.clone(currentState));
-        if (destination.length > this.limit) {
-            destination.splice(0, destination.length - this.limit);
-        }
+        this.push(destination, currentState);
         // Popped snapshots are no longer retained by history, so ownership can transfer.
         return source.pop();
     }

@@ -14,10 +14,16 @@ const WorkspaceUI = {
     update() {
         const board = window.VisualNotes;
         if (!board) return;
-        const count = board.shapeMode ? Number(Boolean(board.selectedShapeId)) : board.selectedNotes.length;
         const zoom = board.zoomAnimationTarget?.zoom || board.zoom;
+        if (zoom !== this.lastZoom) {
+            this.lastZoom = zoom;
+            document.getElementById("zoomLevel").textContent = `${Math.round(zoom * 100)}%`;
+            document.getElementById("zoomOut").disabled = zoom <= CanvasUtils.minimumZoom;
+            document.getElementById("zoomIn").disabled = zoom >= CanvasUtils.maximumZoom;
+        }
+        const count = board.shapeMode ? Number(Boolean(board.selectedShapeId)) : board.selectedNotes.length;
         const drawing = window.DrawingLayer?.tool;
-        const state = [board.addMode, board.removeMode, board.shapeMode, board.colorMode, drawing, count, Math.round(zoom * 100)].join();
+        const state = [board.addMode, board.removeMode, board.shapeMode, board.colorMode, drawing, count].join();
         if (state === this.lastState) return;
         this.lastState = state;
         const active = { select: !board.addMode && !board.removeMode && !board.shapeMode && !board.colorMode && !drawing,
@@ -33,9 +39,6 @@ const WorkspaceUI = {
                 count ? `${count} ${board.shapeMode ? "group" : count === 1 ? "node" : "nodes"}` : "Select a node or group";
             board.colorPanelElement.querySelector(".applyColorBtn").disabled = !count;
         }
-        document.getElementById("zoomLevel").textContent = `${Math.round(zoom * 100)}%`;
-        document.getElementById("zoomOut").disabled = zoom <= CanvasUtils.minimumZoom;
-        document.getElementById("zoomIn").disabled = zoom >= CanvasUtils.maximumZoom;
         const hint = document.getElementById("workspaceHint");
         hint.textContent = drawing ? (drawing === "eraser" ? "Sweep across strokes to erase · Ctrl/Cmd Z to undo" : "Draw freely · Right-drag to pan")
             : board.removeMode ? "Drag across connections to remove" : board.addMode ? "Drag between nodes to connect"
@@ -51,22 +54,18 @@ const WorkspaceUI = {
             ["draw", "Draw", () => DrawingLayer.toggleTool()]
         ];
         const dock = document.getElementById("quickTools");
-        actions.forEach(([name, label, action]) => {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.dataset.tool = name;
-            button.title = label;
-            button.setAttribute("aria-label", label);
-            button.innerHTML = `${AppIcons.icon(name)}<span>${label}</span>`;
-            button.onclick = action;
-            dock.appendChild(button);
-        });
+        dock.innerHTML = actions.map(([name, label]) => `<button type="button" data-tool="${name}" title="${label}" aria-label="${label}">
+            ${AppIcons.icon(name)}<span>${label}</span></button>`).join("");
+        dock.onclick = event => {
+            const tool = event.target.closest("[data-tool]")?.dataset.tool;
+            actions.find(([name]) => name === tool)?.[2]();
+        };
         document.getElementById("centerView").innerHTML = AppIcons.icon("center");
         document.getElementById("centerView").onclick = () => VisualNotes.centerCameraOnSelectionOrNotes();
         ["zoomOut", "zoomIn"].forEach((id, index) => {
             document.getElementById(id).onclick = () => VisualNotes.handleZoom({ deltaY: index ? -1 : 1, preventDefault() {} });
         });
-        this.lastState = null;
+        this.lastState = this.lastZoom = null;
         this.update();
     }
 };

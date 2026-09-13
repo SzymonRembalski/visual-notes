@@ -73,10 +73,10 @@ const DrawingLayer = {
             VisualNotes.selectedNotes = [];
             VisualNotes.selectedNote = null;
             VisualNotes.render();
-        }
-        if (tool && !VisualNotes.drawingsVisible) {
-            VisualNotes.drawingsVisible = true;
-            VisualNotes.saveBoard();
+            if (!VisualNotes.drawingsVisible) {
+                VisualNotes.drawingsVisible = true;
+                VisualNotes.saveBoard();
+            }
         }
         this.syncView();
         this.updateControls();
@@ -151,15 +151,17 @@ const DrawingLayer = {
     },
     erase(from, to) {
         const radius = 12 / VisualNotes.zoom;
+        const left = Math.min(from.x, to.x) - radius, right = Math.max(from.x, to.x) + radius;
+        const top = Math.min(from.y, to.y) - radius, bottom = Math.max(from.y, to.y) + radius;
         VisualNotes.drawings = VisualNotes.drawings.filter(stroke => {
             const { bounds, path } = this.elements.get(stroke);
-            if (Math.max(from.x, to.x) + radius < bounds.x || Math.min(from.x, to.x) - radius > bounds.x + bounds.width ||
-                Math.max(from.y, to.y) + radius < bounds.y || Math.min(from.y, to.y) - radius > bounds.y + bounds.height) return true;
+            if (right < bounds.x || left > bounds.x + bounds.width || top > bounds.y + bounds.height || bottom < bounds.y) return true;
+            const hitRadius = radius + stroke.width / 2;
             const hit = stroke.points.some((a, index) => {
                 const b = stroke.points[index + 1] || a;
                 return CanvasUtils.lineIntersects(from, to, { x1: a.x, y1: a.y, x2: b.x, y2: b.y }) ||
                     Math.min(this.pointSegmentDistance(from, a, b), this.pointSegmentDistance(to, a, b),
-                        this.pointSegmentDistance(a, from, to), this.pointSegmentDistance(b, from, to)) <= radius + stroke.width / 2;
+                        this.pointSegmentDistance(a, from, to), this.pointSegmentDistance(b, from, to)) <= hitRadius;
             });
             if (hit) { path.remove(); this.elements.delete(stroke); }
             return !hit;

@@ -15,10 +15,7 @@ const AppSettings = {
     settings: null,
 
     getDefaultShortcuts() {
-        return Object.fromEntries(this.shortcutDefinitions.map(definition => [
-            definition.id,
-            definition.defaultBinding
-        ]));
+        return Object.fromEntries(this.shortcutDefinitions.map(({ id, defaultBinding }) => [id, defaultBinding]));
     },
 
     normalizeColor(color) {
@@ -44,12 +41,10 @@ const AppSettings = {
         const modifiers = new Set();
         let key = null;
         rawParts.forEach(part => {
-            if (part === "ctrl" || part === "cmd" || part === "meta" || part === "mod") {
+            if (["ctrl", "cmd", "meta", "mod"].includes(part)) {
                 modifiers.add("mod");
-            } else if (part === "alt") {
-                modifiers.add("alt");
-            } else if (part === "shift") {
-                modifiers.add("shift");
+            } else if (part === "alt" || part === "shift") {
+                modifiers.add(part);
             } else {
                 key = this.normalizeKeyName(part);
             }
@@ -73,7 +68,7 @@ const AppSettings = {
             if (!stored || typeof stored !== "object" || Array.isArray(stored)) return defaults;
             const shortcuts = { ...defaults.shortcuts };
             this.shortcutDefinitions.forEach(definition => {
-                const normalized = this.normalizeBinding(stored.shortcuts && stored.shortcuts[definition.id]);
+                const normalized = this.normalizeBinding(stored.shortcuts?.[definition.id]);
                 if (normalized) shortcuts[definition.id] = normalized;
             });
             return {
@@ -115,16 +110,15 @@ const AppSettings = {
     },
 
     applyTheme() {
-        const color = this.normalizeColor(this.settings && this.settings.themeColor);
+        const color = this.normalizeColor(this.settings.themeColor);
         const root = document.documentElement;
         root.dataset.appearance = this.settings.appearance;
         root.dataset.quickTools = String(this.settings.quickTools);
         root.style.setProperty("--accent-color", color);
         const target = this.settings.appearance === "paper" ? "#24332a" : "#ffffff";
-        root.style.setProperty("--accent-hover", this.mixColor(color, target, 0.14));
-        root.style.setProperty("--accent-soft", this.mixColor(color, target, 0.25));
-        root.style.setProperty("--accent-focus", this.mixColor(color, target, 0.4));
-        root.style.setProperty("--accent-highlight", this.mixColor(color, target, 0.32));
+        Object.entries({ hover: 0.14, soft: 0.25, focus: 0.4, highlight: 0.32 }).forEach(([name, amount]) => {
+            root.style.setProperty(`--accent-${name}`, this.mixColor(color, target, amount));
+        });
         root.style.setProperty("--accent-contrast", this.getContrastColor(color));
         const toggle = document.getElementById("appearanceToggle");
         if (toggle && window.AppIcons) {
@@ -181,7 +175,7 @@ const AppSettings = {
         if (event.ctrlKey || event.metaKey) parts.push("mod");
         if (event.altKey) parts.push("alt");
         if (event.shiftKey) parts.push("shift");
-        parts.push(key.length === 1 ? key.toLowerCase() : key);
+        parts.push(key);
         return parts.join("+");
     },
 

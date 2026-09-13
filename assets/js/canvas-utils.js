@@ -44,30 +44,11 @@ const CanvasUtils = {
         ];
     },
     calculateCanvasBounds(notes, viewport, padding = 360, resizeStep = 250) {
-        let left = viewport.left;
-        let top = viewport.top;
-        let right = viewport.right;
-        let bottom = viewport.bottom;
-
-        if (notes.length) {
-            notes.forEach(note => {
-                const bounds = this.getItemBounds(note);
-                left = Math.min(left, bounds.left);
-                top = Math.min(top, bounds.top);
-                right = Math.max(right, bounds.right);
-                bottom = Math.max(bottom, bounds.bottom);
-            });
-        } else {
-            left = Math.min(left, 0);
-            top = Math.min(top, 0);
-            right = Math.max(right, 0);
-            bottom = Math.max(bottom, 0);
-        }
-
-        left -= padding;
-        top -= padding;
-        right += padding;
-        bottom += padding;
+        const bounds = this.getNotesBounds(notes) || { left: 0, top: 0, right: 0, bottom: 0 };
+        let left = Math.min(viewport.left, bounds.left) - padding;
+        let top = Math.min(viewport.top, bounds.top) - padding;
+        let right = Math.max(viewport.right, bounds.right) + padding;
+        let bottom = Math.max(viewport.bottom, bounds.bottom) + padding;
 
         const viewportWidth = viewport.right - viewport.left;
         const viewportHeight = viewport.bottom - viewport.top;
@@ -210,39 +191,18 @@ const CanvasUtils = {
     snapResizedRectangle(rectangle, direction, minWidth = 0, minHeight = 0, spacing = this.gridSpacing) {
         const snapped = { ...rectangle };
 
-        if (direction.includes("e")) {
-            const minimumRight = snapped.x + minWidth;
-            const right = Math.max(
-                this.snapValue(snapped.x + snapped.width, spacing),
-                Math.ceil(minimumRight / spacing) * spacing
-            );
-            snapped.width = right - snapped.x;
-        } else if (direction.includes("w")) {
-            const right = snapped.x + snapped.width;
-            const maximumLeft = right - minWidth;
-            snapped.x = Math.min(
-                this.snapValue(snapped.x, spacing),
-                Math.floor(maximumLeft / spacing) * spacing
-            );
-            snapped.width = right - snapped.x;
-        }
-
-        if (direction.includes("s")) {
-            const minimumBottom = snapped.y + minHeight;
-            const bottom = Math.max(
-                this.snapValue(snapped.y + snapped.height, spacing),
-                Math.ceil(minimumBottom / spacing) * spacing
-            );
-            snapped.height = bottom - snapped.y;
-        } else if (direction.includes("n")) {
-            const bottom = snapped.y + snapped.height;
-            const maximumTop = bottom - minHeight;
-            snapped.y = Math.min(
-                this.snapValue(snapped.y, spacing),
-                Math.floor(maximumTop / spacing) * spacing
-            );
-            snapped.height = bottom - snapped.y;
-        }
+        [["x", "width", "e", "w", minWidth], ["y", "height", "s", "n", minHeight]].forEach(([axis, size, end, start, minimum]) => {
+            if (direction.includes(end)) {
+                const edge = Math.max(this.snapValue(snapped[axis] + snapped[size], spacing),
+                    Math.ceil((snapped[axis] + minimum) / spacing) * spacing);
+                snapped[size] = edge - snapped[axis];
+            } else if (direction.includes(start)) {
+                const edge = snapped[axis] + snapped[size];
+                snapped[axis] = Math.min(this.snapValue(snapped[axis], spacing),
+                    Math.floor((edge - minimum) / spacing) * spacing);
+                snapped[size] = edge - snapped[axis];
+            }
+        });
 
         return snapped;
     },

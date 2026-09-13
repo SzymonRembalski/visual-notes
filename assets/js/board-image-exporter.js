@@ -142,9 +142,13 @@ const BoardImageExporter = {
     },
 
     drawConnections(context, connections, notes, palette) {
+        const byId = new Map();
+        notes.forEach(note => {
+            if (!Number.isNaN(note.id) && !byId.has(note.id)) byId.set(note.id, note);
+        });
         connections.forEach(connection => {
-            const first = notes.find(note => note.id === connection.a);
-            const second = notes.find(note => note.id === connection.b);
+            const first = byId.get(connection.a);
+            const second = byId.get(connection.b);
             if (!first || !second) return;
             const geometry = CanvasUtils.getOrthogonalConnection(first, second);
             const gradient = context.createLinearGradient(
@@ -167,36 +171,26 @@ const BoardImageExporter = {
     },
 
     loadImage(source) {
+        if (!source) return Promise.resolve(null);
         return new Promise(resolve => {
-            if (!source) {
-                resolve(null);
-                return;
-            }
             const image = new Image();
-            let settled = false;
+            const timeout = setTimeout(() => resolve(null), 8000);
             const finish = value => {
-                if (settled) return;
-                settled = true;
+                clearTimeout(timeout);
                 resolve(value);
             };
             if (/^https?:/i.test(source)) image.crossOrigin = "anonymous";
             image.onload = () => finish(image);
             image.onerror = () => finish(null);
             image.src = source;
-            setTimeout(() => finish(null), 8000);
         });
     },
 
     drawContainedImage(context, image, x, y, width, height) {
         const imageRatio = image.naturalWidth / image.naturalHeight;
         const boxRatio = width / height;
-        let drawWidth = width;
-        let drawHeight = height;
-        if (imageRatio > boxRatio) {
-            drawHeight = width / imageRatio;
-        } else {
-            drawWidth = height * imageRatio;
-        }
+        const drawWidth = imageRatio > boxRatio ? width : height * imageRatio;
+        const drawHeight = imageRatio > boxRatio ? width / imageRatio : height;
         const drawX = x + (width - drawWidth) / 2;
         const drawY = y + (height - drawHeight) / 2;
         context.drawImage(image, drawX, drawY, drawWidth, drawHeight);

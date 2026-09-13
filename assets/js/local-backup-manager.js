@@ -10,10 +10,6 @@ const LocalBackupManager = {
         "visualCoordinateVersion", "visualPanX", "visualPanY", "visualZoom",
         "visualSnappingEnabled", "visualAppSettings"
     ],
-    jsonStorageKeys: new Set([
-        "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
-        "visualNotes", "visualConnections", "visualShapes", "visualDrawings", "visualAppSettings"
-    ]),
     arrayStorageKeys: new Set([
         "visualProjects", "tasksV2", "categoriesV2", "tasks", "categories",
         "visualNotes", "visualConnections", "visualShapes", "visualDrawings"
@@ -29,15 +25,11 @@ const LocalBackupManager = {
     restoreNoticeShown: false,
 
     buildBackup() {
-        const data = {};
-        this.storageKeys.forEach(key => {
-            data[key] = localStorage.getItem(key);
-        });
         return {
             format: this.format,
             version: this.version,
             exportedAt: new Date().toISOString(),
-            data
+            data: Object.fromEntries(this.storageKeys.map(key => [key, localStorage.getItem(key)]))
         };
     },
 
@@ -69,7 +61,7 @@ const LocalBackupManager = {
             if (value !== null && value !== undefined && typeof value !== "string") {
                 throw new Error(`The backup contains an invalid ${key} value.`);
             }
-            if (this.jsonStorageKeys.has(key) && typeof value === "string") {
+            if ((this.arrayStorageKeys.has(key) || key === "visualAppSettings") && typeof value === "string") {
                 const parsed = JSON.parse(value);
                 if (this.arrayStorageKeys.has(key) && !Array.isArray(parsed)) {
                     throw new Error(`The backup contains an invalid ${key} value.`);
@@ -138,27 +130,26 @@ const LocalBackupManager = {
         });
     },
 
-    async storeHandle(handle) {
+    async accessHandle(mode, operation) {
         const database = await this.openDatabase();
-        await new Promise((resolve, reject) => {
-            const transaction = database.transaction(this.handleStoreName, "readwrite");
-            transaction.objectStore(this.handleStoreName).put(handle, this.handleKey);
-            transaction.oncomplete = resolve;
-            transaction.onerror = () => reject(transaction.error);
-        });
-        database.close();
+        try {
+            return await new Promise((resolve, reject) => {
+                const transaction = database.transaction(this.handleStoreName, mode);
+                const request = operation(transaction.objectStore(this.handleStoreName));
+                transaction.oncomplete = () => resolve(request.result || null);
+                transaction.onerror = transaction.onabort = () => reject(transaction.error || new Error("Backup file storage was interrupted."));
+            });
+        } finally {
+            database.close();
+        }
+    },
+
+    async storeHandle(handle) {
+        await this.accessHandle("readwrite", store => store.put(handle, this.handleKey));
     },
 
     async loadHandle() {
-        const database = await this.openDatabase();
-        const handle = await new Promise((resolve, reject) => {
-            const transaction = database.transaction(this.handleStoreName, "readonly");
-            const request = transaction.objectStore(this.handleStoreName).get(this.handleKey);
-            request.onsuccess = () => resolve(request.result || null);
-            request.onerror = () => reject(request.error);
-        });
-        database.close();
-        return handle;
+        return this.accessHandle("readonly", store => store.get(this.handleKey));
     },
 
     async connectFile() {
@@ -260,11 +251,7 @@ const LocalBackupManager = {
 
     async saveNow() {
         this.saveApplicationState();
-        if (!this.fileHandle) {
-            await this.connectFile();
-            return;
-        }
-        await this.writeToFile(true);
+        await (this.fileHandle ? this.writeToFile(true) : this.connectFile());
     },
 
     async saveBeforeNavigation(link) {

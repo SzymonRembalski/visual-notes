@@ -2,21 +2,19 @@ const ProjectManager = {
     storageKey: "visualProjects",
     loadProjects() {
         try {
-            const raw = localStorage.getItem(this.storageKey);
-            const projects = JSON.parse(raw);
+            const projects = JSON.parse(localStorage.getItem(this.storageKey));
             return Array.isArray(projects) ? projects : [];
-        } catch (error) {
+        } catch {
             return [];
         }
     },
     saveProjects(projects) {
         localStorage.setItem(this.storageKey, JSON.stringify(projects));
-        if (window.LocalBackupManager) window.LocalBackupManager.notifyChange();
+        window.LocalBackupManager?.notifyChange();
     },
     getProjectById(id) {
         if (!id) return null;
-        const projects = this.loadProjects();
-        return projects.find(project => String(project.id) === String(id)) || null;
+        return this.loadProjects().find(project => String(project.id) === String(id)) || null;
     },
     createProject({ title, notes, connections, shapes, drawings, drawingsVisible, panX, panY, zoom, snappingEnabled, coordinateVersion }) {
         const projects = this.loadProjects();
@@ -41,9 +39,8 @@ const ProjectManager = {
         return project;
     },
     deleteProject(id) {
-        const projects = this.loadProjects();
-        const filtered = projects.filter(project => String(project.id) !== String(id));
-        this.saveProjects(filtered);
+        const projects = this.loadProjects().filter(project => String(project.id) !== String(id));
+        this.saveProjects(projects);
     }
 };
 

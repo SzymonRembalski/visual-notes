@@ -13,15 +13,15 @@ function exposeActions(controller, actions) {
 function setupToolbarMenus() {
     const toolbar = document.getElementById("toolbar");
     if (!toolbar) return;
-    const menus = Array.from(toolbar.querySelectorAll(".toolbarMenu"));
+    const menus = toolbar.querySelectorAll(".toolbarMenu");
     if (!menus.length) return;
+    const closeMenus = except => menus.forEach(menu => {
+        if (menu !== except) menu.open = false;
+    });
 
     menus.forEach(menu => {
         menu.addEventListener("toggle", () => {
-            if (!menu.open) return;
-            menus.forEach(otherMenu => {
-                if (otherMenu !== menu) otherMenu.open = false;
-            });
+            if (menu.open) closeMenus(menu);
         });
     });
 
@@ -33,16 +33,11 @@ function setupToolbarMenus() {
 
     document.addEventListener("click", event => {
         if (event.target.closest(".toolbarMenu")) return;
-        menus.forEach(menu => {
-            menu.open = false;
-        });
+        closeMenus();
     });
 
     document.addEventListener("keydown", event => {
-        if (event.key !== "Escape") return;
-        menus.forEach(menu => {
-            menu.open = false;
-        });
+        if (event.key === "Escape") closeMenus();
     });
 }
 
