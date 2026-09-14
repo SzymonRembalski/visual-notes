@@ -25,7 +25,7 @@ jobs:
       - name: Trigger Portainer redeploy
         run: |
           curl -v --fail-with-body -X PUT \
-            "https://portainer-api.rafalcaban.com/api/stacks/13/git/redeploy?endpointId=3" \
+            "https://portainer-api.rafalcaban.com/api/stacks/16/git/redeploy?endpointId=3" \
             -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
             -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
             -H "Authorization: Bearer ${{ steps.auth.outputs.jwt }}" \
