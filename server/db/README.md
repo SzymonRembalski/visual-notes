@@ -41,7 +41,7 @@ The migration runs in one transaction, records its version and takes a transacti
 | `sessions` | Hashed session tokens, account IDs, CSRF tokens and expiry |
 | `login_flows` | Short-lived OAuth state hashes, nonce and PKCE verifier |
 
-The project row defines its owner. The API derives identity from a verified session and checks access on every project operation: owners manage sharing/deletion, editors may save and viewers may read/save their personal view. The SQL tables establish relationships and constraints; the runtime role itself can access all application records, so never expose it to browsers. Sharing currently targets existing account IDs. Invitations and the browser sharing UI are pending.
+The project row defines its owner. The API derives identity from a verified session and checks access on every project operation: owners manage sharing/deletion, editors may save and viewers may read/save their personal view. The SQL tables establish relationships and constraints; the runtime role itself can access all application records, so never expose it to browsers. The browser sharing dialog targets existing account IDs, presented as sharing codes. Invitations are pending.
 
 The document format matches `BoardStorage.getDocument`: title, notes, connections, shapes, drawings and coordinate version. Personal view fields remain in `project_views`. SQL checks the outer document structure; the API additionally validates board fields and imposes a 16 MB JSON body limit. Project IDs use UUIDs; IDs inside documents retain their existing values. Migration 002 adds a unique owner/request ID pair for retry-safe creation/import.
 

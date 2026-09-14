@@ -41,7 +41,7 @@ function setupToolbarMenus() {
     });
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
     setupToolbarMenus();
     if (window.TaskTracker) {
         exposeActions(window.TaskTracker, [
@@ -52,11 +52,13 @@ window.addEventListener("DOMContentLoaded", () => {
         window.TaskTracker.init();
     }
     if (window.VisualNotes) {
+        if (window.ServerBoard && !await window.ServerBoard.open()) return;
         exposeActions(window.VisualNotes, [
             "createNote", "updateProjectTitle", "toggleRemoveMode", "toggleAddMode",
             "toggleColorMode", "toggleShapesMode", "toggleSnappingMode", "exportBoardImage"
         ]);
         window.VisualNotes.init();
+        if (window.ServerBoard?.active) window.ServerBoard.ready();
     }
     if (window.ProjectsPage) {
         window.ProjectsPage.init();

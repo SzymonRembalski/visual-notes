@@ -1,24 +1,32 @@
 const ProjectsPage = {
     projects: [],
-    createProject() {
+    async createProject() {
+        if (this.loading || (this.remote && !ServerAPI.user)) return;
         const title = prompt("Project title:", "New Project");
         if (title === null) return;
-        const project = ProjectManager.createProject({ title: title.trim() || "New Project" });
-        window.location.href = `visual-notes.html?projectId=${encodeURIComponent(project.id)}`;
+        if (this.remote) {
+            await this.run(async () => {
+                const project = await ServerAPI.request('projects', { method: 'POST', body: {
+                    requestId: this.createRequest ||= crypto.randomUUID(), document: ServerAPI.document({ title: title.trim() || 'New Project', coordinateVersion: 2 })
+                } });
+                this.createRequest = null;
+                window.location.href = ServerAPI.boardURL(project.id);
+            });
+        } else {
+            const project = ProjectManager.createProject({ title: title.trim() || "New Project" });
+            window.location.href = `visual-notes.html?projectId=${encodeURIComponent(project.id)}`;
+        }
     },
-    init() {
+    async init() {
         const list = document.getElementById("projectList");
         if (!list) return;
-        const reload = () => {
-            this.projects = ProjectManager.loadProjects();
-            this.render();
-        };
+        this.remote = false;
         document.getElementById("newProjectButton").onclick = () => this.createProject();
         document.getElementById("projectSearch").oninput = document.getElementById("projectSort").onchange = () => this.render();
         window.addEventListener("pageshow", event => {
-            if (event.persisted) reload();
+            if (event.persisted) this.reload();
         });
-        list.onclick = event => {
+        list.onclick = async event => {
             if (event.target.closest("[data-create-project]")) this.createProject();
             if (event.target.closest("[data-clear-search]")) {
                 const search = document.getElementById("projectSearch");
@@ -28,21 +36,152 @@ const ProjectsPage = {
             }
             const button = event.target.closest(".deleteProjectButton");
             if (button && confirm("Delete this project?")) {
-                ProjectManager.deleteProject(button.dataset.id);
-                reload();
-                document.getElementById("newProjectButton").focus();
+                await this.run(async () => {
+                    if (this.remote) await ServerAPI.request(`projects/${button.dataset.id}`, { method: 'DELETE', body: { expectedRevision: this.projects.find(project => project.id === button.dataset.id).revision } });
+                    else ProjectManager.deleteProject(button.dataset.id);
+                    await this.reload();
+                    document.getElementById("newProjectButton").focus();
+                });
             }
+            const sharing = event.target.closest('[data-share]');
+            if (sharing) await this.run(() => this.share(sharing.dataset.share));
+            const importing = event.target.closest('[data-import]');
+            if (importing) await this.run(async () => {
+                importing.disabled = true;
+                try {
+                    const project = ProjectManager.getProjectById(importing.dataset.import);
+                    const saved = await ServerAPI.importProject(project);
+                    this.message('Saved to your account. The original is still on this device.');
+                    const link = document.createElement('a'); link.href = ServerAPI.boardURL(saved.id); link.textContent = 'Open saved project';
+                    document.getElementById('projectMessage').append(' ', link);
+                } finally { importing.disabled = false; }
+            });
         };
-        reload();
+        this.loading = true;
+        document.getElementById('newProjectButton').disabled = true;
+        try {
+            if (window.ServerAPI && await ServerAPI.init()) {
+                if (ServerAPI.returnAfterLogin()) return;
+                this.remote = new URLSearchParams(location.search).get('storage') !== 'local';
+                this.account();
+            }
+            await this.reload();
+        } catch (error) {
+            this.unavailable = true;
+            this.message(`${error.message} Reload to try again.`, true);
+        } finally { this.loading = false; this.controls(); }
+    },
+    message(text, error = false) {
+        const message = document.getElementById('projectMessage');
+        message.hidden = !text; message.textContent = text; message.dataset.error = String(error);
+    },
+    async run(action) {
+        if (this.busy) return;
+        this.busy = true;
+        try { await action(); } catch (error) { this.message(error.message, true); }
+        finally { this.busy = false; }
+    },
+    controls() { document.getElementById('newProjectButton').disabled = this.unavailable || this.loading || (this.remote && !ServerAPI.user); },
+    account() {
+        const bar = document.getElementById('accountBar');
+        bar.hidden = false;
+        bar.innerHTML = `<div class="storageChoices"><button data-storage="server" aria-pressed="${this.remote}">My account</button><button data-storage="local" aria-pressed="${!this.remote}">On this device</button></div>
+            <span>${ServerAPI.user ? escapeHtml(ServerAPI.user.displayName) : 'Sign in to save and share projects across devices.'}</span>
+            ${ServerAPI.user ? '<button data-account="code">Copy my sharing code</button><button data-account="file">Import project file</button><input type="file" accept=".json,application/json" hidden><button data-account="logout">Sign out</button>' : '<button data-account="login">Sign in with Google</button>'}`;
+        const fileInput = bar.querySelector('input[type="file"]');
+        if (fileInput) fileInput.onchange = () => this.run(async () => {
+            const file = fileInput.files[0];
+            fileInput.value = '';
+            if (!file) return;
+            if (file.size > 16 * 1024 * 1024) throw new Error('This file exceeds the 16 MB project limit.');
+            const text = await file.text();
+            const data = JSON.parse(text), document = data.document || data;
+            if (!Array.isArray(document.notes) || !Array.isArray(document.connections)) throw new Error('Choose an individual project file. Restore workspace backups through a local board’s Save menu first.');
+            const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(value => value.toString(16).padStart(2, '0')).join('');
+            await ServerAPI.importProject({ ...document, ...(data.view || {}), id: `file:${hash}` });
+            this.remote = true; this.account(); await this.reload(); this.message('Project imported into your account.');
+        });
+        bar.onclick = event => this.run(async () => {
+            const storage = event.target.dataset.storage;
+            if (storage) {
+                this.remote = storage === 'server';
+                history.replaceState(null, '', `projects.html?storage=${storage}`);
+                this.account(); this.message(''); await this.reload();
+            }
+            if (event.target.dataset.account === 'login') ServerAPI.signIn();
+            if (event.target.dataset.account === 'file') fileInput.click();
+            if (event.target.dataset.account === 'code') {
+                try { await navigator.clipboard.writeText(ServerAPI.user.id); this.message('Sharing code copied. Send it to the project owner.'); }
+                catch { prompt('Your sharing code:', ServerAPI.user.id); }
+            }
+            if (event.target.dataset.account === 'logout') {
+                await ServerAPI.request('logout', { method: 'POST' }); ServerAPI.user = null;
+                this.projects = []; this.account(); await this.reload();
+            }
+        });
+        this.controls();
+    },
+    async reload() {
+        const request = this.loadRequest = (this.loadRequest || 0) + 1;
+        try {
+            let projects;
+            if (this.remote) {
+                projects = [];
+                if (ServerAPI.user) {
+                    let offset = 0;
+                    do {
+                        const page = await ServerAPI.request(`projects?offset=${offset}`);
+                        projects.push(...page.projects);
+                        offset = page.nextOffset;
+                    } while (offset !== null);
+                }
+            } else projects = ProjectManager.loadProjects();
+            if (request !== this.loadRequest) return;
+            this.projects = [...new Map(projects.map(project => [project.id, project])).values()];
+            this.render();
+            document.querySelector('.projectsFooter').textContent = this.remote ? 'Saved to your account. Projects shared with you appear here too.' : 'Your ideas stay on this device. Save a copy to your account whenever you choose.';
+            if (this.remote && !ServerAPI.user) document.getElementById('projectList').innerHTML = '<div class="projectsEmpty"><h2>Your projects, wherever you are</h2><p>Sign in with Google to open your saved and shared projects.</p></div>';
+        } catch (error) { this.message(error.message, true); }
+        this.controls();
+    },
+    async share(id) {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'sharingDialog';
+        dialog.innerHTML = `<form method="dialog"><button class="dialogClose" aria-label="Close">×</button></form><h2>Share project</h2><p>Ask the person to sign in and copy their sharing code from Projects.</p>
+            <form id="sharingForm"><label>Sharing code<input name="account" required autocomplete="off" placeholder="Paste their sharing code"></label><label>Access<select name="role"><option value="editor">Can edit</option><option value="viewer">Can view</option></select></label><button>Share</button></form><p role="status"></p><div class="sharedPeople"></div>`;
+        document.body.append(dialog);
+        dialog.addEventListener('close', () => dialog.remove()); dialog.showModal();
+        const status = dialog.querySelector('[role="status"]');
+        const reload = async () => {
+            const data = await ServerAPI.request(`projects/${id}/members`);
+            dialog.querySelector('.sharedPeople').innerHTML = data.members.map(member => `<div><span>${escapeHtml(member.displayName)} · ${member.role === 'editor' ? 'Can edit' : 'Can view'}</span><button data-remove="${member.id}">Remove access</button></div>`).join('') || '<p>Only you have access.</p>';
+        };
+        dialog.querySelector('#sharingForm').onsubmit = async event => {
+            event.preventDefault(); const form = event.target;
+            form.querySelector('button').disabled = true;
+            try {
+                await ServerAPI.request(`projects/${id}/members/${encodeURIComponent(form.elements.account.value.trim())}`, { method: 'PUT', body: { role: form.elements.role.value } });
+                status.textContent = 'Access updated.'; form.reset(); await reload();
+            } catch (error) { status.textContent = error.message; }
+            finally { form.querySelector('button').disabled = false; }
+        };
+        dialog.querySelector('.sharedPeople').onclick = async event => {
+            if (!event.target.dataset.remove) return;
+            try { await ServerAPI.request(`projects/${id}/members/${event.target.dataset.remove}`, { method: 'DELETE' }); await reload(); }
+            catch (error) { status.textContent = error.message; }
+        };
+        try { await reload(); } catch (error) { status.textContent = error.message; }
     },
     title(project) {
         return typeof project.title === "string" && project.title.trim() ? project.title : "Untitled Project";
     },
     timestamp(project, field = "modifiedAt") {
-        const value = Number(project[field] || project.createdAt);
+        const raw = project[field] || project.createdAt;
+        const value = this.remote ? Date.parse(raw) : Number(raw);
         return Number.isFinite(value) && Math.abs(value) <= 8640000000000000 ? value : 0;
     },
     preview(project) {
+        if (this.remote) return `<div class="projectPreview projectPreviewEmpty">${AppIcons.icon('node')}<span>${project.role === 'owner' ? 'Your project' : 'Shared with you'}</span></div>`;
         // Bound thumbnail detail; opening a board still shows every item.
         const items = (values, limit) => {
             const result = [];
@@ -92,11 +231,14 @@ const ProjectsPage = {
             const modified = date ? dateFormat.format(date) : "Not dated";
             const count = Array.isArray(project.notes) ? project.notes.length : 0;
             return `<article class="project-card" data-id="${escapeHtml(project.id)}">
-                <a class="openProjectButton" href="visual-notes.html?projectId=${encodeURIComponent(project.id)}" aria-label="Open ${title}" data-backup-before-leave>
+                <a class="openProjectButton" href="${this.remote ? ServerAPI.boardURL(project.id) : `visual-notes.html?projectId=${encodeURIComponent(project.id)}`}" aria-label="Open ${title}" data-backup-before-leave>
                     ${this.preview(project)}
-                    <div class="projectCardHeading"><div><h2>${title}</h2><p>${count} ${count === 1 ? "node" : "nodes"}</p></div><span class="projectOpenArrow">${AppIcons.icon("arrow")}</span></div>
+                    <div class="projectCardHeading"><div><h2>${title}</h2><p>${this.remote ? ({ owner: 'Owner', editor: 'Can edit', viewer: 'Can view' }[project.role]) : `${count} ${count === 1 ? "node" : "nodes"}`}</p></div><span class="projectOpenArrow">${AppIcons.icon("arrow")}</span></div>
                 </a>
-                <div class="projectCardFooter"><span title="${date ? escapeHtml(date.toLocaleString()) : "No saved date"}">Edited ${escapeHtml(modified)}</span><button type="button" class="deleteProjectButton" data-id="${escapeHtml(project.id)}" aria-label="Delete ${title}">${AppIcons.icon("trash")}<span>Delete</span></button></div>
+                <div class="projectCardFooter"><span title="${date ? escapeHtml(date.toLocaleString()) : "No saved date"}">Edited ${escapeHtml(modified)}</span>
+                ${this.remote && project.role === 'owner' ? `<button data-share="${project.id}">Share</button>` : ''}
+                ${!this.remote && window.ServerAPI?.user ? `<button data-import="${escapeHtml(project.id)}">Save to account</button>` : ''}
+                ${!this.remote || project.role === 'owner' ? `<button type="button" class="deleteProjectButton" data-id="${escapeHtml(project.id)}" aria-label="Delete ${title}">${AppIcons.icon("trash")}<span>Delete</span></button>` : ''}</div>
             </article>`;
         }).join("") || `<div class="projectsEmpty"><div class="projectsEmptyIcon">${AppIcons.icon(query ? "search" : "waypoints")}</div>
             <h2>${query ? "No projects found" : "Make room for an idea"}</h2>

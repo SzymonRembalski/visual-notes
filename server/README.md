@@ -1,6 +1,18 @@
 # Test-server backend
 
-The Node.js backend serves the frontend and a PostgreSQL-backed project API. It supports Google sign-in, persistent sessions, ownership, editor/viewer sharing, per-account views and revision checks. **The existing gallery and canvas still save locally. Their account controls and asynchronous server-saving integration are the next checkpoint.** Backups and live collaboration are also pending.
+The Node.js backend serves the frontend and a PostgreSQL-backed project API. The gallery and canvas support Google sign-in, account projects, editor/viewer sharing, per-account views and ordered server saving with revision checks. Existing local projects remain available under **On this device**, including when opened directly through `file://`. Scheduled independent server backups and live collaboration are still pending.
+
+## Using account projects
+
+1. Open **Projects**, choose **My account**, and sign in with Google.
+2. Create or open a project. The canvas shows **Saved to your account** only after the latest queued changes reach the server. Camera settings are saved separately per account.
+3. To share, the other person signs in and selects **Copy my sharing code**. The owner selects **Share** on a project, pastes the code, and chooses **Can edit** or **Can view**. The same dialog can change or remove access. Shared projects appear in the recipient's account list after refresh.
+4. To copy an existing local board online, choose **On this device → Save to account** on that project. The original remains local. Retrying the import reuses the account copy rather than duplicating or replacing it.
+5. On account boards, **Save → Download this project** exports one project. **Import project file** in the gallery restores it as an account project. Old full-workspace backups must first be restored through a local board's existing Save menu, then imported project by project.
+
+Failed/conflicting saves keep the current edits and, when browser storage permits, a recovery draft scoped to the account and project. The recovery panel offers retry, save a separate copy, download, or an explicitly confirmed reload. A stale revision is never silently overwritten. Normal navigation waits for saving; when saving fails, leaving requires confirmation and a recovery draft or matching download. Browser-close/reload prompts protect pending edits. Reopening an unsaved board offers to restore its draft; a recovered draft requires explicit retry/copy. If editing access changed to viewer, recover the edits through copy/download instead of saving over the shared board.
+
+Viewer boards hide editing tools and block editing input; camera controls and exports remain available. This is not live co-editing: refresh to see changes from another person. Tasks and appearance/shortcut settings remain on the device.
 
 Use `dev` for the test server; production stays on `main`. Configure the deployment service to follow the correct branch. Use separate origins, databases, credentials and OAuth configuration for test and production.
 
@@ -58,17 +70,18 @@ Only explicitly copied frontend files are publicly served. Backend source, confi
 
 `GET /healthz` checks the process; `GET /readyz` checks database/schema readiness. The container health check uses readiness. Configure reverse-proxy request limits to accommodate boards up to 16 MB; larger saves receive HTTP 413. Also configure per-client sign-in rate limits at the proxy. The app's bounded limiter uses the direct socket address (60 sign-in requests/minute), so requests through a shared proxy share that limit; the app does not trust arbitrary forwarded IP headers.
 
-Docker is not installed in the development workspace, so image build and proxy routing remain deployment checks. Do not promote this checkpoint to `main`: browser saving integration and backups are unfinished. See [Docker's environment-file reference](https://docs.docker.com/reference/compose-file/services/#env_file).
+The user reports the server database and Google login are configured. This frontend checkpoint needs no additional database migration or OAuth change; redeploy the updated `dev` image. Docker is not installed in the development workspace, so its image/proxy rollout is still a server-side check. Keep the test deployment on `dev` while scheduled project backups and release checks remain unfinished. See [Docker's environment-file reference](https://docs.docker.com/reference/compose-file/services/#env_file).
 
 ## Verify and recover
 
 ```sh
 npm test
+npx playwright install chromium
 npm run test:database
 ```
 
-The database suite creates a temporary PostgreSQL cluster on localhost with a random password and port, then removes only that cluster. It tests real SQL, isolation, sharing, conflicting saves, revocation races, retry-safe creation, runtime permissions, HTTP protection, sessions and backend/database restarts. Run as a normal user; PostgreSQL cannot initialize as root. No server credentials are needed. Automated authentication-flow tests substitute Google responses; live Google sign-in still needs the configured client.
+The database suite creates a temporary PostgreSQL cluster on localhost with a random password and port, then removes only that cluster. It tests real SQL, isolation, sharing, conflicting saves, revocation races, retry-safe creation, runtime permissions, HTTP protection, sessions and backend/database restarts. It also runs real-browser gallery/canvas checks against that backend, including imports, offline/conflict recovery, viewer restrictions and navigation. Run as a normal user; PostgreSQL cannot initialize as root. No server credentials are needed. Automated authentication-flow tests substitute Google responses and browser tests seed isolated test sessions. Browser tests use installed Chrome on Windows, `PLAYWRIGHT_CHROMIUM_EXECUTABLE` if provided, or Playwright's installed Chromium.
 
-After deployment, check `/readyz`, visit `/auth/google/start`, sign in, then inspect `/api/session` to confirm the account. The callback currently returns to the local Projects page; [api.md](api.md) documents server API testing. Normal board saves remain on the device at this checkpoint.
+After redeployment, check `/readyz`, sign in through Projects, create a disposable account board, edit and reopen it from another signed-in browser. Share it with a second account and check viewer/editor behavior. [api.md](api.md) documents the underlying requests. Verify this real OAuth/proxy flow on the configured test origin; automated tests do not access your deployed server.
 
-If deployment fails, stop/redeploy the previous test image. Preserve the external database. These migrations are additive, and the earlier static frontend still runs independently. Do not drop the schema as a rollback. Independent project backups and restoration are not implemented yet.
+If deployment fails, stop/redeploy the previous test image. Preserve the external database and local recovery drafts. These migrations are additive, and the earlier static frontend still runs independently. Do not drop the schema as a rollback. Manual individual-project download/import is available; scheduled independent server backups and destructive in-place restoration are not implemented yet.

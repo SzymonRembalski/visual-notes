@@ -28,12 +28,15 @@
             <label class="projectSearch"><span data-icon="search" aria-hidden="true"></span><input id="projectSearch" type="search" placeholder="Find a project…" aria-label="Search projects" autocomplete="off"></label>
             <label class="projectSort">Sort by <select id="projectSort"><option value="recent">Last edited</option><option value="name">Name A–Z</option><option value="created">Newest created</option></select></label>
         </div>
+        <section id="accountBar" class="accountBar" aria-label="Project storage and account" hidden></section>
+        <p id="projectMessage" role="status" class="projectMessage" hidden></p>
         <p id="projectCount" class="projectCount" role="status" aria-live="polite"></p>
         <div id="projectList" class="project-list"></div>
         <footer class="projectsFooter">Your ideas stay on this device.<span>Back up your workspace from any board’s Save menu.</span></footer>
     </main>
     <script src="assets/js/local-backup-manager.js"></script>
     <script src="assets/js/project-manager.js"></script>
+    <script src="assets/js/server-api.js"></script>
     <script src="assets/js/canvas-utils.js"></script>
     <script src="assets/js/projects-page.js"></script>
     <script src="assets/js/app.js"></script>

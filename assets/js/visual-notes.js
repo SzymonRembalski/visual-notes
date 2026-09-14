@@ -112,6 +112,7 @@ const VisualNotes = {
     },
     saveBoard() {
         if (this.suspendPersistence) return;
+        if (window.ServerBoard?.active) return BoardStorage.save(this.projectId, BoardStorage.getDocument(this), BoardStorage.getView(this));
         const status = document.getElementById("workspaceSaveLabel");
         if (status) {
             status.textContent = "Saving…";

@@ -2,7 +2,9 @@
   "name": "visual-notes",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "start": "node server/index.mjs",
     "db:migrate": "node server/db/migrate.mjs",
@@ -14,6 +16,7 @@
     "pg": "8.23.0"
   },
   "devDependencies": {
-    "embedded-postgres": "18.4.0-beta.17"
+    "embedded-postgres": "18.4.0-beta.17",
+    "playwright": "1.62.1"
   }
 }

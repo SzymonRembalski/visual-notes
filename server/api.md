@@ -1,6 +1,6 @@
 # Project API checkpoint
 
-These routes belong to the Node server. The browser gallery/canvas integration is pending; existing local boards are not uploaded automatically.
+These routes belong to the Node server and are used by the account gallery/canvas. Existing local boards are uploaded only through an explicit import action; originals stay on the device.
 
 ## Authentication
 
