@@ -250,11 +250,16 @@ const LocalBackupManager = {
     },
 
     async saveNow() {
+        if (window.ServerBoard?.active) return window.ServerBoard.manualSave();
         this.saveApplicationState();
         await (this.fileHandle ? this.writeToFile(true) : this.connectFile());
     },
 
     async saveBeforeNavigation(link) {
+        if (window.ServerBoard?.active) {
+            if (await window.ServerBoard.beforeLeave()) window.location.href = link.href;
+            return;
+        }
         this.saveApplicationState();
         if (this.fileHandle) await this.writeToFile(true);
         window.location.href = link.href;

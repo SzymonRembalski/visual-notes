@@ -1,0 +1,17 @@
+**
+!package.json
+!package-lock.json
+!server/
+!server/**
+!assets/
+!assets/**
+!index.html
+!projects.html
+!visual-notes.html
+!tasks.html
+!settings.html
+**/.env
+**/.env.*
+**/*.log
+server/db/README.md
+server/README.md

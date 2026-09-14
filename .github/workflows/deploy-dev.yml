@@ -1,0 +1,33 @@
+name: Deploy dev to Portainer
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Portainer and get JWT
+        id: auth
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "https://portainer-api.rafalcaban.com/api/auth" \
+            -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
+            -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"${{ secrets.PORTAINER_ADMIN_USER }}","password":"${{ secrets.PORTAINER_ADMIN_PASSWORD }}"}')
+          JWT=$(echo "$RESPONSE" | grep -o '"jwt":"[^"]*"' | cut -d'"' -f4)
+          echo "::add-mask::$JWT"
+          echo "jwt=$JWT" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Portainer redeploy
+        run: |
+          curl -v --fail-with-body -X PUT \
+            "https://portainer-api.rafalcaban.com/api/stacks/16/git/redeploy?endpointId=3" \
+            -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
+            -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
+            -H "Authorization: Bearer ${{ steps.auth.outputs.jwt }}" \
+            -H "Content-Type: application/json" \
+            -d '{"RepullImageAndRedeploy": true, "RepositoryReferenceName": "refs/heads/dev", "Env": [{"name": "VISUAL_NOTES_ENV_FILE", "value": "/var/data/visual-notes/dev.env"}]}'

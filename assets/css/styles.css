@@ -1547,3 +1547,28 @@ body.drawing-eraser-active #drawingLayer { cursor: cell; }
 .drawingControls label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
 .drawingControls input[type="color"] { width: 28px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: 6px; background: var(--header-bg); cursor: pointer; }
 .drawingControls select { padding: 6px; border-radius: 6px; background: var(--header-bg); font-size: 12px; }
+
+.accountBar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+.accountBar[hidden], .serverNotice[hidden], .projectMessage[hidden] { display: none; }
+.accountBar > span { flex: 1; min-width: 160px; }
+.storageChoices { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--header-bg); }
+:is(.accountBar, .serverNotice, .sharingDialog, .projectCardFooter) button { padding: 8px 12px; font-size: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
+.storageChoices button[aria-pressed="true"] { background: var(--accent-color); color: var(--accent-contrast); }
+.projectMessage { padding: 12px 0; color: var(--accent-focus); }
+[data-error="true"] { color: var(--text); }
+.projectCardFooter { flex-wrap: wrap; gap: 8px; }
+.projectCardFooter > span { flex: 1; }
+.serverNotice { position: fixed; z-index: 5000; top: calc(var(--toolbar-height) + 12px); left: 50%; transform: translateX(-50%); width: min(720px, calc(100% - 24px)); padding: 18px; border: 1px solid var(--accent-color); border-radius: 14px; background: var(--header-bg); box-shadow: 0 12px 40px #0004; font-size: 14px; }
+.serverNotice > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.serverNotice a, .projectMessage a { color: var(--accent-focus); }
+.sharingDialog { width: min(520px, calc(100% - 32px)); max-height: 85vh; overflow: auto; border: 1px solid var(--border); border-radius: 18px; padding: 24px; background: var(--header-bg); color: var(--text); }
+.sharingDialog::backdrop { background: #0008; }
+.sharingDialog h2 { margin-top: 0; }
+.sharingDialog p { color: var(--muted); line-height: 1.6; }
+.sharingDialog .dialogClose { float: right; }
+.sharingDialog label { display: grid; gap: 6px; margin: 14px 0; font-size: 13px; }
+.sharingDialog :is(input, select) { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.sharedPeople > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.serverReadonly :is(#editMenu, #quickTools, .colorPanel, #drawingControls) { display: none !important; }
+.serverLoading :is(#canvas, #shapes, #drawingLayer, #toolbar input, #toolbar details, #quickTools, .zoomControls) { pointer-events: none; visibility: hidden; }
+button:disabled { cursor: default; opacity: 0.55; }

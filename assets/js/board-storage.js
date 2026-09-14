@@ -24,6 +24,7 @@ const BoardStorage = {
         };
     },
     load(projectId) {
+        if (window.ServerBoard?.active) return window.ServerBoard.project;
         if (projectId) return ProjectManager.getProjectById(projectId);
         const data = Object.fromEntries([...this.jsonFields, ...this.valueFields]
             .map(field => [field, localStorage.getItem(this.legacyKey(field))]));
@@ -32,6 +33,7 @@ const BoardStorage = {
         return data;
     },
     save(projectId, document, view) {
+        if (window.ServerBoard?.active) return window.ServerBoard.save(document, view);
         const data = { ...document, ...view };
         if (projectId) {
             const projects = ProjectManager.loadProjects();

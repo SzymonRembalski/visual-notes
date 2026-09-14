@@ -8,9 +8,9 @@
 ![CSS](https://img.shields.io/badge/CSS3-111111?style=for-the-badge&logo=css&logoColor=1572B6)
 ![JavaScript](https://img.shields.io/badge/JavaScript-111111?style=for-the-badge&logo=javascript&logoColor=F7DF1E)
 ![Local First](https://img.shields.io/badge/Local--First-388E3C?style=for-the-badge)
-![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-388E3C?style=for-the-badge)
+![Zero Browser Dependencies](https://img.shields.io/badge/Browser_dependencies-0-388E3C?style=for-the-badge)
 
-A lightweight, browser-based thinking space that combines a visual idea canvas with a practical task tracker. No account, backend, build step, or installation required.
+A lightweight, browser-based thinking space that combines a visual idea canvas with a practical task tracker. Open it locally without an account, backend, build step, or installation.
 
 </div>
 
@@ -50,7 +50,9 @@ A lightweight, browser-based thinking space that combines a visual idea canvas w
 
 ### 🔒 Keep everything local
 
-Your projects, tasks, theme, and shortcut preferences stay on your device. Browser storage keeps the app fast, while the canvas's **Save** menu can download a complete workspace backup or mirror changed data to a local JSON file every five minutes in supported browsers. Background backups, menu-return saving, and **Ctrl/Cmd + S** also work on the Main Menu, Projects, and Tasks pages, without displaying backup controls there. Visual Notes has no server and sends no workspace data anywhere.
+Local projects, tasks, theme, and shortcut preferences stay on your device. A local canvas's **Save** menu can download a complete workspace backup or mirror changed data to a local JSON file every five minutes in supported browsers. Background backups, menu-return saving, and **Ctrl/Cmd + S** also work on the Main Menu, Projects, and Tasks pages.
+
+On the configured server, **Projects → My account** offers Google sign-in, server-saved projects and sharing with editors or viewers. **On this device → Save to account** imports a local project without deleting its original. Account boards save automatically, retain recovery drafts for failed/conflicting saves, and can be downloaded individually through **Save**. **Import project file** restores an individual download as an account project. Tasks and app preferences remain local; live co-editing and scheduled server backups are still in development.
 
 ## How it fits together
 
@@ -175,7 +177,8 @@ visual-notes/
 Plain HTML, CSS, and JavaScript — intentionally. The project stays easy to open, understand, modify, and carry anywhere.
 
 For the backend development plan and current storage boundary, see [docs/backend-plan.md](docs/backend-plan.md).
-Developers can run the storage regression tests with `node --test tests/board-storage.test.cjs`; Node.js is only needed for these tests, not to open the current app.
+The `dev` backend, account workflow and test-server setup are documented in [server/README.md](server/README.md).
+Developers can run `npm ci`, `npm test`, `npx playwright install chromium` and `npm run test:database` using Node.js 24 or newer. Integration tests create an isolated temporary PostgreSQL instance and exercise the UI in a browser. Node.js is not needed to open the local app directly; Docker runs the Node backend with private server configuration.
 
 ---
 
