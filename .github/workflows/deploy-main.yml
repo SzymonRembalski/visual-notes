@@ -31,4 +31,4 @@ jobs:
             -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
             -H "Authorization: Bearer ${{ steps.auth.outputs.jwt }}" \
             -H "Content-Type: application/json" \
-            -d '{"RepullImageAndRedeploy": true, "RepositoryReferenceName": "refs/heads/main"}'
+            -d '{"RepullImageAndRedeploy": true, "RepositoryReferenceName": "refs/heads/main", "Env": [{"name": "VISUAL_NOTES_ENV_FILE", "value": "/var/data/visual-notes/main.env"}]}'
