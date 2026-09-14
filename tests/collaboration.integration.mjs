@@ -69,6 +69,43 @@ test('live collaboration with real browsers and PostgreSQL', { timeout: 90000 },
         assert.equal(await editor.evaluate(() => VisualNotes.zoom), zoom);
         await owner.click('#zoomIn');
     });
+    await t.test('remote movement reuses elements and animates connections without changing saved coordinates', async () => {
+        await Promise.all([idle(owner), idle(editor)]);
+        const result = await viewer.evaluate(async () => {
+            BoardCollaboration.source.close();
+            const original = BoardCollaboration.document();
+            const note = document.querySelector('[data-note-id="one"]');
+            const cursor = document.querySelector('.peerCursor');
+            const line = document.querySelector('#connections .line');
+            const path = line.getAttribute('d');
+            BoardCollaboration.renderPresence();
+            const cursorReused = cursor && cursor === document.querySelector('.peerCursor');
+            const next = CollaborationDocument.clone(original);
+            next.notes[0].x += 200; next.notes[0].y += 90; next.notes[0].width += 60;
+            BoardCollaboration.apply(next);
+            const immediate = {
+                noteReused: note === document.querySelector('[data-note-id="one"]'),
+                lineReused: line === document.querySelector('#connections .line'),
+                startsAtPrevious: line.getAttribute('d') === path,
+                canonical: CollaborationDocument.equal(BoardCollaboration.document(), next)
+            };
+            await new Promise(resolve => setTimeout(resolve, 45));
+            const partial = BoardCollaboration.displayed(VisualNotes.notes[0]);
+            const between = partial.x > original.notes[0].x && partial.x < next.notes[0].x;
+            await new Promise(resolve => setTimeout(resolve, 160));
+            const expected = CanvasUtils.getOrthogonalConnection(VisualNotes.notes[0], VisualNotes.notes[1]).path;
+            const final = line.getAttribute('d') === expected && BoardCollaboration.motion.size === 0;
+            const stillCanonical = CollaborationDocument.equal(BoardCollaboration.document(), next);
+            // Taking over a moving object must immediately return control to local input.
+            BoardCollaboration.apply(original);
+            document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+            const interrupted = BoardCollaboration.motion.size === 0;
+            BoardCollaboration.connect();
+            return { cursorReused, ...immediate, between, final, stillCanonical, interrupted };
+        });
+        assert.ok(Object.values(result).every(Boolean), JSON.stringify(result));
+        await viewer.waitForFunction(() => BoardCollaboration.connected);
+    });
     await t.test('simultaneous creations survive on every board with distinct IDs', async () => {
         await Promise.all([owner, editor].map((page, index) => page.evaluate(index => {
             VisualNotes.createNoteAt(index * 300, 260, { title: `Created ${index}` }); return ServerBoard.flush();
@@ -137,6 +174,27 @@ test('live collaboration with real browsers and PostgreSQL', { timeout: 90000 },
         await idle(owner);
         await owner.waitForFunction(() => BoardCollaboration.connected && VisualNotes.notes.find(note => note.id === 'two').text === 'Online edit');
         await editor.waitForFunction(() => VisualNotes.projectTitle === 'Offline title');
+    });
+    await t.test('save failures leave live updates running, stay unobtrusive, and retry without user action', async () => {
+        await owner.route('**/api/projects/*/edits', route => route.fulfill({ status: 503, json: { error: 'Temporary write failure' } }));
+        await edit(owner, 'Retry this automatically');
+        await owner.waitForFunction(() => ServerBoard.queue.error?.status === 503);
+        assert.equal(await owner.locator('.serverNotice').isVisible(), false);
+        await editor.evaluate(() => {
+            VisualNotes.performHistoryChange(() => { VisualNotes.notes.find(note => note.id === 'two').text = 'Still visible during save failure'; });
+            VisualNotes.saveBoard(); return ServerBoard.flush();
+        });
+        await owner.waitForFunction(() => VisualNotes.notes.find(note => note.id === 'two').text === 'Still visible during save failure');
+        await owner.click('#workspaceSaveStatus');
+        await owner.waitForSelector('.serverNotice');
+        assert.equal(await owner.locator('[data-action="copy"]').count(), 0);
+        await owner.click('[data-action="dismiss"]');
+        await owner.evaluate(() => ServerBoard.status());
+        assert.equal(await owner.locator('.serverNotice').isVisible(), false);
+        await owner.unroute('**/api/projects/*/edits');
+        await idle(owner);
+        await editor.waitForFunction(() => VisualNotes.projectTitle === 'Retry this automatically');
+        assert.equal(await owner.locator('.serverNotice').isVisible(), false);
     });
     await t.test('simultaneous same-field edits converge to the latest save without recovery prompts', async () => {
         await Promise.all([owner, editor].map(page => page.evaluate(() => { BoardCollaboration.source.close(); })));

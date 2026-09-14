@@ -79,3 +79,30 @@ test('late field edits do not resurrect deleted objects and creation retries pre
     const created = [{ collection: 'notes', id: 'a', before: null, after: base.notes[0] }];
     assert.equal(D.apply(edited, created, true).notes[0].text, 'Late text');
 });
+test('failed writes continue receiving remote changes and retain only unsaved local changes', async () => {
+    let current = board(), draft, fail = true;
+    const queue = new Queue({ document: board(), view: {}, revision: '1', readDocument: () => current, onDocument: doc => { current = doc; },
+        writeDocument: async document => {
+            if (fail) throw Object.assign(new Error('Temporary failure'), { status: 503 });
+            return { document, revision: '3' };
+        }, writeView: async () => {}, persist: value => { draft = value; }, onChange: () => {} });
+    current.title = 'Local change'; queue.enqueue(current, {}); await queue.flush();
+    const remote = board(); remote.notes[1].text = 'Visible live while saving is unavailable';
+    queue.receive({ revision: '2', document: remote });
+    assert.equal(current.notes[1].text, remote.notes[1].text); assert.equal(current.title, 'Local change');
+    assert.equal(queue.error.status, 503); assert.equal(draft.baseDocument.notes[1].text, remote.notes[1].text);
+    fail = false; assert.equal(await queue.retry(), true); assert.equal(draft, null);
+});
+test('a live acknowledgment clears an uncertain write failure when it confirms the pending edits', async () => {
+    let current = board();
+    const queue = new Queue({ document: board(), view: {}, revision: '1', readDocument: () => current, onDocument: doc => { current = doc; },
+        writeDocument: async () => { throw Object.assign(new Error('Response lost'), { status: 0 }); }, persist: () => {}, onChange: () => {} });
+    current.title = 'Already saved'; queue.enqueue(current, {}); await queue.flush();
+    queue.receive({ revision: '2', document: D.clone(current) });
+    assert.equal(queue.error, null); assert.equal(queue.pending, null);
+});
+test('camera-only changes do not count as unsaved shared edits', () => {
+    const queue = new Queue({ document: board(), view: {}, revision: '1', persist: () => {}, onChange: () => {} });
+    queue.enqueue(board(), { zoom: 0.5 }); assert.equal(queue.dirtyDocument, false);
+    const changed = board(); changed.title = 'Unsaved'; queue.enqueue(changed, { zoom: 0.5 }); assert.equal(queue.dirtyDocument, true);
+});

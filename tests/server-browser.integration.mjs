@@ -101,13 +101,19 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         const copy = await owner.evaluate(() => ServerBoard.copy());
         assert.equal((await projects.get(accounts[0], copy.id)).document.title, 'My unsaved edit');
         await owner.evaluate(() => { ServerBoard.leaving = true; });
-        owner.once('dialog', dialog => dialog.accept());
+        const dialogs = [];
+        const recordDialog = dialog => { dialogs.push(dialog.message()); dialog.dismiss(); };
+        owner.on('dialog', recordDialog);
         await owner.reload();
-        await owner.waitForFunction(() => window.ServerBoard?.queue?.error?.status === 409);
+        await owner.waitForFunction(() => window.ServerBoard?.queue?.error?.status === 0);
         assert.equal(await owner.inputValue('#projectTitleInput'), 'My unsaved edit');
         const restored = await owner.evaluate(() => JSON.parse(localStorage.getItem(ServerBoard.draftKey)));
-        assert.equal(restored.revision, saved.revision);
+        assert.equal(restored.baseDocument.title, 'Another editor won');
+        assert.equal(await owner.locator('.serverNotice').isVisible(), false);
         await owner.unroute('**/api/projects/*/edits');
+        await owner.waitForFunction(() => !ServerBoard.queue.pending && !ServerBoard.queue.error && !ServerBoard.queue.running);
+        assert.equal((await projects.get(accounts[0], id)).document.title, 'My unsaved edit');
+        assert.deepEqual(dialogs, []); owner.off('dialog', recordDialog);
         await owner.evaluate(() => { ServerBoard.leaving = true; });
     });
     await t.test('local project import keeps originals and repeated imports reuse the account copy', async () => {
@@ -136,7 +142,7 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         owner.once('dialog', dialog => dialog.dismiss());
         await owner.click('.workspaceBreadcrumb a[href="projects.html"]');
         assert.ok(owner.url().includes('storage=server'));
-        assert.equal((await projects.get(accounts[0], id)).document.title, 'Another editor won');
+        assert.equal((await projects.get(accounts[0], id)).document.title, 'My unsaved edit');
         await owner.unroute('**/api/projects/*/edits');
         await owner.locator('[data-action="retry"]').click();
         await owner.waitForFunction(() => !window.ServerBoard.queue.pending && !window.ServerBoard.queue.running);
@@ -162,6 +168,35 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
             await page.click('[data-storage="local"]');
             assert.equal(await page.locator('#newProjectButton').isDisabled(), false);
         } finally { await signedOut.close(); }
+    });
+    await t.test('older drafts without a merge base stay downloadable without blocking the current board', async () => {
+        const fixture = await projects.create(accounts[0], { requestId: randomUUID(), document: { title: 'Current shared board', notes: [], connections: [], shapes: [], drawings: [], coordinateVersion: 2 } });
+        await projects.save(accounts[0], fixture.id, { expectedRevision: fixture.revision, document: { ...fixture.document, title: 'Latest shared version' } });
+        const page = await contexts[0].newPage();
+        const dialogs = []; page.on('dialog', dialog => { dialogs.push(dialog.message()); dialog.dismiss(); });
+        await page.goto(`${config.origin}/projects.html`);
+        const saved = JSON.stringify({ document: { ...fixture.document, title: 'Older unsaved draft' }, view: {}, revision: fixture.revision });
+        await page.evaluate(({ key, saved }) => localStorage.setItem(key, saved), { key: `visualDraft:${accounts[0]}:${fixture.id}`, saved });
+        await page.goto(`${config.origin}/visual-notes.html?projectId=${fixture.id}&storage=server`);
+        await page.waitForFunction(() => window.BoardCollaboration?.connected);
+        assert.equal(await page.inputValue('#projectTitleInput'), 'Latest shared version');
+        assert.equal(await page.evaluate(() => ServerBoard.recoveryDraft), saved);
+        assert.equal(await page.locator('.serverNotice').isVisible(), false);
+        assert.equal(await page.evaluate(() => ServerBoard.queue.error), null);
+        await page.reload(); await page.waitForFunction(() => window.BoardCollaboration?.connected);
+        assert.equal(await page.evaluate(() => ServerBoard.recoveryDraft), saved);
+        assert.deepEqual(dialogs, []);
+        await page.close();
+    });
+    await t.test('unavailable browser draft storage does not prevent opening a server board', async () => {
+        const context = await browser.newContext();
+        await context.addCookies(await contexts[0].cookies());
+        await context.addInitScript(() => Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage unavailable'); } }));
+        const page = await context.newPage();
+        await page.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
+        await page.waitForFunction(() => window.BoardCollaboration?.connected);
+        assert.equal(await page.locator('body').evaluate(body => body.classList.contains('serverLoading')), false);
+        await context.close();
     });
     await t.test('failed board load never initializes an empty editable canvas', async () => {
         const page = await contexts[0].newPage();

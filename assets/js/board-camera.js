@@ -41,8 +41,9 @@ const BoardCamera = {
         const itemsById = new Map(items.map(item => [String(item.id), item]));
         layer.querySelectorAll(selector).forEach(element => {
             if (element.classList.contains("shapeDraft")) return;
-            const item = itemsById.get(element.dataset[dataKey]);
-            if (!item) return;
+            const stored = itemsById.get(element.dataset[dataKey]);
+            if (!stored) return;
+            const item = window.BoardCollaboration?.displayed(stored) || stored;
             element.style.left = `${item.x - this.canvasBounds.left}px`;
             element.style.top = `${item.y - this.canvasBounds.top}px`;
             if (Number.isFinite(item.width)) element.style.width = `${item.width}px`;
@@ -272,6 +273,7 @@ const BoardCamera = {
                 `${(this.panY - dotCenterOffset) % spacing}px`;
             grid.style.setProperty("--grid-zoom", String(this.zoom));
         }
+        window.BoardCollaboration?.renderPresence();
         this.updateNavigationBars();
     },
     startPan(event) {

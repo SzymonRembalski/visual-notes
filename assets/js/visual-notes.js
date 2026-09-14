@@ -1112,6 +1112,8 @@ const VisualNotes = {
         });
     },
     updateConnectionGeometry({ a, b, line, bgLine, gradient }) {
+        a = window.BoardCollaboration?.displayed(a) || a;
+        b = window.BoardCollaboration?.displayed(b) || b;
         const { path, start, end } = CanvasUtils.getOrthogonalConnection(a, b);
         line.setAttribute("d", path);
         bgLine.setAttribute("d", path);

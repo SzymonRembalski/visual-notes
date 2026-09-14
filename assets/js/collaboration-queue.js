@@ -7,6 +7,9 @@ class CollaborationQueue extends ServerSaveQueue {
     enqueue(document, view) {
         super.enqueue(CollaborationDocument.equal(document, JSON.parse(this.savedDocument)) ? JSON.parse(this.savedDocument) : document, view);
     }
+    get dirtyDocument() {
+        return !this.readonly && Boolean(this.pending) && !CollaborationDocument.equal(JSON.parse(this.pending.document), JSON.parse(this.savedDocument));
+    }
     checkpoint() {
         this.persist(this.pending ? { document: JSON.parse(this.pending.document), view: JSON.parse(this.pending.view),
             revision: this.revision, baseDocument: JSON.parse(this.savedDocument) } : null);
@@ -23,9 +26,12 @@ class CollaborationQueue extends ServerSaveQueue {
     }
     receive(state) {
         if (!state.document || BigInt(state.revision) <= BigInt(this.revision)) return;
-        if (this.running || this.error) { this.incoming = state; return; }
+        if (this.running) { this.incoming = state; return; }
         try {
             this.adopt(JSON.parse(this.savedDocument), state.document, state.revision);
+            if (this.pending && CollaborationDocument.equal(JSON.parse(this.pending.document), JSON.parse(this.savedDocument)) && this.pending.view === this.savedView) {
+                this.pending = this.error = null; this.checkpoint();
+            }
         } catch (error) {
             // Keep the old base and the current browser edits for explicit recovery.
             if (!this.pending) this.pending = { document: JSON.stringify(this.readDocument()), view: this.savedView };
@@ -57,7 +63,7 @@ class CollaborationQueue extends ServerSaveQueue {
     flush() {
         const result = super.flush();
         return result.then(saved => {
-            if (!this.running && this.incoming && !this.error) {
+            if (!this.running && this.incoming) {
                 const state = this.incoming; this.incoming = null; this.receive(state);
             }
             return saved && !this.error;

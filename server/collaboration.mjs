@@ -51,7 +51,7 @@ export class Collaboration {
         return { saved: true };
     }
     schedule() {
-        if (!this.scheduled) this.scheduled = setTimeout(() => { this.scheduled = null; this.refresh(); }, 80);
+        if (!this.scheduled) this.scheduled = setTimeout(() => { this.scheduled = null; this.refresh(); }, 20);
     }
     refresh() {
         if (this.running) { this.again = true; return this.running; }

@@ -55,7 +55,7 @@ View fields are `panX`, `panY`, `zoom` (0.2–1), `snappingEnabled` and `drawing
 
 Edits lock the project row. Independent changes merge even from older revisions; on the same field the latest write received by the server wins. Matching values are no-ops. Late field edits to deleted objects are ignored, and retried creations do not replace existing objects. Before-values remain available for local diff and guarded undo. Result: `{revision,document}` with the canonical merged document. Deleting notes removes dangling connections. Payload/document validation and the 16 MB limit still apply. Newly created account-board notes/shapes/strokes use UUIDs; legacy drawing IDs are assigned deterministically on load. No schema migration is needed.
 
-The browser rebases unsent edits over acknowledged/live documents and keeps recovery drafts with their base. Own undo uses inverse operations with matching-value checks; it does not restore old whole-board snapshots over another person's edits. Views remain private per account.
+The browser rebases unsent edits over acknowledged/live documents and keeps recovery drafts with their base. A failed write does not pause incoming live documents; transient errors retry automatically. Compatible drafts restore automatically on reopening. Own undo uses inverse operations with matching-value checks; it does not restore old whole-board snapshots over another person's edits. Views remain private per account.
 
 ## Errors and test-server checks
 

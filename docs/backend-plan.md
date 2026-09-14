@@ -1,10 +1,10 @@
 # Backend and collaboration handoff
 
-Updated September 14, 2026.
+Updated September 15, 2026.
 
 ## Current checkpoint
 
-- Work is on `dev`, based on pushed collaboration commit `046ef3b`. The requested small latest-save-wins fix is implemented but not yet committed/pushed. Account integration was committed as `b135071` and deployed. `main` received merge `2510536` and production Compose naming fix `5985646`; keep both branches and develop on `dev`.
+- Work is on `dev`, based on pushed latest-save-wins commit `63fee64`. Automatic recovery, unobtrusive saving and smoother live movement are implemented but not yet committed/pushed. Account integration was committed as `b135071` and deployed. `main` received merge `2510536` and production Compose naming fix `5985646`; keep both branches and develop on `dev`.
 - The user confirmed the server database and Google login are configured. Account controls and the initial Google redirect were verified on the test site after correcting an old deployed image. Do not repeat provider/setup questions.
 - The user explicitly prioritized live collaboration and moved separate scheduled project backups to the next update. Manual per-project JSON download/import already works and preserves local originals.
 - Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, project row locks, string revisions, per-account camera views and retry-safe project creation. Existing migrations 001/002 are sufficient; collaboration adds no dependency or schema change.
@@ -26,9 +26,11 @@ Updated September 14, 2026.
 
 ## Persistence and recovery contract
 
-`BoardStorage.getDocument/getView` return live references; the queue copies immediately. One writer per tab sends changes at roughly 150 ms intervals, and gesture/presence sampling runs every 180 ms. Server acknowledgments never clear newer pending edits. Remote state is rebased while retaining pending local edits for the next save. Shared-field writes use server arrival order; simultaneous edits no longer pause for conflict recovery. Late field edits to deleted objects are ignored.
+`BoardStorage.getDocument/getView` return live references; the queue copies immediately. Ordinary saves coalesce for 150 ms. Active gestures and presence are sampled every 100 ms; gesture changes flush immediately without that extra delay, and idle tabs skip document sampling. Server broadcasts coalesce for 20 ms. Server acknowledgments never clear newer pending edits. Remote state is rebased while retaining pending local edits for the next save. Shared-field writes use server arrival order; simultaneous edits no longer pause for conflict recovery. Late field edits to deleted objects are ignored.
 
-Draft key: `visualDraft:<accountId>:<projectId>`. New drafts include the pending document, private view, base document and base revision. Restoring requires explicit retry/copy. Older drafts without a base may retry only against their exact server revision. Viewer/revoked-account drafts cannot overwrite shared documents. Navigation waits for saving; failed saves require confirmation plus a working recovery draft or matching download before leaving. Browser-close prompts protect pending edits. Storage failures are surfaced.
+Geometry-only remote changes reuse note, shape and connection elements. A separate display map interpolates geometry for 100 ms; canonical document coordinates never contain animation frames. Connections and selection outlines follow the display geometry. Local pointer/keyboard input finishes animation immediately; reduced-motion preferences disable it. Peer cursor/outline elements persist between updates, allowing cursor transitions to work, and camera movement updates their positions immediately.
+
+Draft key: `visualDraft:<accountId>:<projectId>`. New drafts include the pending document, private view, base document and base revision. Compatible drafts rebase onto the current server document and save automatically on reopening, without a restore/copy dialog. Older drafts without a matching base, unreadable drafts and viewer drafts are archived under `:recovery:<timestamp>` while the current shared board opens normally; the latest archived draft remains downloadable from Save. Viewer/revoked-account drafts cannot overwrite shared documents. Navigation waits for saving; failed saves require confirmation plus a working recovery draft or matching download before leaving. Browser-close prompts protect unsaved shared edits; pending camera-only saves no longer cause false warnings. Storage failures do not prevent opening the shared board. Failed writes no longer block live updates. Transient errors retry with backoff (one to fifteen seconds); saving status appears in the toolbar, and details are an explicitly opened, dismissible corner panel. Autosaving remains continuous rather than relying on the final browser closing.
 
 Undo/redo records only local operations. It preserves unrelated remote changes and refuses to overwrite a field another person subsequently changed. It is transient per tab and does not persist across reloads.
 
@@ -43,15 +45,15 @@ Undo/redo records only local operations. It preserves unrelated remote changes a
 
 ## Verification
 
-- All 33 unit tests pass: existing 25 storage/config/validation/save-queue tests plus eight collaboration tests for disjoint merges, latest-field writes, retry behavior, legacy drawings, safe IDs, personal undo, in-flight edits and draft bases.
-- `node tests/run-database-tests.mjs` passes: disposable PostgreSQL; nine backend scenarios, eight account/browser scenarios, and nine live collaboration scenarios; separate PostgreSQL restart durability check. Existing browser tests now target the edits route and deliberately pause their live stream when testing a stale save.
+- All 36 unit tests pass: existing 25 storage/config/validation/save-queue tests plus eleven collaboration tests for disjoint merges, latest-field writes, retry behavior, legacy drawings, safe IDs, personal undo, in-flight edits and draft bases.
+- `node tests/run-database-tests.mjs` passes: disposable PostgreSQL; nine backend scenarios, ten account/browser scenarios, and eleven live collaboration scenarios; separate PostgreSQL restart durability check. Existing browser tests now target the edits route and deliberately pause their live stream when testing a stale save.
 - New real-browser scenarios cover editor/viewer presence and cursors, independent cameras, concurrent UUID creation, focus-preserving remote changes, personal undo/redo, groups/strokes/connections/deletion, actual dragging and title typing before release, offline merge, simultaneous same-field convergence, permission revocation and session expiry. Tests seed temporary sessions and never use live Google credentials.
 - Seven existing local browser scripts passed: gallery redesign, drawing, local backups, arrow movement, connection-preserving deletion, image export and cleanup regressions.
 - Browser/database tests need escalation in this Windows sandbox. Node 24 and installed Chrome are available. The runner creates an isolated localhost PostgreSQL cluster, stops it and deletes only its verified temporary directory. Docker is unavailable here; deployed proxy streaming remains a server-side smoke test.
 
 ## Resume / next update
 
-1. Implementation and final verification are complete, including a desktop cursor/selection visual check. Commit the small latest-save-wins follow-up on `dev` when requested. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
+1. Implementation and final verification are complete. The latest run passed 36 unit tests, nine backend, ten browser and eleven live-collaboration scenarios, plus PostgreSQL restart durability. The new motion check verifies element reuse, intermediate frames, exact saved coordinates, connection alignment and local input takeover. Five affected local canvas/export regression suites also pass. Commit the saving/recovery and smoother-movement follow-up on `dev` when requested. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
 2. After deployment, open a shared disposable board from two accounts on the test origin and verify cursors, live changes, viewer restrictions and reconnect behavior through the actual proxy.
 3. Next planned release: independent scheduled server project backups, private backup destination/retention configuration, pre-restore snapshots, isolated restoration and a restore drill. Manual JSON downloads do not replace automatic backups.
 4. Character-level text merging and multi-instance presence transport are possible later improvements, not part of this first collaboration release.
