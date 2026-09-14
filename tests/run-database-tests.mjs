@@ -50,7 +50,7 @@ try {
     await writeFile(passwordFile, password, { mode: 0o600 });
     await execute(binaries.initdb, ['-D', data, '-U', 'postgres', '--auth=scram-sha-256', `--pwfile=${passwordFile}`, '--encoding=UTF8', '--locale=C'], { windowsHide: true, timeout: 30000 });
     await start();
-    for (const file of ['tests/database.integration.mjs', 'tests/server-browser.integration.mjs']) {
+    for (const file of ['tests/database.integration.mjs', 'tests/server-browser.integration.mjs', 'tests/collaboration.integration.mjs']) {
         const code = await new Promise((resolve, reject) => {
             const child = spawn(process.execPath, ['--test', '--test-timeout=90000', file], {
                 windowsHide: true, stdio: 'inherit', env: { ...process.env, TEST_DATABASE_URL: connectionString }

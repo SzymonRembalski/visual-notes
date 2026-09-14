@@ -47,6 +47,16 @@ Documents accept coordinate versions 1 and 2. The client still performs canvas m
 
 View fields are `panX`, `panY`, `zoom` (0.2–1), `snappingEnabled` and `drawingsVisible`. Views are stored per account and do not change the document revision. Separate tabs using one account share that account's latest saved view. Selection, tools and undo history remain transient client state.
 
+## Live board routes
+
+- `GET /api/projects/:id/live?clientId=<UUID>` opens an authenticated SSE stream. Each browser tab chooses a distinct random client ID. Events: `document` (`revision`, `role`, and `document` when changed), `presence` (list of `{id,name,role,cursor,selected}`), and `unavailable` (`status`, `message`). Sessions and access are rechecked on updates. Initial connection/reconnection sends current state; event replay IDs are not required.
+- `POST /api/projects/:id/presence` sends `{clientId,cursor:{x,y}|null,selected:["item-id"]}`. Coordinates are board coordinates; at most 100 selected IDs. The connection must belong to the signed-in account and project. Presence uses the same Origin/CSRF checks as other writes, is rate-coalesced, expires when the stream closes, and is never stored in project documents.
+- `POST /api/projects/:id/edits` sends `{expectedRevision,changes}` for owner/editor access. Each change has `collection` (`document`, `notes`, `shapes`, `connections`, `drawings`), optional item `id`, optional `field`, and `before`/`after` values. Root fields are `title` and `coordinateVersion`. Without a field, `null` means an absent/removed item; otherwise one property changes. Connection IDs are sorted endpoint strings encoded as a JSON array. Item IDs are immutable. See the shared `assets/js/collaboration-document.js` for deterministic diff/merge rules.
+
+Edits lock the project row and check each before-value against the current stored value. Independent changes merge even from older revisions. Matching after-values make retries idempotent. Same-field conflicts return 409 and apply none of the batch. Result: `{revision,document}` with the canonical merged document. Deleting notes removes dangling connections. Payload/document validation and the 16 MB limit still apply. Newly created account-board notes/shapes/strokes use UUIDs; legacy drawing IDs are assigned deterministically on load. No schema migration is needed.
+
+The browser rebases unsent edits over acknowledged/live documents and keeps recovery drafts with their base. Own undo uses inverse operations with matching-value checks; it does not restore old whole-board snapshots over another person's edits. Views remain private per account.
+
 ## Errors and test-server checks
 
 Errors use `{ "error": "message" }`: 400 invalid data, 401 signed out/expired session, 403 insufficient role/failed request verification, 404 missing/inaccessible resource, 409 revision conflict, 413 oversized request, 415 unsupported content type, 429 sign-in throttling, 500 unavailable operation. Private SQL, credentials and stack traces are never returned. `/readyz` returns 503 when database/schema checks fail.

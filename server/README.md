@@ -1,6 +1,6 @@
 # Test-server backend
 
-The Node.js backend serves the frontend and a PostgreSQL-backed project API. The gallery and canvas support Google sign-in, account projects, editor/viewer sharing, per-account views and ordered server saving with revision checks. Existing local projects remain available under **On this device**, including when opened directly through `file://`. Scheduled independent server backups and live collaboration are still pending.
+The Node.js backend serves the frontend and a PostgreSQL-backed project API. The gallery and canvas support Google sign-in, account projects, editor/viewer sharing, live changes and cursors, per-account views and ordered server saving. Existing local projects remain available under **On this device**, including when opened directly through `file://`. Scheduled independent server backups are planned for the next update.
 
 ## Using account projects
 
@@ -10,11 +10,21 @@ The Node.js backend serves the frontend and a PostgreSQL-backed project API. The
 4. To copy an existing local board online, choose **On this device → Save to account** on that project. The original remains local. Retrying the import reuses the account copy rather than duplicating or replacing it.
 5. On account boards, **Save → Download this project** exports one project. **Import project file** in the gallery restores it as an account project. Old full-workspace backups must first be restored through a local board's existing Save menu, then imported project by project.
 
-Failed/conflicting saves keep the current edits and, when browser storage permits, a recovery draft scoped to the account and project. The recovery panel offers retry, save a separate copy, download, or an explicitly confirmed reload. A stale revision is never silently overwritten. Normal navigation waits for saving; when saving fails, leaving requires confirmation and a recovery draft or matching download. Browser-close/reload prompts protect pending edits. Reopening an unsaved board offers to restore its draft; a recovered draft requires explicit retry/copy. If editing access changed to viewer, recover the edits through copy/download instead of saving over the shared board.
+Failed/conflicting saves keep the current edits and, when browser storage permits, a recovery draft scoped to the account and project, including its base document. The recovery panel offers retry, save a separate copy, download, or an explicitly confirmed reload. Changes to different objects or fields merge; conflicting edits to the same field stop with a recovery notice instead of silently replacing someone's work. Normal navigation waits for saving; when saving fails, leaving requires confirmation and a recovery draft or matching download. Browser-close/reload prompts protect pending edits. Reopening an unsaved board offers to restore its draft; a recovered draft requires explicit retry/copy. If editing access changed to viewer, recover the edits through copy/download instead of saving over the shared board.
 
-Viewer boards hide editing tools and block editing input; camera controls and exports remain available. This is not live co-editing: refresh to see changes from another person. Tasks and appearance/shortcut settings remain on the device.
+Viewer boards hide editing tools and block editing input; camera controls and exports remain available. Shared boards show other people's named cursors and selected objects. Edits, drawing strokes and moves appear without refreshing. Each tab has its own presence ID; personal camera state stays separate. Undo/redo applies only the local user's changes and refuses to overwrite a later conflicting edit. Simultaneous edits to the same text field require recovery; character-level text merging is not implemented. Tasks and appearance/shortcut settings remain on the device.
 
 Use `dev` for the test server; production stays on `main`. Configure the deployment service to follow the correct branch. Use separate origins, databases, credentials and OAuth configuration for test and production.
+
+## Live collaboration deployment
+
+No new database migration, dependency or Google configuration is needed for this update. Rebuild and redeploy `dev`, then open one shared test project in two signed-in browsers. Verify cursors, changes before mouse release, viewer access, offline recovery and account revocation on the actual proxy route.
+
+The browser receives a same-origin Server-Sent Events stream at `/api/projects/:id/live` and posts edits/presence through the existing authenticated API. The reverse proxy must pass streaming responses without buffering; the endpoint sends `X-Accel-Buffering: no` and a heartbeat/presence event at least once per second. Do not cache `/api/`. WebSocket support is not required. Browser reconnects fetch current server state and rebase pending changes using their saved before-values.
+
+Run one backend process per deployment, as in the supplied Compose file: cursors/presence are held in memory and disappear on restart. Shared documents remain in PostgreSQL. The stream rechecks sessions and project permissions before each update, and database writes recheck editor rights under the project lock. Permission revocation ends access and keeps unsaved browser drafts. Limits are 50 live connections per project, eight per account and 500 per process. Multiple backend replicas would need shared presence transport before deployment; they are not supported by this presence implementation.
+
+Changes normally travel after roughly 150–300 ms; database polling also catches edits from older clients or another backend within about a second, subject to network and database latency. Every write is durable before acknowledgment. An unchanged retry is a no-op; a retry after someone changed the same field becomes a conflict. Existing whole-document PUT clients keep strict revision checks.
 
 ## Configuration
 

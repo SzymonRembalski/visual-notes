@@ -7,6 +7,7 @@ const DrawingLayer = {
     normalize(strokes) {
         if (!Array.isArray(strokes)) return [];
         return strokes.filter(stroke => stroke && Array.isArray(stroke.points)).map(stroke => ({
+            ...(stroke.id != null ? { id: stroke.id } : {}),
             color: /^#[0-9a-f]{6}$/i.test(stroke.color || "") ? stroke.color : "#91bda0",
             width: Number.isFinite(stroke.width) ? Math.max(1, Math.min(30, stroke.width)) : 4,
             points: stroke.points.filter(point => point && Number.isFinite(point.x) && Number.isFinite(point.y))
@@ -107,6 +108,7 @@ const DrawingLayer = {
         event.currentTarget.setPointerCapture(event.pointerId);
         if (this.tool === "pen") {
             this.stroke = { color: document.getElementById("drawingColor").value,
+                ...(window.ServerBoard?.active ? { id: crypto.randomUUID() } : {}),
                 width: Number(document.getElementById("drawingSize").value), points: [this.previousPoint] };
             VisualNotes.drawings.push(this.stroke);
             this.addElement(this.stroke);

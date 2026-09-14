@@ -1,73 +1,58 @@
-# Backend delivery plan
+# Backend and collaboration handoff
+
+Updated September 14, 2026.
 
 ## Current checkpoint
 
-- Updated September 14, 2026. Work is on `dev`, based on pushed merge `18d2bcb` (backend commit `d8ff86c`). The browser integration is implemented but uncommitted; no push/deployment was performed for this checkpoint. Keep `main` unchanged.
-- The user confirms the server database and Google login are configured. Do not repeat setup/provider questions. The user redeemed a reset themselves; do not consume the remaining reset credit without explicit authorization.
-- Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, atomic revision checking, private per-account views and retry-safe project creation. Migrations 001/002 are unchanged by this frontend checkpoint.
-- Browser integration: Projects offers My account / On this device, Google sign-in/out, account sharing codes, owned/shared project lists, create/open/delete/share, explicit local imports and individual project-file imports. Account cards use summaries instead of downloading entire boards for thumbnails. Tasks and application preferences remain local.
-- `server-api.js` owns account requests and import IDs; `server-save-queue.js` owns copied snapshots and ordered writes; `server-board.js` owns remote preload, recovery, save status/navigation, per-project download and viewer restrictions. `BoardStorage` retains the synchronous local path and delegates server boards explicitly selected by `storage=server`.
-- Account boards are loaded before canvas initialization. Missing/failed/unauthenticated loads remain noneditable, without creating empty replacement projects. Views save separately. Viewers can use camera/export controls, but cannot edit the shared document.
-- The save queue debounces requests, allows one writer per board, tracks string revisions and never clears newer pending edits on an older acknowledgment. Failed/conflicting writes retain the latest draft under the account/project key. Restoring a draft requires explicit retry/copy; stale revisions remain rejected. A recovered draft after downgrade to viewer can only be copied/downloaded.
-- Save/Ctrl+S on account boards flushes to the server. Navigation waits for saving; failure offers recovery actions and confirmation before leaving with a draft/download. Recovery-storage failures are surfaced. PNG export uses the current canvas. File:// and existing local backup behavior are preserved.
-- Manual per-project JSON download/import is available and keeps images/drawings/shapes. Scheduled independent server snapshots, retention, snapshot-before-restore and in-place restoration remain outstanding.
-- Test deployment uses the existing `visual-notes-dev` Node service on port 3000. The new frontend needs no additional migration or OAuth configuration. Redeploy after a user-requested commit/push, then verify on the configured test origin. No live server credentials or deployment access were used by these tests.
+- Work is on `dev`, based on `9823d55`. Live collaboration is implemented but not committed or pushed. Account integration was committed as `b135071` and deployed. `main` received merge `2510536` and production Compose naming fix `5985646`; keep both branches and develop on `dev`.
+- The user confirmed the server database and Google login are configured. Account controls and the initial Google redirect were verified on the test site after correcting an old deployed image. Do not repeat provider/setup questions.
+- The user explicitly prioritized live collaboration and moved separate scheduled project backups to the next update. Manual per-project JSON download/import already works and preserves local originals.
+- Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, project row locks, string revisions, per-account camera views and retry-safe project creation. Existing migrations 001/002 are sufficient; collaboration adds no dependency or schema change.
+- Live collaboration: automatic shared edits, named cursors, selected-object outlines, distinct per-tab UUIDs, viewer updates, reconnect recovery and personal undo/redo. Different objects/fields merge. Same-field conflicts retain local edits and offer copy/download/reload. Character-level simultaneous text merging is not implemented.
+- Live edits include pointer dragging, resizing, drawing strokes and title/body typing. Remote rendering keeps active input/drag objects, references and text selection. Camera position, zoom and drawing visibility stay personal. Account-board entity IDs use UUIDs; numeric connection-key assumptions were removed. Legacy stroke IDs are normalized deterministically.
 
-## Storage contract and asynchronous transition
+## Implementation map
 
-Local `BoardStorage.load/save` remains synchronous and keeps existing formats/migration behavior. For a URL containing `storage=server`, `ServerBoard.open()` loads the session and project before `VisualNotes.init()`; the controller then reads the preloaded board through the adapter. Failed preload stops initialization.
+- `assets/js/server-api.js`: authenticated requests, explicit local imports and stable import IDs.
+- `assets/js/server-save-queue.js`: copied snapshots and ordered write base, with its original tests retained.
+- `assets/js/collaboration-document.js`: shared browser/server field diff, guarded merge and canonical equality. Each operation carries before/after values; retries whose after-values match are no-ops. Conflicting operations fail atomically. Deleted notes cannot leave dangling edges.
+- `assets/js/collaboration-queue.js`: apply acknowledgments/live state while preserving edits made in flight; checkpoint base and pending documents for recovery.
+- `assets/js/server-board.js`: authenticated preload, drafts, save status, navigation protection, copy/download and viewer controls. Server boards explicitly use `storage=server`; missing/failed loads never become editable empty boards.
+- `assets/js/board-collaboration.js`: SSE client, presence and selections, incremental preservation of active controls, inverse-operation undo and access-loss handling.
+- `server/projects.mjs`: all persistent edits use the project row lock and recheck permissions. Whole-document PUT retains strict revision checks; POST edits merges independent field operations and returns the durable canonical document.
+- `server/collaboration.mjs`: bounded authenticated SSE connections; ephemeral cursor state; database/session/access rechecks before updates. Document state stays in PostgreSQL.
+- `server/http.mjs`: same-origin/CSRF protected edits and presence; streaming endpoint; orderly live-connection shutdown.
+- `BoardStorage`, local imports, task manager and local/file:// behavior remain available. Tasks and preferences remain device-local.
 
-`BoardStorage.getDocument/getView` still returns live references. The remote queue serializes snapshots immediately, compares them with acknowledged values and sends document/view writes in order. Local writes retain their original behavior. Revisions are strings; a failed view save after a successful document save retains the new document revision for retry.
+## Persistence and recovery contract
 
-Recovery drafts are scoped as `visualDraft:<accountId>:<projectId>`. Import request IDs are stored before sending so retries do not duplicate/overwrite projects. Local originals remain intact. Invalid legacy data is rejected with an error rather than silently repaired; old workspace backups can be restored locally and then imported project by project.
+`BoardStorage.getDocument/getView` return live references; the queue copies immediately. One writer per tab sends changes at roughly 150 ms intervals, and gesture/presence sampling runs every 180 ms. Server acknowledgments never clear newer pending edits. Remote state is rebased with before-value checks; simultaneous edits to the same field pause saving and keep the current browser document.
 
-## Deployment isolation
+Draft key: `visualDraft:<accountId>:<projectId>`. New drafts include the pending document, private view, base document and base revision. Restoring requires explicit retry/copy. Older drafts without a base may retry only against their exact server revision. Viewer/revoked-account drafts cannot overwrite shared documents. Navigation waits for saving; failed saves require confirmation plus a working recovery draft or matching download before leaving. Browser-close prompts protect pending edits. Storage failures are surfaced.
 
-1. Confirm production's deployed revision and the hosting/deployment mechanism.
-2. `dev` is published; confirm/configure the test server to follow it.
-3. Keep production on `main`. Use separate databases, credentials, backup destinations and session configuration in each environment.
-4. Verify branch filters before the first deployment. Creating a branch does not configure deployment isolation.
-5. Prepare commits for the user to push. Promote the tested release to `main` only when requested, with code/database recovery instructions.
+Undo/redo records only local operations. It preserves unrelated remote changes and refuses to overwrite a field another person subsequently changed. It is transient per tab and does not persist across reloads.
 
-## Three-day target
+## Deployment
 
-| Day | Work | Acceptance checkpoint |
-| --- | --- | --- |
-| 1 | Bounded cleanup; environment isolation; backend configuration and database migrations; account authentication and project permissions/API | A project saved through the protected API survives a backend restart |
-| 2 | Frontend integration and local-data import; ordered saving, failure recovery and revision conflicts; individual project backups | Another authorized browser opens the saved board; one project restores independently |
-| 3 | Failure/concurrency/permission tests, large boards and images, restore drill, deployment verification and release preparation | Tested release with setup and rollback instructions; contingency time retained |
+- `dev`: `visual-notes-dev:3000`, test database/env file. `main`: `visual-notes:3000`, production database/env file. Preserve branch-specific Compose identities during future merges.
+- The development workflow targets Portainer stack 16, explicitly `refs/heads/dev`, with a private dev env-file path. Production targets stack 12 and `refs/heads/main`. Keep existing deployment workflows and credentials private.
+- No new migration, dependency, or OAuth change for collaboration. Rebuild/redeploy the image and verify on the test origin after a user-requested commit/push. Never claim the new release is deployed from local tests alone.
+- Live updates use SSE at `/api/projects/:id/live`, with authenticated POST edits/presence. No WebSocket setting is needed. Proxy streaming must not be buffered/cached; the endpoint emits `X-Accel-Buffering: no` and regular heartbeat/presence events.
+- One backend process per deployment is supported, as in Compose. Presence is in memory and disappears on restart. Multiple replicas require shared presence transport before deployment; documents are durable in PostgreSQL.
+- Limits: 50 live connections per project, eight per account, 500 per process. Session/role rechecks run on updates, with a periodic database check roughly every second. Slow consumers are disconnected when buffered output grows beyond the configured bound. Read `server/README.md` and `server/api.md` for routes and deployment details.
 
-Confirmed backend stack: Node.js and separately provisioned PostgreSQL. Hosting-specific deployment details remain to be confirmed. Keep backend configuration, API routes, persistence, migrations, backup jobs and tests separate. Use one database row per project, containing board JSON, ownership, schema/revision numbers and timestamps. Keep personal view state separate. Check owner/access rights on every project and backup operation. Separate accounts and sharing are required in the first release: owners manage access/deletion, editors can save, viewers can read. The database schema stores these roles; the protected API must enforce them.
+## Verification
 
-Configuration: command-line options override environment variables, then optional `.env`, then defaults. Use command-line flags for non-secret settings and configuration paths; secrets stay server-side in environment/configuration. Add startup validation, ignored secret files and a non-secret example configuration. Production and test use independent values.
+- All 32 unit tests pass: existing 25 storage/config/validation/save-queue tests plus seven collaboration tests for disjoint merges, same-field conflicts, retry behavior, legacy drawings, safe IDs, personal undo, in-flight edits and draft bases.
+- `node tests/run-database-tests.mjs` passes: disposable PostgreSQL; nine backend scenarios, eight account/browser scenarios, and nine live collaboration scenarios; separate PostgreSQL restart durability check. Existing browser tests now target the edits route and deliberately pause their live stream when testing a stale save.
+- New real-browser scenarios cover editor/viewer presence and cursors, independent cameras, concurrent UUID creation, focus-preserving remote changes, personal undo/redo, groups/strokes/connections/deletion, actual dragging and title typing before release, offline merge, simultaneous same-field recovery, permission revocation and session expiry. Tests seed temporary sessions and never use live Google credentials.
+- Seven existing local browser scripts passed: gallery redesign, drawing, local backups, arrow movement, connection-preserving deletion, image export and cleanup regressions.
+- Browser/database tests need escalation in this Windows sandbox. Node 24 and installed Chrome are available. The runner creates an isolated localhost PostgreSQL cluster, stops it and deletes only its verified temporary directory. Docker is unavailable here; deployed proxy streaming remains a server-side smoke test.
 
-Import existing browser data explicitly, preserve local originals, record completed imports to make retries safe, and retain existing node/connection IDs. Support old workspace-backup import. Confirm whether tasks and account settings are included in this deadline.
+## Resume / next update
 
-Backups: one versioned artifact per project ID/revision, including images; manual export, scheduled snapshots and retention; snapshot before destructive restoration; no unrelated projects or credentials. Store outside public/deployment folders with an independent recovery copy. Prove restoration of one project leaves the others unchanged.
-
-## Concurrent access
-
-For the first server-saving release, compare the client's expected project revision and update the database atomically. Reject stale saves, retain local edits, and offer reload or a separate copy. Do not silently overwrite another editor's work. Implement account authentication and owner/editor/viewer enforcement before exposing saving. Serialize saves and sharing changes using a project row lock; recheck membership after taking the lock so revoked editors cannot save afterward.
-
-Implemented authentication: backend-verified Google identities linked to stable internal account IDs and secure sessions. Public HTTPS requires secure host-only cookies; HTTP localhost uses separate development cookies. Only `openid profile` scopes are requested. The sharing API grants access by existing account ID; no email/global-account search or invitations are implemented. Build clear account-ID sharing controls in the frontend unless the user requests an invitation flow.
-
-Later: presence/reconnect handling with connection IDs distinct from authentication sessions; individual editing operations; explicit same-field conflicts or a text-merging library. Collaborative undo must affect only the user's own operations. Before operation-level multiwriter editing, introduce globally unique entity IDs and migrate numeric-only connection-key assumptions. Until then, whole-document saves must reject stale revisions and retain local edits.
-
-## Verification and handoff
-
-- `npm test`: 25 storage, configuration, validation and save-queue tests passed.
-- `npm run test:database`: nine backend/database scenarios and eight real-browser scenarios pass, plus a separate PostgreSQL restart durability check. Tests cover account project creation/reopen, image/drawing/group persistence, viewer sharing, conflicts/draft recovery, local/file import, offline/navigation recovery, signed-out access and failed initial loads.
-- Seven existing local browser scripts passed: projects redesign, drawing layer, local backups, arrow movement, connection-preserving deletion, PNG export and cleanup regressions. Desktop/mobile account-gallery screenshots were inspected; mobile content fits the viewport.
-- Tests use isolated temporary PostgreSQL 18.4 clusters and browser profiles. Google-flow tests substitute the provider, and browser tests seed temporary sessions; they do not use the deployed Google client or server data. Docker/proxy rollout still needs verification on the test server.
-- Node is available locally; npm can be run through `C:/Users/szymo/AppData/Local/Temp/visual-notes-npm/package/bin/npm-cli.js` while that temporary CLI exists. Dev dependencies include embedded PostgreSQL and Playwright. Use installed Chrome on Windows, `PLAYWRIGHT_CHROMIUM_EXECUTABLE`, or `npx playwright install chromium`. Database/browser tests require escalation in this Windows sandbox. Helpers run hidden and remove only their own temporary cluster.
-- Scratch browser regressions and screenshots live under `C:/Users/szymo/.codex/visualizations/2026/09/09/01a086b7-5dd8-77b3-bdeb-ef6577744c88`. Portable new coverage is under `tests/`.
-- Keep each checkpoint working and reviewable. Check allowance at milestones and retain roughly 15% for verification/handoff/commits. Never redeem reset credits without authorization.
-
-## Resume here
-
-1. Review the implemented frontend checkpoint and commit on `dev` when requested. The user handles pushes unless explicitly authorizing one. Pushing dev triggers the existing Portainer workflow; its configured credential destination was explicitly approved earlier.
-2. After redeployment, verify real Google sign-in, account project saving/reopening and sharing on the configured test origin. Existing environment and migrations remain sufficient.
-3. Complete the original remaining priority: independent server project backups, private storage/retention configuration, scheduling, pre-restore snapshots and isolated restoration tests. Manual browser downloads/imports are not a substitute for independent scheduled server backups.
-4. Resolve backup destination/retention when implementing that stage. Tasks and account settings still use local storage; confirm scope before moving them server-side.
-5. Live presence/operation-level collaboration and collaborative undo remain later work. Whole-document saves currently use conflict rejection; users refresh to see others' updates. Keep preserving unsaved edits and migrate numeric entity-ID assumptions before introducing operation-level multiwriter editing.
-6. Update this checkpoint after implementation, verification, commit and deployment changes. Do not restart completed backend/browser integration work.
+1. Implementation and final verification are complete, including a desktop cursor/selection visual check. Commit collaboration on `dev` when requested. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
+2. After deployment, open a shared disposable board from two accounts on the test origin and verify cursors, live changes, viewer restrictions and reconnect behavior through the actual proxy.
+3. Next planned release: independent scheduled server project backups, private backup destination/retention configuration, pre-restore snapshots, isolated restoration and a restore drill. Manual JSON downloads do not replace automatic backups.
+4. Character-level text merging and multi-instance presence transport are possible later improvements, not part of this first collaboration release.
+5. Keep progress documented. Check account allowance at milestones and reserve room for testing/handoff/commits. Never redeem reset credits without explicit authorization. The last check during this implementation showed 34% of the five-hour window used; do not treat that number as current indefinitely.

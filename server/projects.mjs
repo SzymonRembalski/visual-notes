@@ -1,4 +1,5 @@
 import { transaction } from './database.mjs';
+import CollaborationDocument from '../assets/js/collaboration-document.js';
 import { HttpError, requireValue, uuid, revision, documentPayload, viewPayload } from './validation.mjs';
 
 const notFound = () => new HttpError(404, 'Project not found.');
@@ -74,6 +75,36 @@ export class Projects {
                 ON CONFLICT (project_id, user_id) DO UPDATE SET view = EXCLUDED.view, modified_at = clock_timestamp()`, [projectId, userId, view]);
             return { saved: true };
         });
+    }
+
+    async edit(userId, projectId, input) {
+        const expected = revision(input.expectedRevision);
+        return this.locked(userId, projectId, ['owner', 'editor'], async (client, project) => {
+            requireValue(BigInt(expected) <= BigInt(project.revision), 'Invalid future revision.');
+            const stored = (await client.query('SELECT document FROM visual_notes.projects WHERE id = $1', [projectId])).rows[0].document;
+            let document;
+            try { document = documentPayload(CollaborationDocument.apply(CollaborationDocument.normalize(stored), input.changes)); }
+            catch (error) {
+                if (error.status === 409) throw new HttpError(409, error.message, { currentRevision: project.revision });
+                if (error instanceof HttpError) throw error;
+                throw new HttpError(400, 'Invalid collaboration changes.');
+            }
+            requireValue(Buffer.byteLength(JSON.stringify(document)) <= 16 * 1024 * 1024, 'Project exceeds the 16 MB save limit.');
+            if (CollaborationDocument.equal(stored, document)) return { revision: project.revision, document };
+            const { rows } = await client.query(`UPDATE visual_notes.projects SET document = $2,
+                revision = revision + 1, modified_at = clock_timestamp() WHERE id = $1 RETURNING revision::text`, [projectId, JSON.stringify(document)]);
+            return { ...rows[0], document };
+        });
+    }
+
+    async liveState(userId, projectId, since) {
+        const { rows } = await this.pool.query(`SELECT p.revision::text,
+            CASE WHEN p.revision::text = $3 THEN NULL ELSE p.document END AS document,
+            CASE WHEN p.owner_id = $1 THEN 'owner' ELSE m.role END AS role
+            FROM visual_notes.projects p LEFT JOIN visual_notes.project_members m ON m.project_id = p.id AND m.user_id = $1
+            WHERE p.id = $2 AND (p.owner_id = $1 OR m.user_id IS NOT NULL)`, [userId, uuid(projectId), since || '0']);
+        if (!rows[0]) throw notFound();
+        return rows[0];
     }
 
     async members(userId, projectId) {

@@ -87,6 +87,7 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
     await t.test('conflicting browser save keeps a draft and preserves the other edit', async () => {
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
         await owner.waitForFunction(() => window.ServerBoard?.queue);
+        await owner.evaluate(() => BoardCollaboration.source.close());
         const saved = await projects.get(accounts[0], id);
         await projects.save(accounts[0], id, { expectedRevision: saved.revision, document: { ...saved.document, title: 'Another editor won' } });
         await owner.fill('#projectTitleInput', 'My unsaved edit');
@@ -127,14 +128,14 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         await owner.evaluate(() => { for (const key of Object.keys(localStorage)) if (key.startsWith('visualDraft:')) localStorage.removeItem(key); });
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
         await owner.waitForFunction(() => window.ServerBoard?.queue);
-        await owner.route('**/api/projects/*', route => route.request().method() === 'PUT' ? route.abort() : route.continue());
+        await owner.route('**/api/projects/*/edits', route => route.abort());
         await owner.fill('#projectTitleInput', 'Offline draft'); await owner.locator('#projectTitleInput').blur();
         await owner.waitForFunction(() => window.ServerBoard.queue.error?.status === 0);
         owner.once('dialog', dialog => dialog.dismiss());
         await owner.click('.workspaceBreadcrumb a[href="projects.html"]');
         assert.ok(owner.url().includes('storage=server'));
         assert.equal((await projects.get(accounts[0], id)).document.title, 'Another editor won');
-        await owner.unroute('**/api/projects/*');
+        await owner.unroute('**/api/projects/*/edits');
         await owner.locator('[data-action="retry"]').click();
         await owner.waitForFunction(() => !window.ServerBoard.queue.pending && !window.ServerBoard.queue.running);
         await owner.fill('#projectTitleInput', 'Saved before leaving');

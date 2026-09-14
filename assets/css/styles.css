@@ -1572,3 +1572,10 @@ body.drawing-eraser-active #drawingLayer { cursor: cell; }
 .serverReadonly :is(#editMenu, #quickTools, .colorPanel, #drawingControls) { display: none !important; }
 .serverLoading :is(#canvas, #shapes, #drawingLayer, #toolbar input, #toolbar details, #quickTools, .zoomControls) { pointer-events: none; visibility: hidden; }
 button:disabled { cursor: default; opacity: 0.55; }
+.collaborationLayer { position: fixed; inset: 0; z-index: 980; pointer-events: none; overflow: hidden; clip-path: inset(var(--toolbar-height) 0 0); }
+.collaborationStatus { position: fixed; top: calc(var(--toolbar-height) + 12px); right: 20px; z-index: 981; padding: 7px 12px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--muted); font-size: 12px; pointer-events: none; }
+.peerCursor { position: absolute; transition: left 100ms linear, top 100ms linear; }
+.peerCursor::before { content: ''; position: absolute; width: 12px; height: 18px; background: var(--peer-color); clip-path: polygon(0 0, 100% 65%, 50% 70%, 30% 100%); }
+.peerCursor span { display: block; margin: 16px 0 0 10px; padding: 3px 7px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 5px; background: var(--peer-color); color: #111; font-size: 11px; }
+.peerSelection { position: absolute; border: 2px solid var(--peer-color); border-radius: 10px; box-sizing: border-box; }
+.serverAccessLost :is(#canvas, #shapes, #drawingLayer, #editMenu, #quickTools, #projectTitleInput) { pointer-events: none; }

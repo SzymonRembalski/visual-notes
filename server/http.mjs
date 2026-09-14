@@ -4,6 +4,7 @@ import { resolve, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Auth } from './auth.mjs';
 import { Projects } from './projects.mjs';
+import { Collaboration } from './collaboration.mjs';
 import { checkDatabase } from './database.mjs';
 import { HttpError } from './validation.mjs';
 
@@ -33,6 +34,7 @@ async function body(req) {
 export function createApp({ pool, config, provider, onError = () => console.error('Request failed; check database availability and server configuration.') }) {
     const auth = new Auth(pool, config, provider);
     const projects = new Projects(pool);
+    const collaboration = new Collaboration(auth, projects);
     // Limit login work before reaching Google or the database. Bound memory as well.
     const loginAttempts = new Map();
     const cleanup = setInterval(() => {
@@ -84,6 +86,7 @@ export function createApp({ pool, config, provider, onError = () => console.erro
                 if (!['GET', 'HEAD'].includes(method)) auth.checkWrite(req, session);
                 if (method === 'POST' && path === '/api/logout') {
                     res.setHeader('Set-Cookie', await auth.logout(req));
+                    await collaboration.refresh();
                     return json(200, { signedOut: true });
                 }
                 if (path === '/api/projects') {
@@ -94,9 +97,19 @@ export function createApp({ pool, config, provider, onError = () => console.erro
                     }
                     if (method === 'POST') return json(201, await projects.create(session.id, await body(req)));
                 }
-                const route = path.match(/^\/api\/projects\/([^/]+)(?:\/(view|members)(?:\/([^/]+))?)?$/);
+                const route = path.match(/^\/api\/projects\/([^/]+)(?:\/(view|members|edits|live|presence)(?:\/([^/]+))?)?$/);
                 if (route) {
                     const [, id, action, member] = route;
+                    if (action === 'live' && !member && method === 'GET') {
+                        if (req.headers.origin && req.headers.origin !== config.origin) throw new HttpError(403, 'Invalid live connection origin.');
+                        return await collaboration.open(req, res, session, id, url.searchParams.get('clientId'));
+                    }
+                    if (action === 'presence' && !member && method === 'POST') return json(200, await collaboration.presence(session, id, await body(req)));
+                    if (action === 'edits' && !member && method === 'POST') {
+                        const result = await projects.edit(session.id, id, await body(req));
+                        collaboration.schedule();
+                        return json(200, result);
+                    }
                     if (!action) {
                         if (method === 'GET') return json(200, await projects.get(session.id, id));
                         if (method === 'PUT') return json(200, await projects.save(session.id, id, await body(req)));
@@ -105,8 +118,11 @@ export function createApp({ pool, config, provider, onError = () => console.erro
                     if (action === 'view' && !member && method === 'PUT') return json(200, await projects.saveView(session.id, id, await body(req)));
                     if (action === 'members') {
                         if (!member && method === 'GET') return json(200, await projects.members(session.id, id));
-                        if (member && method === 'PUT') return json(200, await projects.share(session.id, id, member, (await body(req)).role));
-                        if (member && method === 'DELETE') return json(200, await projects.share(session.id, id, member, null));
+                        if (member && ['PUT', 'DELETE'].includes(method)) {
+                            const result = await projects.share(session.id, id, member, method === 'PUT' ? (await body(req)).role : null);
+                            await collaboration.refresh();
+                            return json(200, result);
+                        }
                     }
                 }
                 throw new HttpError(404, 'Endpoint not found.');
@@ -134,5 +150,7 @@ export function createApp({ pool, config, provider, onError = () => console.erro
         }
     });
     server.on('close', () => clearInterval(cleanup));
+    const close = server.close.bind(server);
+    server.close = callback => { collaboration.close(); return close(callback); };
     return server;
 }

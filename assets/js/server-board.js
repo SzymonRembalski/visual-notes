@@ -11,13 +11,16 @@ const ServerBoard = {
         try {
             if (!await ServerAPI.init() || !ServerAPI.user) throw Object.assign(new Error('Sign in to open this project.'), { status: 401 });
             const project = await ServerAPI.request(`projects/${encodeURIComponent(this.id)}`);
+            project.document = CollaborationDocument.normalize(project.document);
             this.readonly = project.role === 'viewer';
             this.userId = ServerAPI.user.id;
             this.project = { ...project.document, ...project.view, id: project.id };
             this.draftKey = `visualDraft:${ServerAPI.user.id}:${project.id}`;
-            this.queue = new ServerSaveQueue({
+            this.queue = new CollaborationQueue({
                 document: ServerAPI.document(project.document), view: ServerAPI.view(project.view), revision: project.revision, readonly: this.readonly,
-                writeDocument: (document, expectedRevision) => ServerAPI.request(`projects/${this.id}`, { method: 'PUT', body: { document, expectedRevision } }),
+                writeDocument: (document, expectedRevision, base) => ServerAPI.request(`projects/${this.id}/edits`, { method: 'POST', body: { changes: CollaborationDocument.diff(base, document), expectedRevision } }),
+                readDocument: () => BoardCollaboration.enabled ? BoardCollaboration.document() : this.project,
+                onDocument: document => { if (BoardCollaboration.enabled) BoardCollaboration.apply(document); },
                 writeView: view => ServerAPI.request(`projects/${this.id}/view`, { method: 'PUT', body: view }),
                 persist: draft => {
                     try {
@@ -35,8 +38,11 @@ const ServerBoard = {
                     if (!draft.document || !draft.view || typeof draft.revision !== 'string') throw new Error();
                     if (confirm('This browser has unsaved edits for this project. Restore them?')) {
                         this.recoveredReadOnly = this.readonly;
-                        this.project = { ...draft.document, ...draft.view, id: project.id };
                         this.queue.revision = draft.revision;
+                        if (draft.baseDocument) this.queue.savedDocument = JSON.stringify(CollaborationDocument.normalize(draft.baseDocument));
+                        else this.legacyDraftRevision = draft.revision;
+                        draft.document = CollaborationDocument.normalize(draft.document);
+                        this.project = { ...draft.document, ...draft.view, id: project.id };
                         this.queue.enqueue(ServerAPI.document(draft.document), ServerAPI.view(draft.view));
                         this.queue.error = Object.assign(new Error(this.readonly ? 'Your editing access changed. Download your recovered edits or save a separate copy.' : 'Recovered unsaved edits. Save a copy, or retry if the server version has not changed.'), { status: 409 });
                     } else localStorage.removeItem(this.draftKey);
@@ -95,16 +101,24 @@ const ServerBoard = {
     },
     save(document, view) {
         this.queue.enqueue(document, view);
-        clearTimeout(this.timer);
-        this.timer = setTimeout(() => this.queue.flush(), 350);
+        if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.queue.flush(); }, 150);
     },
     async flush() {
         clearTimeout(this.timer);
+        this.timer = null;
         if (!this.queue) return false;
         return this.queue.flush();
     },
     async manualSave() {
         if (!this.queue || this.recoveredReadOnly) return false;
+        if (this.legacyDraftRevision) {
+            try {
+                const current = await ServerAPI.request(`projects/${this.id}`);
+                if (current.revision !== this.legacyDraftRevision) {
+                    this.message('This older recovery draft conflicts with the server version. Download it or save a copy before reloading.', true); return false;
+                }
+            } catch (error) { this.queue.error = error; this.status(); return false; }
+        }
         if ([401, 403].includes(this.queue.error?.status)) {
             try {
                 await ServerAPI.init();
@@ -115,6 +129,7 @@ const ServerBoard = {
         VisualNotes.commitHistoryTransaction();
         VisualNotes.saveBoard();
         clearTimeout(this.timer);
+        this.timer = null;
         return this.queue.retry();
     },
     async beforeLeave() {
@@ -155,13 +170,14 @@ const ServerBoard = {
         panel.innerHTML = '<button id="serverSaveNow">Save to account now</button><button id="serverDownload">Download this project</button>';
         document.getElementById('serverSaveNow').onclick = () => this.manualSave();
         document.getElementById('serverDownload').onclick = () => this.download();
+        BoardCollaboration.start();
         window.addEventListener('online', () => { if (this.queue.error?.status === 0) this.queue.retry(); });
         window.addEventListener('beforeunload', event => {
             if (this.leaving) return;
             VisualNotes.saveBoard();
             if (this.queue.pending) { event.preventDefault(); event.returnValue = ''; }
         });
-        window.addEventListener('pageshow', event => { if (event.persisted) { this.leaving = false; this.message('This board may have changed while you were away. Reload before editing.'); } });
+        window.addEventListener('pageshow', event => { if (event.persisted) this.leaving = false; });
         if (this.readonly) {
             document.body.classList.add('serverReadonly');
             document.getElementById('projectTitleInput').readOnly = true;

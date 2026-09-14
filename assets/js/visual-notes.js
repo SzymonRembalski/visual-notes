@@ -47,7 +47,8 @@ const VisualNotes = {
         const after = this.captureHistoryState();
         this.historyTransaction = null;
         if (JSON.stringify(before) === JSON.stringify(after)) return false;
-        this.historyManager.record(before);
+        if (window.BoardCollaboration?.enabled) BoardCollaboration.record(before, after);
+        else this.historyManager.record(before);
         return true;
     },
     performHistoryChange(change) {
@@ -84,6 +85,7 @@ const VisualNotes = {
     navigateHistory(direction) {
         window.DrawingLayer?.finish();
         this.commitHistoryTransaction();
+        if (window.BoardCollaboration?.enabled) return BoardCollaboration.history(direction);
         const state = this.historyManager[direction](this.captureHistoryState());
         if (!state) return false;
         this.restoreHistoryState(state);
@@ -172,7 +174,7 @@ const VisualNotes = {
                 ? CanvasUtils.defaultNoteHeight
                 : CanvasUtils.titleOnlyNoteHeight;
             note = {
-                id: Date.now(),
+                id: window.ServerBoard?.active ? crypto.randomUUID() : Date.now(),
                 x: position.x,
                 y: position.y,
                 width: typeof options.width === 'number' ? options.width : CanvasUtils.defaultNoteWidth,
@@ -501,7 +503,7 @@ const VisualNotes = {
             ? Math.ceil(100 / CanvasUtils.gridSpacing) * CanvasUtils.gridSpacing
             : 100;
         const shape = {
-            id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            id: window.ServerBoard?.active ? crypto.randomUUID() : `shape-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             x: rectangle.x,
             y: rectangle.y,
             width: Math.max(minimumShapeWidth, rectangle.width),
@@ -634,13 +636,18 @@ const VisualNotes = {
             .join("");
     },
 
-    renderShapes() {
+    renderShapes(preserveEditing = false) {
         window.WorkspaceUI?.update();
         const shapesLayer = document.getElementById("shapes");
         if (!shapesLayer) return;
-        shapesLayer.querySelectorAll(".canvasShape:not(.shapeDraft)").forEach(element => element.remove());
+        const preserved = new Set();
+        shapesLayer.querySelectorAll(".canvasShape:not(.shapeDraft)").forEach(element => {
+            if (preserveEditing && BoardCollaboration.preserve(element) && this.shapes.some(shape => String(shape.id) === element.dataset.shapeId)) preserved.add(element.dataset.shapeId);
+            else element.remove();
+        });
 
         this.shapes.forEach(shape => {
+            if (preserved.has(String(shape.id))) return;
             const element = document.createElement("div");
             element.className = "canvasShape";
             element.dataset.shapeId = shape.id;
@@ -763,6 +770,8 @@ const VisualNotes = {
         input.type = 'text';
         input.className = shapeTitle ? 'shapeTitleInput' : 'noteTitleInput';
         input.value = item.title || '';
+        const originalTitle = input.value;
+        if (window.BoardCollaboration?.enabled) input.addEventListener('input', () => { item.title = input.value; this.saveBoard(); });
         if (shapeTitle) input.placeholder = 'Group title';
         input.addEventListener('mousedown', e => e.stopPropagation());
         input.addEventListener('click', e => e.stopPropagation());
@@ -773,7 +782,7 @@ const VisualNotes = {
             }
             if (e.key === 'Escape') {
                 e.preventDefault();
-                input.value = item.title || '';
+                input.value = originalTitle;
                 input.blur();
             }
         });
@@ -842,7 +851,7 @@ const VisualNotes = {
         return connections;
     },
     getConnectionKey(a, b) {
-        return `${Math.min(a, b)}-${Math.max(a, b)}`;
+        return JSON.stringify([String(a), String(b)].sort());
     },
     createSvgElement(tag, attributes = {}) {
         const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -1181,9 +1190,9 @@ const VisualNotes = {
         const canvas = document.getElementById("canvas");
         if (!canvas) return;
         // highlight notes dom elements
+        const touchedIds = new Set([...touched].map(String));
         canvas.querySelectorAll('.note').forEach(div => {
-            const id = Number(div.dataset.noteId);
-            if (id && touched.has(id)) {
+            if (touchedIds.has(div.dataset.noteId)) {
                 div.classList.add('addition-highlight');
             } else {
                 div.classList.remove('addition-highlight');
@@ -1421,7 +1430,7 @@ const VisualNotes = {
         this.clearDragHandlers();
         this.render();
     },
-    render() {
+    render(preserveEditing = false) {
         window.DrawingLayer?.render();
         const canvas = document.getElementById("canvas");
         if (!canvas) return;
@@ -1446,13 +1455,18 @@ const VisualNotes = {
             }
         });
         this.updateCanvasBounds();
-        this.renderShapes();
-        
-        // Remove and rebuild the interactive note layer.
+        this.renderShapes(preserveEditing);
+
+        // Keep active editors and drag targets when applying a live update.
         const allNotes = canvas.querySelectorAll(".note");
-        allNotes.forEach(note => note.remove());
+        const preserved = new Set();
+        allNotes.forEach(element => {
+            if (preserveEditing && BoardCollaboration.preserve(element) && notes.some(note => String(note.id) === element.dataset.noteId)) preserved.add(element.dataset.noteId);
+            else element.remove();
+        });
 
         notes.forEach(note => {
+            if (preserved.has(String(note.id))) return;
             const div = document.createElement("div");
             div.className = "note";
             div.dataset.noteId = note.id;
