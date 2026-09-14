@@ -6,7 +6,7 @@ The Node.js backend serves the frontend and a PostgreSQL-backed project API. The
 
 1. Open **Projects**, choose **My account**, and sign in with Google.
 2. Create or open a project. The canvas shows **Saved to your account** only after the latest queued changes reach the server. Camera settings are saved separately per account.
-3. To share, the other person signs in and selects **Copy my sharing code**. The owner selects **Share** on a project, pastes the code, and chooses **Can edit** or **Can view**. The same dialog can change or remove access. Shared projects appear in the recipient's account list after refresh.
+3. To share, the other person signs in on the same server and selects **Copy my sharing code**. The owner selects **Share** on a project, pastes the code, and chooses **Can edit** or **Can view**. The dialog confirms the saved member and offers **Copy project link**; a link alone does not grant access. The same dialog can change or remove access. The recipient's account list refreshes when returning to the page and every 15 seconds while visible, with **Refresh projects** available too. Local-device projects and search filters remain separate. See [server diagnostics](logging.md) to investigate missing projects or failed sharing.
 4. To copy an existing local board online, choose **On this device → Save to account** on that project. The original remains local. Retrying the import reuses the account copy rather than duplicating or replacing it.
 5. On account boards, **Save → Download this project** exports one project. **Import project file** in the gallery restores it as an account project. Old full-workspace backups must first be restored through a local board's existing Save menu, then imported project by project.
 

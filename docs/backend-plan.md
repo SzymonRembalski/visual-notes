@@ -4,7 +4,7 @@ Updated September 15, 2026.
 
 ## Current checkpoint
 
-- Work is on `dev`, based on pushed latest-save-wins commit `63fee64`. Automatic recovery, unobtrusive saving and smoother live movement are implemented but not yet committed/pushed. Account integration was committed as `b135071` and deployed. `main` received merge `2510536` and production Compose naming fix `5985646`; keep both branches and develop on `dev`.
+- Work is on `dev`, based on pushed commit `dc74c1c` (automatic recovery, unobtrusive saving and smoother live movement). The sharing investigation, gallery refresh and server diagnostics follow-up is implemented but uncommitted. Account integration was committed as `b135071` and deployed. `main` received merge `2510536` and production Compose naming fix `5985646`; keep both branches and develop on `dev`.
 - The user confirmed the server database and Google login are configured. Account controls and the initial Google redirect were verified on the test site after correcting an old deployed image. Do not repeat provider/setup questions.
 - The user explicitly prioritized live collaboration and moved separate scheduled project backups to the next update. Manual per-project JSON download/import already works and preserves local originals.
 - Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, project row locks, string revisions, per-account camera views and retry-safe project creation. Existing migrations 001/002 are sufficient; collaboration adds no dependency or schema change.
@@ -12,6 +12,8 @@ Updated September 15, 2026.
 - Live edits include pointer dragging, resizing, drawing strokes and title/body typing. Remote rendering keeps active input/drag objects, references and text selection. Camera position, zoom and drawing visibility stay personal. Account-board entity IDs use UUIDs; numeric connection-key assumptions were removed. Legacy stroke IDs are normalized deterministically.
 
 ## Implementation map
+
+Sharing investigation: the user reported one of two shared projects missing even after refresh, then deleted both. The original incident cannot be confirmed. Fresh browser/PostgreSQL tests show both shares visible to the same recipient, independent viewer/editor access, reopening, revocation, and exclusion of private projects. No database sharing defect was reproduced. The gallery now refreshes on return/online and every 15 seconds while visible, avoids unchanged redraws, and offers manual refresh. Sharing confirms the stored member, names the project and offers a direct link. `server/logger.mjs` provides bounded JSON diagnostics and request IDs, with sharing/list/open/delete events and safe error codes; `server/logging.md` explains incident tracing. Container logs rotate at 10 MB with three files. No migrations or dependencies added.
 
 - `assets/js/server-api.js`: authenticated requests, explicit local imports and stable import IDs.
 - `assets/js/server-save-queue.js`: copied snapshots and ordered write base, with its original tests retained.
@@ -45,15 +47,15 @@ Undo/redo records only local operations. It preserves unrelated remote changes a
 
 ## Verification
 
-- All 36 unit tests pass: existing 25 storage/config/validation/save-queue tests plus eleven collaboration tests for disjoint merges, latest-field writes, retry behavior, legacy drawings, safe IDs, personal undo, in-flight edits and draft bases.
-- `node tests/run-database-tests.mjs` passes: disposable PostgreSQL; nine backend scenarios, ten account/browser scenarios, and eleven live collaboration scenarios; separate PostgreSQL restart durability check. Existing browser tests now target the edits route and deliberately pause their live stream when testing a stale save.
+- All 38 unit tests pass, including two logging checks for credential exclusion and correlated HTTP/database failure diagnostics, and existing storage/config/validation/save-queue/collaboration coverage.
+- `node tests/run-database-tests.mjs` passes: disposable PostgreSQL; nine backend scenarios, eleven account/browser scenarios, and eleven live collaboration scenarios; separate PostgreSQL restart durability check. The additional browser scenario verifies sharing two projects with one account, list refresh, independent revocation and diagnostic logs. Existing browser tests target the edits route and deliberately pause their live stream when testing a stale save.
 - New real-browser scenarios cover editor/viewer presence and cursors, independent cameras, concurrent UUID creation, focus-preserving remote changes, personal undo/redo, groups/strokes/connections/deletion, actual dragging and title typing before release, offline merge, simultaneous same-field convergence, permission revocation and session expiry. Tests seed temporary sessions and never use live Google credentials.
 - Seven existing local browser scripts passed: gallery redesign, drawing, local backups, arrow movement, connection-preserving deletion, image export and cleanup regressions.
 - Browser/database tests need escalation in this Windows sandbox. Node 24 and installed Chrome are available. The runner creates an isolated localhost PostgreSQL cluster, stops it and deletes only its verified temporary directory. Docker is unavailable here; deployed proxy streaming remains a server-side smoke test.
 
 ## Resume / next update
 
-1. Implementation and final verification are complete. The latest run passed 36 unit tests, nine backend, ten browser and eleven live-collaboration scenarios, plus PostgreSQL restart durability. The new motion check verifies element reuse, intermediate frames, exact saved coordinates, connection alignment and local input takeover. Five affected local canvas/export regression suites also pass. Commit the saving/recovery and smoother-movement follow-up on `dev` when requested. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
+1. Commit the sharing diagnostics follow-up on `dev` when requested. Sharing/browser/database and local gallery checks pass; the earlier saving/motion changes are already pushed as `dc74c1c`. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
 2. After deployment, open a shared disposable board from two accounts on the test origin and verify cursors, live changes, viewer restrictions and reconnect behavior through the actual proxy.
 3. Next planned release: independent scheduled server project backups, private backup destination/retention configuration, pre-restore snapshots, isolated restoration and a restore drill. Manual JSON downloads do not replace automatic backups.
 4. Character-level text merging and multi-instance presence transport are possible later improvements, not part of this first collaboration release.

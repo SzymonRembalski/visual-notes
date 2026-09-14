@@ -12,7 +12,7 @@ const ServerAPI = {
         } catch { throw Object.assign(new Error('Cannot reach the server. Your unsaved edits are still here.'), { status: 0 }); }
         let data;
         try { data = await response.json(); } catch { data = {}; }
-        if (!response.ok) throw Object.assign(new Error(data.error || 'The server could not complete this request.'), { status: response.status });
+        if (!response.ok) throw Object.assign(new Error(data.error || 'The server could not complete this request.'), { status: response.status, requestId: data.requestId });
         return data;
     },
     async init() {

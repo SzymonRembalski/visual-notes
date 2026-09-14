@@ -1,10 +1,11 @@
 import { HttpError, requireValue, uuid } from './validation.mjs';
+import { createLogger, errorCode } from './logger.mjs';
 
 // Presence is ephemeral; documents and permissions always come from PostgreSQL.
 // One backend process per deployment, as in the supplied Compose configuration.
 export class Collaboration {
-    constructor(auth, projects) {
-        Object.assign(this, { auth, projects });
+    constructor(auth, projects, log = createLogger()) {
+        Object.assign(this, { auth, projects, log });
         this.clients = new Map();
         this.timer = setInterval(() => this.refresh(), 1000);
         this.timer.unref();
@@ -73,6 +74,8 @@ export class Collaboration {
                     client.revision = state.revision; client.sentRole = state.role;
                 }
             } catch (error) {
+                this.log('live.unavailable', { requestId: client.req.requestId, userId: client.userId, projectId: client.projectId,
+                    status: error instanceof HttpError ? error.status : 503, errorCode: error instanceof HttpError ? 'HTTP_ERROR' : errorCode(error) });
                 this.send(client, 'unavailable', { status: error instanceof HttpError ? error.status : 503,
                     message: error instanceof HttpError ? error.message : 'Live connection interrupted. Reconnecting…' });
                 this.remove(client);

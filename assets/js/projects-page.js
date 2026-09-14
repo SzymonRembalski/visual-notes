@@ -24,8 +24,12 @@ const ProjectsPage = {
         document.getElementById("newProjectButton").onclick = () => this.createProject();
         document.getElementById("projectSearch").oninput = document.getElementById("projectSort").onchange = () => this.render();
         window.addEventListener("pageshow", event => {
-            if (event.persisted) this.reload();
+            if (event.persisted) { this.reload(); this.startRefresh(); }
         });
+        window.addEventListener('focus', () => this.refresh());
+        window.addEventListener('online', () => this.refresh());
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) this.refresh(); });
+        window.addEventListener('pagehide', () => clearInterval(this.refreshTimer));
         list.onclick = async event => {
             if (event.target.closest("[data-create-project]")) this.createProject();
             if (event.target.closest("[data-clear-search]")) {
@@ -69,7 +73,16 @@ const ProjectsPage = {
         } catch (error) {
             this.unavailable = true;
             this.message(`${error.message} Reload to try again.`, true);
-        } finally { this.loading = false; this.controls(); }
+        } finally { this.loading = false; this.controls(); this.startRefresh(); }
+    },
+    startRefresh() {
+        clearInterval(this.refreshTimer);
+        this.refreshTimer = setInterval(() => this.refresh(), 15000);
+    },
+    async refresh() {
+        if (!this.remote || !ServerAPI.user || document.hidden || this.loading || this.busy || this.refreshing || document.querySelector('.sharingDialog')) return;
+        this.refreshing = true;
+        try { await this.reload(true); } finally { this.refreshing = false; }
     },
     message(text, error = false) {
         const message = document.getElementById('projectMessage');
@@ -87,6 +100,7 @@ const ProjectsPage = {
         bar.hidden = false;
         bar.innerHTML = `<div class="storageChoices"><button data-storage="server" aria-pressed="${this.remote}">My account</button><button data-storage="local" aria-pressed="${!this.remote}">On this device</button></div>
             <span>${ServerAPI.user ? escapeHtml(ServerAPI.user.displayName) : 'Sign in to save and share projects across devices.'}</span>
+            ${this.remote && ServerAPI.user ? '<button data-account="refresh">Refresh projects</button>' : ''}
             ${ServerAPI.user ? '<button data-account="code">Copy my sharing code</button><button data-account="file">Import project file</button><input type="file" accept=".json,application/json" hidden><button data-account="logout">Sign out</button>' : '<button data-account="login">Sign in with Google</button>'}`;
         const fileInput = bar.querySelector('input[type="file"]');
         if (fileInput) fileInput.onchange = () => this.run(async () => {
@@ -109,6 +123,7 @@ const ProjectsPage = {
                 this.account(); this.message(''); await this.reload();
             }
             if (event.target.dataset.account === 'login') ServerAPI.signIn();
+            if (event.target.dataset.account === 'refresh') await this.reload();
             if (event.target.dataset.account === 'file') fileInput.click();
             if (event.target.dataset.account === 'code') {
                 try { await navigator.clipboard.writeText(ServerAPI.user.id); this.message('Sharing code copied. Send it to the project owner.'); }
@@ -121,7 +136,7 @@ const ProjectsPage = {
         });
         this.controls();
     },
-    async reload() {
+    async reload(background = false) {
         const request = this.loadRequest = (this.loadRequest || 0) + 1;
         try {
             let projects;
@@ -137,40 +152,56 @@ const ProjectsPage = {
                 }
             } else projects = ProjectManager.loadProjects();
             if (request !== this.loadRequest) return;
-            this.projects = [...new Map(projects.map(project => [project.id, project])).values()];
-            this.render();
+            projects = [...new Map(projects.map(project => [project.id, project])).values()];
+            const changed = JSON.stringify(this.projects) !== JSON.stringify(projects);
+            this.projects = projects;
+            if (!background || changed) this.render();
             document.querySelector('.projectsFooter').textContent = this.remote ? 'Saved to your account. Projects shared with you appear here too.' : 'Your ideas stay on this device. Save a copy to your account whenever you choose.';
             if (this.remote && !ServerAPI.user) document.getElementById('projectList').innerHTML = '<div class="projectsEmpty"><h2>Your projects, wherever you are</h2><p>Sign in with Google to open your saved and shared projects.</p></div>';
-        } catch (error) { this.message(error.message, true); }
+        } catch (error) { if (request === this.loadRequest) this.message(error.message, true); }
         this.controls();
     },
     async share(id) {
         const dialog = document.createElement('dialog');
         dialog.className = 'sharingDialog';
-        dialog.innerHTML = `<form method="dialog"><button class="dialogClose" aria-label="Close">×</button></form><h2>Share project</h2><p>Ask the person to sign in and copy their sharing code from Projects.</p>
+        dialog.innerHTML = `<form method="dialog"><button class="dialogClose" aria-label="Close">×</button></form><h2>Share project</h2><p>${escapeHtml(this.title(this.projects.find(project => project.id === id) || {}))}</p><p>Ask the person to sign in and copy their sharing code from Projects on this server.</p>
             <form id="sharingForm"><label>Sharing code<input name="account" required autocomplete="off" placeholder="Paste their sharing code"></label><label>Access<select name="role"><option value="editor">Can edit</option><option value="viewer">Can view</option></select></label><button>Share</button></form><p role="status"></p><div class="sharedPeople"></div>`;
         document.body.append(dialog);
         dialog.addEventListener('close', () => dialog.remove()); dialog.showModal();
         const status = dialog.querySelector('[role="status"]');
+        const link = document.createElement('button'); link.textContent = 'Copy project link';
+        link.onclick = async () => {
+            const url = new URL(ServerAPI.boardURL(id), location.href).href;
+            try { await navigator.clipboard.writeText(url); status.textContent = 'Link copied. Only accounts with access can open it.'; }
+            catch { prompt('Project link:', url); }
+        };
+        dialog.append(link);
+        const failure = error => { status.textContent = error.message + (error.requestId ? ` Reference: ${error.requestId}` : ''); };
         const reload = async () => {
             const data = await ServerAPI.request(`projects/${id}/members`);
             dialog.querySelector('.sharedPeople').innerHTML = data.members.map(member => `<div><span>${escapeHtml(member.displayName)} · ${member.role === 'editor' ? 'Can edit' : 'Can view'}</span><button data-remove="${member.id}">Remove access</button></div>`).join('') || '<p>Only you have access.</p>';
+            return data.members;
         };
         dialog.querySelector('#sharingForm').onsubmit = async event => {
             event.preventDefault(); const form = event.target;
             form.querySelector('button').disabled = true;
             try {
-                await ServerAPI.request(`projects/${id}/members/${encodeURIComponent(form.elements.account.value.trim())}`, { method: 'PUT', body: { role: form.elements.role.value } });
-                status.textContent = 'Access updated.'; form.reset(); await reload();
-            } catch (error) { status.textContent = error.message; }
+                const memberId = form.elements.account.value.trim().toLowerCase();
+                await ServerAPI.request(`projects/${id}/members/${encodeURIComponent(memberId)}`, { method: 'PUT', body: { role: form.elements.role.value } });
+                status.textContent = 'Access saved. Checking sharing…';
+                const members = await reload();
+                const member = members.find(member => member.id === memberId);
+                if (!member) throw new Error('Access could not be confirmed. Refresh sharing and try again.');
+                status.textContent = `Shared with ${member.displayName}. They can find it under My account or open the project link.`; form.reset();
+            } catch (error) { failure(error); }
             finally { form.querySelector('button').disabled = false; }
         };
         dialog.querySelector('.sharedPeople').onclick = async event => {
             if (!event.target.dataset.remove) return;
             try { await ServerAPI.request(`projects/${id}/members/${event.target.dataset.remove}`, { method: 'DELETE' }); await reload(); }
-            catch (error) { status.textContent = error.message; }
+            catch (error) { failure(error); }
         };
-        try { await reload(); } catch (error) { status.textContent = error.message; }
+        try { await reload(); } catch (error) { failure(error); }
     },
     title(project) {
         return typeof project.title === "string" && project.title.trim() ? project.title : "Untitled Project";

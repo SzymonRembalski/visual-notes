@@ -3,6 +3,11 @@ services:
   visual-notes-dev:
     build: .
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     stop_grace_period: 20s
     env_file:
       - ${VISUAL_NOTES_ENV_FILE:?Set VISUAL_NOTES_ENV_FILE to the private test-server env file}
