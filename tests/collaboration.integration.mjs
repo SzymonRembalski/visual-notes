@@ -40,7 +40,7 @@ test('live collaboration with real browsers and PostgreSQL', { timeout: 90000 },
     const idle = page => page.waitForFunction(() => window.ServerBoard?.queue && !ServerBoard.queue.pending && !ServerBoard.queue.running && !ServerBoard.queue.error);
     const edit = (page, title) => page.evaluate(title => { VisualNotes.updateProjectTitle(title); VisualNotes.commitHistoryTransaction(); return ServerBoard.flush(); }, title);
 
-    await t.test('concurrent operation writes merge disjoint fields and enforce permission and conflicts', async () => {
+    await t.test('concurrent writes merge fields, use the latest value and enforce permissions', async () => {
         const copy = await projects.create(users[0], { requestId: randomUUID(), document: base });
         await projects.share(users[0], copy.id, users[1], 'editor'); await projects.share(users[0], copy.id, users[2], 'viewer');
         const left = D.clone(base), right = D.clone(base); left.notes[0].x = 90; right.notes[0].text = 'Concurrent text';
@@ -50,7 +50,7 @@ test('live collaboration with real browsers and PostgreSQL', { timeout: 90000 },
         assert.equal(stored.document.notes[0].x, 90); assert.equal(stored.document.notes[0].text, 'Concurrent text');
         assert.equal((await projects.edit(users[0], copy.id, input(left))).revision, stored.revision);
         left.notes[0].x = 180;
-        await assert.rejects(projects.edit(users[0], copy.id, input(left)), error => error.status === 409);
+        assert.equal((await projects.edit(users[0], copy.id, input(left))).document.notes[0].x, 180);
         await assert.rejects(projects.edit(users[2], copy.id, input(left)), error => error.status === 403);
         const response = await fetch(`${config.origin}/api/projects/${project.id}/live?clientId=${randomUUID()}`, { headers: { Cookie: `vn_session=${tokens[3]}` } });
         assert.equal(response.status, 404);
@@ -138,18 +138,17 @@ test('live collaboration with real browsers and PostgreSQL', { timeout: 90000 },
         await owner.waitForFunction(() => BoardCollaboration.connected && VisualNotes.notes.find(note => note.id === 'two').text === 'Online edit');
         await editor.waitForFunction(() => VisualNotes.projectTitle === 'Offline title');
     });
-    await t.test('simultaneous same-field edits keep the loser in recovery instead of overwriting', async () => {
+    await t.test('simultaneous same-field edits converge to the latest save without recovery prompts', async () => {
         await Promise.all([owner, editor].map(page => page.evaluate(() => { BoardCollaboration.source.close(); })));
         await Promise.all([edit(owner, 'Owner title'), edit(editor, 'Editor title')]);
         const states = await Promise.all([owner, editor].map(page => page.evaluate(() => ({ error: ServerBoard.queue.error?.status, title: VisualNotes.projectTitle }))));
-        assert.equal(states.filter(state => state.error === 409).length, 1);
-        const loser = states[0].error ? owner : editor;
-        const draft = await loser.evaluate(() => JSON.parse(localStorage.getItem(ServerBoard.draftKey)));
-        assert.ok(draft.baseDocument); assert.notEqual(draft.document.title, (await projects.get(users[0], project.id)).document.title);
-        const copy = await loser.evaluate(() => ServerBoard.copy()); assert.equal(copy.document.title, draft.document.title);
+        assert.ok(states.every(state => !state.error));
+        const latest = (await projects.get(users[0], project.id)).document.title;
+        assert.ok(['Owner title', 'Editor title'].includes(latest));
         for (const page of [owner, editor]) {
-            await page.evaluate(() => { localStorage.removeItem(ServerBoard.draftKey); ServerBoard.leaving = true; });
-            await open(page);
+            await page.evaluate(() => BoardCollaboration.connect());
+            await page.waitForFunction(title => VisualNotes.projectTitle === title, latest);
+            assert.equal(await page.evaluate(() => localStorage.getItem(ServerBoard.draftKey)), null);
         }
     });
     await t.test('revocation ends the live session and prevents further edits or document updates', async () => {

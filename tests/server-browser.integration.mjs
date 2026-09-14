@@ -84,15 +84,16 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.equal((await projects.get(accounts[0], id)).revision, revision);
         assert.ok((await projects.get(accounts[1], id)).view.zoom < 1);
     });
-    await t.test('conflicting browser save keeps a draft and preserves the other edit', async () => {
+    await t.test('failed browser save keeps a recoverable draft while other users continue editing', async () => {
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
         await owner.waitForFunction(() => window.ServerBoard?.queue);
         await owner.evaluate(() => BoardCollaboration.source.close());
         const saved = await projects.get(accounts[0], id);
         await projects.save(accounts[0], id, { expectedRevision: saved.revision, document: { ...saved.document, title: 'Another editor won' } });
+        await owner.route('**/api/projects/*/edits', route => route.abort());
         await owner.fill('#projectTitleInput', 'My unsaved edit');
         await owner.locator('#projectTitleInput').blur();
-        await owner.waitForFunction(() => window.ServerBoard.queue.error?.status === 409);
+        await owner.waitForFunction(() => window.ServerBoard.queue.error?.status === 0);
         assert.equal(await owner.inputValue('#projectTitleInput'), 'My unsaved edit');
         assert.equal((await projects.get(accounts[0], id)).document.title, 'Another editor won');
         const draft = await owner.evaluate(() => JSON.parse(localStorage.getItem(ServerBoard.draftKey)));
@@ -106,6 +107,7 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.equal(await owner.inputValue('#projectTitleInput'), 'My unsaved edit');
         const restored = await owner.evaluate(() => JSON.parse(localStorage.getItem(ServerBoard.draftKey)));
         assert.equal(restored.revision, saved.revision);
+        await owner.unroute('**/api/projects/*/edits');
         await owner.evaluate(() => { ServerBoard.leaving = true; });
     });
     await t.test('local project import keeps originals and repeated imports reuse the account copy', async () => {

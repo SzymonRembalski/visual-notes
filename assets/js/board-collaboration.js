@@ -35,7 +35,7 @@ const BoardCollaboration = {
         if (CollaborationDocument.equal(previous, next)) return;
         // Move the transaction baseline with remote edits so undo records only local work.
         if (board.historyTransaction) {
-            const baseline = CollaborationDocument.apply(this.historyDocument(board.historyTransaction), CollaborationDocument.diff(previous, next));
+            const baseline = CollaborationDocument.apply(this.historyDocument(board.historyTransaction), CollaborationDocument.diff(previous, next), true);
             board.historyTransaction = { ...baseline, projectTitle: baseline.title };
         }
         for (const name of ['notes', 'shapes', 'drawings', 'connections']) {

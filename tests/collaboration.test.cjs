@@ -9,14 +9,14 @@ const context = vm.createContext({ window: {}, CollaborationDocument: D });
 for (const file of ['server-save-queue.js', 'collaboration-queue.js']) vm.runInContext(readFileSync(join(__dirname, '../assets/js', file), 'utf8'), context);
 const Queue = context.window.CollaborationQueue;
 
-test('different fields and independently created objects merge; same-field conflicts retain inputs', () => {
+test('different fields and independently created objects merge; pending same-field edits take precedence', () => {
     const base = board(), left = board(), right = board();
     left.notes[0].x = 80; left.notes.push({ id: 'left', x: 0, y: 0 });
     right.notes[0].text = 'World'; right.notes.push({ id: 'right', x: 0, y: 0 });
     const result = D.merge(base, left, right);
     assert.equal(result.notes[0].x, 80); assert.equal(result.notes[0].text, 'World'); assert.equal(result.notes.length, 4);
     right.notes[0].x = 90;
-    assert.throws(() => D.merge(base, left, right), error => error.status === 409);
+    assert.equal(D.merge(base, left, right).notes[0].x, 80);
     assert.equal(right.notes.length, 3); assert.equal(base.notes[0].x, 0);
 });
 test('retry is idempotent despite PostgreSQL property order, and cannot erase a later edit', () => {
@@ -64,11 +64,18 @@ test('live queue rebases edits made in flight and accepts a newer stream event a
     const newest = D.clone(current); newest.title = 'New server title'; queue.receive({ revision: '4', document: newest });
     assert.equal(current.title, newest.title); assert.equal(queue.revision, '4');
 });
-test('live conflict retains the base and unsaved document in the recovery draft', () => {
+test('live same-field update keeps pending edits ready to save without conflict recovery', () => {
     let current = board(), draft;
     const queue = new Queue({ document: board(), view: {}, revision: '1', readDocument: () => current, onDocument: doc => { current = doc; },
         persist: value => { draft = value; }, onChange: () => {} });
     current.title = 'Mine'; queue.enqueue(current, {});
     const remote = board(); remote.title = 'Theirs'; queue.receive({ revision: '2', document: remote });
-    assert.equal(queue.error.status, 409); assert.equal(current.title, 'Mine'); assert.equal(draft.document.title, 'Mine'); assert.equal(draft.baseDocument.title, 'Board');
+    assert.equal(queue.error, null); assert.equal(current.title, 'Mine'); assert.equal(draft.document.title, 'Mine'); assert.equal(draft.baseDocument.title, 'Theirs');
+});
+test('late field edits do not resurrect deleted objects and creation retries preserve newer edits', () => {
+    const base = board(), edited = board(); edited.notes[0].text = 'Late text';
+    const deleted = board(); deleted.notes.shift();
+    assert.equal(D.merge(base, edited, deleted).notes.some(note => note.id === 'a'), false);
+    const created = [{ collection: 'notes', id: 'a', before: null, after: base.notes[0] }];
+    assert.equal(D.apply(edited, created, true).notes[0].text, 'Late text');
 });

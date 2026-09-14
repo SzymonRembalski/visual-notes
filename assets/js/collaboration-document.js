@@ -42,7 +42,7 @@ const CollaborationDocument = (() => {
         }
         return changes;
     }
-    function apply(document, changes) {
+    function apply(document, changes, overwrite = false) {
         if (!Array.isArray(changes) || changes.length > 100000) throw new Error('Invalid collaboration changes.');
         const result = clone(document);
         const indexes = Object.fromEntries(collections.map(name => [name, new Map(result[name].map(item => [key(name, item), item]))]));
@@ -51,7 +51,7 @@ const CollaborationDocument = (() => {
             if (!Object.hasOwn(change, 'before') || !Object.hasOwn(change, 'after')) throw new Error('Invalid collaboration change.');
             if (collection === 'document') {
                 if (!['title', 'coordinateVersion'].includes(field)) throw new Error('Invalid document field.');
-                if (!equal(result[field], before) && !equal(result[field], after)) throw conflict();
+                if (!overwrite && !equal(result[field], before) && !equal(result[field], after)) throw conflict();
                 result[field] = after;
                 continue;
             }
@@ -59,12 +59,14 @@ const CollaborationDocument = (() => {
             const items = indexes[collection], current = items.get(id);
             if (field !== undefined) {
                 if (typeof field !== 'string' || field.length > 100 || ['__proto__', 'constructor', 'prototype', 'id', 'a', 'b'].includes(field)) throw new Error('Invalid item field.');
-                if (!current) throw conflict();
+                if (!current) { if (overwrite) continue; throw conflict(); }
                 const value = Object.hasOwn(current, field) ? current[field] : null;
-                if (!equal(value, before) && !equal(value, after)) throw conflict();
+                if (!overwrite && !equal(value, before) && !equal(value, after)) throw conflict();
                 current[field] = clone(after);
             } else {
-                if (!equal(current || null, before) && !equal(current || null, after)) throw conflict();
+                if (!overwrite && !equal(current || null, before) && !equal(current || null, after)) throw conflict();
+                // A retried creation must not replace subsequent edits to that object.
+                if (overwrite && before === null && current) continue;
                 if (after === null) items.delete(id);
                 else {
                     if (!after || typeof after !== 'object' || Array.isArray(after) || key(collection, after) !== id) throw new Error('Invalid item.');
@@ -78,7 +80,7 @@ const CollaborationDocument = (() => {
         result.connections = result.connections.filter(edge => notes.has(String(edge.a)) && notes.has(String(edge.b)));
         return result;
     }
-    const merge = (base, local, remote) => apply(remote, diff(base, local));
+    const merge = (base, local, remote) => apply(remote, diff(base, local), true);
     return { clone, equal, key, normalize, diff, apply, merge, conflict };
 })();
 if (typeof module !== 'undefined') module.exports = CollaborationDocument;

@@ -83,7 +83,7 @@ export class Projects {
             requireValue(BigInt(expected) <= BigInt(project.revision), 'Invalid future revision.');
             const stored = (await client.query('SELECT document FROM visual_notes.projects WHERE id = $1', [projectId])).rows[0].document;
             let document;
-            try { document = documentPayload(CollaborationDocument.apply(CollaborationDocument.normalize(stored), input.changes)); }
+            try { document = documentPayload(CollaborationDocument.apply(CollaborationDocument.normalize(stored), input.changes, true)); }
             catch (error) {
                 if (error.status === 409) throw new HttpError(409, error.message, { currentRevision: project.revision });
                 if (error instanceof HttpError) throw error;
