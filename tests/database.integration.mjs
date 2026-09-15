@@ -58,6 +58,26 @@ test('database and API integration', async t => {
         assert.equal((await projects.get(outsider, second.id)).revision, '1');
     });
 
+    await t.test('people search is owner-only, bounded and treats names as literal text', async () => {
+        const project = await create(owner);
+        await projects.share(owner, project.id, editor, 'editor');
+        await projects.share(owner, project.id, viewer, 'viewer');
+        await denied(projects.people(editor, project.id, 'View'), 403);
+        await denied(projects.people(viewer, project.id, 'View'), 403);
+        await denied(projects.people(outsider, project.id, 'View'), 404);
+        for (const query of [null, '', 'a', 'a'.repeat(201)]) await denied(projects.people(owner, project.id, query), 400);
+        assert.deepEqual((await projects.people(owner, project.id, 'oWnEr')).users, []);
+        const { users } = await projects.people(owner, project.id, '  vIeW  ');
+        assert.deepEqual(users, [{ id: viewer, displayName: 'Viewer', pictureUrl: null, role: 'viewer' }]);
+        const inserted = (await pool.query(`INSERT INTO visual_notes.users (display_name)
+            SELECT 'Search person ' || value FROM generate_series(1, 12) value RETURNING id`)).rows;
+        try {
+            assert.equal((await projects.people(owner, project.id, 'Search person')).users.length, 10);
+            assert.deepEqual((await projects.people(owner, project.id, 'Search%')).users, []);
+            assert.deepEqual((await projects.people(owner, project.id, "' OR true --")).users, []);
+        } finally { await pool.query('DELETE FROM visual_notes.users WHERE id = ANY($1::uuid[])', [inserted.map(user => user.id)]); }
+    });
+
     await t.test('simultaneous saves accept exactly one revision and preserve the winner', async () => {
         const project = await create(owner);
         await projects.share(owner, project.id, editor, 'editor');
@@ -168,6 +188,10 @@ test('database and API integration', async t => {
             assert.equal(result.status, 201);
             const project = await result.json();
             assert.equal(project.ownerId, owner);
+            assert.equal((await fetch(`${origin}/api/projects/${project.id}/people?q=View`)).status, 401);
+            const people = await fetch(`${origin}/api/projects/${project.id}/people?q=View`, { headers });
+            assert.equal(people.status, 200);
+            assert.equal((await people.json()).users[0].id, viewer);
             assert.equal((await fetch(`${origin}/api/projects/${project.id}`, { method: 'PUT', headers: { ...headers, Origin: 'https://attacker.example' }, body: JSON.stringify({ expectedRevision: '1', document: board }) })).status, 403);
             assert.equal((await fetch(`${origin}/api/projects/${project.id}`, { method: 'DELETE', headers: { ...headers, 'X-CSRF-Token': 'wrong' }, body: '{"expectedRevision":"1"}' })).status, 403);
             assert.equal((await fetch(`${origin}/api/projects`, { method: 'POST', headers, body: '{' })).status, 400);

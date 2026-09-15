@@ -1593,13 +1593,19 @@ body.drawing-eraser-active #drawingLayer { cursor: cell; }
 .workspaceSaveStatus[role="button"]:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 4px; border-radius: 4px; }
 .serverNotice > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .serverNotice a, .projectMessage a { color: var(--accent-focus); }
-.sharingDialog { width: min(520px, calc(100% - 32px)); max-height: 85vh; overflow: auto; border: 1px solid var(--border); border-radius: 18px; padding: 24px; background: var(--header-bg); color: var(--text); }
+.sharingDialog { box-sizing: border-box; width: min(520px, calc(100% - 32px)); max-height: 85vh; overflow: auto; border: 1px solid var(--border); border-radius: 18px; padding: 24px; background: var(--header-bg); color: var(--text); }
 .sharingDialog::backdrop { background: #0008; }
 .sharingDialog h2 { margin-top: 0; }
 .sharingDialog p { color: var(--muted); line-height: 1.6; }
 .sharingDialog .dialogClose { float: right; }
 .sharingDialog label { display: grid; gap: 6px; margin: 14px 0; font-size: 13px; }
-.sharingDialog :is(input, select) { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.sharingDialog :is(input, select) { box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.peopleResults { display: grid; gap: 4px; max-height: 240px; overflow: auto; }
+.peopleResults button { display: flex; align-items: center; gap: 12px; border: 0; text-align: left; }
+.peopleResults button:hover, .peopleResults button:focus-visible { background: var(--accent-soft); }
+.peopleResults .accountAvatar { flex-shrink: 0; }
+.peopleResults button > span:last-child { display: grid; gap: 4px; overflow-wrap: anywhere; min-width: 0; }
+.peopleResults small, #peopleHint { color: var(--muted); font-size: 12px; }
 .sharedPeople > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
 .serverReadonly :is(#editMenu, #quickTools, .colorPanel, #drawingControls) { display: none !important; }
 .serverLoading :is(#canvas, #shapes, #drawingLayer, #toolbar input, #toolbar details, #quickTools, .zoomControls) { pointer-events: none; visibility: hidden; }

@@ -198,10 +198,48 @@ const ProjectsPage = {
     async share(id) {
         const dialog = document.createElement('dialog');
         dialog.className = 'sharingDialog';
-        dialog.innerHTML = `<form method="dialog"><button class="dialogClose" aria-label="Close">×</button></form><h2>Share project</h2><p>${escapeHtml(this.title(this.projects.find(project => project.id === id) || {}))}</p><p>Ask the person to sign in on this server, then copy their sharing code from the profile menu in Projects.</p>
-            <form id="sharingForm"><label>Sharing code<input name="account" required autocomplete="off" placeholder="Paste their sharing code"></label><label>Access<select name="role"><option value="editor">Can edit</option><option value="viewer">Can view</option></select></label><button>Share</button></form><p role="status"></p><div class="sharedPeople"></div>`;
+        dialog.innerHTML = `<form method="dialog"><button class="dialogClose" aria-label="Close">×</button></form><h2>Share project</h2><p>${escapeHtml(this.title(this.projects.find(project => project.id === id) || {}))}</p>
+            <form id="sharingForm"><label>Name or sharing code<input name="account" required maxlength="200" autocomplete="off" placeholder="Find a person or paste their code" aria-describedby="peopleHint"></label><p id="peopleHint" aria-live="polite">Search people who have signed in on this server.</p><div class="peopleResults" aria-label="Matching accounts"></div><label>Access<select name="role"><option value="editor">Can edit</option><option value="viewer">Can view</option></select></label><button type="submit">Share</button></form><p role="status"></p><div class="sharedPeople"></div>`;
         document.body.append(dialog);
-        dialog.addEventListener('close', () => dialog.remove()); dialog.showModal();
+        let selected, searchTimer, searchVersion = 0;
+        dialog.addEventListener('close', () => { clearTimeout(searchTimer); searchVersion++; dialog.remove(); }); dialog.showModal();
+        const form = dialog.querySelector('#sharingForm');
+        const results = dialog.querySelector('.peopleResults');
+        const hint = dialog.querySelector('#peopleHint');
+        const sharingCode = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+        const clearSearch = () => { clearTimeout(searchTimer); searchVersion++; results.replaceChildren(); };
+        form.elements.account.oninput = () => {
+            selected = null; clearSearch(); status.textContent = '';
+            const query = form.elements.account.value.trim(), version = searchVersion;
+            if (sharingCode.test(query)) { hint.textContent = 'Sharing code ready. Choose access and share.'; return; }
+            hint.textContent = query.length < 2 ? 'Type at least 2 characters to find someone.' : 'Searching…';
+            if (query.length < 2) return;
+            searchTimer = setTimeout(async () => {
+                try {
+                    const { users } = await ServerAPI.request(`projects/${id}/people?q=${encodeURIComponent(query)}`);
+                    if (version !== searchVersion || !dialog.open) return;
+                    hint.textContent = users.length ? 'Select a person below. Refine the name if needed.' : 'No matching people. Try another name or paste their sharing code.';
+                    for (const user of users) {
+                        const button = document.createElement('button'); button.type = 'button';
+                        button.innerHTML = `<span class="accountAvatar" aria-hidden="true">${escapeHtml([...user.displayName.trim()][0] || '?')}</span><span><strong>${escapeHtml(user.displayName)}</strong><small>Code ending ${escapeHtml(user.id.slice(-8))}${user.role ? ` · Can ${user.role === 'editor' ? 'edit' : 'view'}` : ''}</small></span>`;
+                        if (user.pictureUrl) {
+                            const image = new Image(); image.alt = ''; image.referrerPolicy = 'no-referrer';
+                            image.onload = () => button.querySelector('.accountAvatar').replaceChildren(image);
+                            image.src = user.pictureUrl;
+                        }
+                        button.onclick = () => {
+                            selected = user; clearSearch(); form.elements.account.value = user.displayName;
+                            hint.textContent = `Selected ${user.displayName} · Code ending ${user.id.slice(-8)}`;
+                            if (user.role) form.elements.role.value = user.role;
+                            form.elements.role.focus();
+                        };
+                        results.append(button);
+                    }
+                } catch (error) {
+                    if (version === searchVersion && dialog.open) hint.textContent = `${error.message} You can still paste a sharing code.`;
+                }
+            }, 250);
+        };
         const status = dialog.querySelector('[role="status"]');
         const link = document.createElement('button'); link.textContent = 'Copy project link';
         link.onclick = async () => {
@@ -216,19 +254,22 @@ const ProjectsPage = {
             dialog.querySelector('.sharedPeople').innerHTML = data.members.map(member => `<div><span>${escapeHtml(member.displayName)} · ${member.role === 'editor' ? 'Can edit' : 'Can view'}</span><button data-remove="${member.id}">Remove access</button></div>`).join('') || '<p>Only you have access.</p>';
             return data.members;
         };
-        dialog.querySelector('#sharingForm').onsubmit = async event => {
-            event.preventDefault(); const form = event.target;
-            form.querySelector('button').disabled = true;
+        form.onsubmit = async event => {
+            event.preventDefault();
+            const memberId = selected?.id || form.elements.account.value.trim().toLowerCase();
+            if (!sharingCode.test(memberId)) { status.textContent = 'Select a person from the results or paste their sharing code.'; return; }
+            const submit = form.querySelector('[type="submit"]');
+            if (submit.disabled) return;
+            submit.disabled = true;
             try {
-                const memberId = form.elements.account.value.trim().toLowerCase();
                 await ServerAPI.request(`projects/${id}/members/${encodeURIComponent(memberId)}`, { method: 'PUT', body: { role: form.elements.role.value } });
                 status.textContent = 'Access saved. Checking sharing…';
                 const members = await reload();
                 const member = members.find(member => member.id === memberId);
                 if (!member) throw new Error('Access could not be confirmed. Refresh sharing and try again.');
-                status.textContent = `Shared with ${member.displayName}. They can find it under Account projects or open the project link.`; form.reset();
+                status.textContent = `Shared with ${member.displayName}. They can find it under Account projects or open the project link.`; form.reset(); selected = null; clearSearch(); hint.textContent = 'Search people who have signed in on this server.';
             } catch (error) { failure(error); }
-            finally { form.querySelector('button').disabled = false; }
+            finally { submit.disabled = false; }
         };
         dialog.querySelector('.sharedPeople').onclick = async event => {
             if (!event.target.dataset.remove) return;

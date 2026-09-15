@@ -93,7 +93,7 @@ export function createApp({ pool, config, provider, onError = () => {}, log = cr
                 if (path === '/auth/google/callback') return redirect('/projects.html', await auth.finish(req, url.searchParams));
             }
             if (path.startsWith('/api/')) {
-                const route = path.match(/^\/api\/projects\/([^/]+)(?:\/(view|members|edits|live|presence)(?:\/([^/]+))?)?$/);
+                const route = path.match(/^\/api\/projects\/([^/]+)(?:\/(view|members|people|edits|live|presence)(?:\/([^/]+))?)?$/);
                 if (route) {
                     context.route = `projects.${route[2] || 'item'}`;
                     context.projectId = route[1]; context.memberId = route[3];
@@ -123,6 +123,7 @@ export function createApp({ pool, config, provider, onError = () => {}, log = cr
                 }
                 if (route) {
                     const [, id, action, member] = route;
+                    if (action === 'people' && !member && method === 'GET') return json(200, await projects.people(session.id, id, url.searchParams.get('q')));
                     if (action === 'live' && !member && method === 'GET') {
                         if (req.headers.origin && req.headers.origin !== config.origin) throw new HttpError(403, 'Invalid live connection origin.');
                         return await collaboration.open(req, res, session, id, url.searchParams.get('clientId'));

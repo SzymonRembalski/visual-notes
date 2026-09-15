@@ -76,12 +76,60 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         const content = await owner.evaluate(() => ({ image: VisualNotes.notes[0].imageSrc, drawings: VisualNotes.drawings.length, shapes: VisualNotes.shapes.length }));
         assert.ok(content.image.startsWith('data:image/png')); assert.equal(content.drawings, 1); assert.equal(content.shapes, 1);
     });
+    await t.test('name search selects an existing account and shares only after confirmation', async () => {
+        await owner.goto(`${config.origin}/projects.html`);
+        await owner.click(`[data-share="${id}"]`);
+        let releaseSearch;
+        const delayedSearch = new Promise(resolve => { releaseSearch = resolve; });
+        const stalePattern = '**/people?q=Delayed';
+        await owner.route(stalePattern, async route => {
+            await delayedSearch;
+            await route.fulfill({ json: { users: [{ id: accounts[1], displayName: 'Stale result', pictureUrl: null, role: null }] } });
+        });
+        const searching = owner.waitForRequest(stalePattern);
+        await owner.fill('[name="account"]', 'Delayed'); await searching;
+        await owner.fill('[name="account"]', 'No matching account');
+        await owner.waitForFunction(() => document.querySelector('#peopleHint').textContent.startsWith('No matching people'));
+        const staleResponse = owner.waitForResponse(stalePattern);
+        releaseSearch(); await staleResponse;
+        await owner.fill('[name="account"]', 'browser VIEW');
+        const person = owner.locator('.peopleResults button', { hasText: 'Browser viewer' });
+        await person.waitFor();
+        assert.equal(await owner.locator('.peopleResults button', { hasText: 'Stale result' }).count(), 0);
+        await owner.unroute(stalePattern);
+        await person.locator('img').waitFor();
+        assert.equal((await projects.members(accounts[0], id)).members.length, 0);
+        await owner.locator('#sharingForm [type="submit"]').click();
+        assert.match(await owner.locator('.sharingDialog [role="status"]').textContent(), /Select a person/);
+        await person.press('Enter');
+        assert.equal(await owner.inputValue('[name="account"]'), 'Browser viewer');
+        assert.equal((await projects.members(accounts[0], id)).members.length, 0);
+        await owner.locator('#sharingForm [type="submit"]').click();
+        await owner.waitForFunction(() => document.querySelector('.sharingDialog [role="status"]').textContent.includes('Shared with Browser viewer'));
+        assert.equal((await projects.get(accounts[1], id)).role, 'editor');
+        await owner.fill('[name="account"]', 'browser VIEW');
+        await person.waitFor();
+        assert.match(await person.textContent(), /Can edit/);
+        if (process.env.TEST_SCREENSHOT_DIR) {
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'sharing-search-desktop.png'), fullPage: true });
+            await owner.setViewportSize({ width: 390, height: 844 });
+            assert.equal(await owner.locator('.sharingDialog').evaluate(dialog => dialog.scrollWidth <= dialog.clientWidth), true);
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'sharing-search-mobile.png'), fullPage: true });
+            await owner.setViewportSize({ width: 1280, height: 850 });
+        }
+        // Editing a selected name must discard the previous recipient.
+        await person.click();
+        await owner.fill('[name="account"]', 'Nobody matches');
+        await owner.locator('#sharingForm [type="submit"]').click();
+        assert.match(await owner.locator('.sharingDialog [role="status"]').textContent(), /Select a person/);
+        await owner.locator('.dialogClose').click();
+    });
     await t.test('sharing UI grants viewer access; viewer cannot edit, but can pan/zoom', async () => {
         await owner.goto(`${config.origin}/projects.html`);
         await owner.click(`[data-share="${id}"]`);
         await owner.fill('[name="account"]', accounts[1]);
         await owner.selectOption('[name="role"]', 'viewer');
-        await owner.locator('#sharingForm button').click();
+        await owner.locator('#sharingForm [type="submit"]').click();
         await owner.waitForSelector('.sharedPeople [data-remove]');
         await viewer.goto(`${config.origin}/projects.html`);
         await viewer.click(`.project-card[data-id="${id}"] .openProjectButton`);
@@ -106,7 +154,7 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         await owner.goto(`${config.origin}/projects.html`);
         await owner.click(`[data-share="${second.id}"]`);
         await owner.fill('[name="account"]', accounts[1]);
-        await owner.locator('#sharingForm button').click();
+        await owner.locator('#sharingForm [type="submit"]').click();
         await owner.waitForFunction(() => document.querySelector('.sharingDialog [role="status"]').textContent.includes('Shared with Browser viewer'));
         await viewer.bringToFront();
         await viewer.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -130,7 +178,7 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.ok(logs.some(entry => entry.event === 'projects.list' && entry.userId === accounts[1] && [id, second.id].every(projectId => entry.projectIds.includes(projectId))));
         assert.ok(logs.every(entry => !JSON.stringify(entry).includes('Second shared board')));
         await owner.fill('[name="account"]', randomUUID());
-        await owner.locator('#sharingForm button').click();
+        await owner.locator('#sharingForm [type="submit"]').click();
         await owner.waitForFunction(() => document.querySelector('.sharingDialog [role="status"]').textContent.includes('Reference:'));
         assert.ok(logs.some(entry => entry.event === 'project.sharing' && entry.status === 404 && entry.projectId === second.id));
         await owner.locator('.dialogClose').click();
@@ -203,7 +251,7 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.equal((await projects.get(accounts[0], id)).document.title, 'My unsaved edit');
         await owner.unroute('**/api/projects/*/edits');
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
-        await owner.waitForFunction(() => !window.ServerBoard.queue.pending && !window.ServerBoard.queue.running);
+        await owner.waitForFunction(() => window.ServerBoard?.queue && !document.body.classList.contains('serverLoading') && !ServerBoard.queue.pending && !ServerBoard.queue.running);
         await owner.fill('#projectTitleInput', 'Saved before leaving');
         await owner.click('.workspaceBreadcrumb a[href="projects.html"]');
         await owner.waitForURL('**/projects.html');

@@ -107,6 +107,18 @@ export class Projects {
         return rows[0];
     }
 
+    async people(userId, projectId, query) {
+        requireValue(typeof query === 'string' && query.trim().length >= 2 && query.trim().length <= 200, 'Enter between 2 and 200 characters.');
+        return this.locked(userId, projectId, ['owner'], async client => {
+            const { rows } = await client.query(`SELECT u.id, u.display_name AS "displayName", u.picture_url AS "pictureUrl", m.role
+                FROM visual_notes.users u
+                LEFT JOIN visual_notes.project_members m ON m.user_id = u.id AND m.project_id = $1
+                WHERE u.id <> $2 AND strpos(lower(u.display_name), lower($3)) > 0
+                ORDER BY (lower(u.display_name) = lower($3)) DESC, lower(u.display_name), u.id LIMIT 10`, [projectId, userId, query.trim()]);
+            return { users: rows };
+        });
+    }
+
     async members(userId, projectId) {
         return this.locked(userId, projectId, ['owner'], async (client, project) => {
             const { rows } = await client.query(`SELECT u.id, u.display_name AS "displayName", m.role

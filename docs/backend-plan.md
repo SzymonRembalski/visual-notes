@@ -4,7 +4,8 @@ Updated September 15, 2026.
 
 ## Current checkpoint
 
-- Work is on `dev`, based on pushed commit `bc15620` (account menu), following `54a37c2` (concurrent canvas/silent saving). Google profile photos are implemented but uncommitted. Migration 003 adds `users.picture_url`; apply migrations with migration credentials before starting this version. Existing users must sign out/in to populate their photo. Verified Google HTTPS image URLs are exposed as session `pictureUrl`, with initials retained if missing or loading fails.
+- Work is on `dev`, based on pushed commit `fb60e2c` (borderless project delete button), following `73b3759` (Google profile photos). The user reports migration 003 has been applied. Existing users must sign out/in to populate their photo. Verified Google HTTPS image URLs are exposed as session `pictureUrl`, with initials retained if missing or loading fails.
+- Current uncommitted change: sharing accepts a name search or sharing code in the same field. Owners can search existing users through `GET /api/projects/:id/people?q=...`, choose a result (photo/name/code suffix), then save editor/viewer access through the existing members endpoint. Search is case-insensitive and literal, requires 2–200 characters, returns at most ten matches, excludes the owner, and exposes no email/provider identity. No new migration or dependency. Debouncing and request versions prevent stale results from replacing current searches; editing the name clears the selected recipient.
 - The user confirmed the server database and Google login are configured. Account controls and the initial Google redirect were verified on the test site after correcting an old deployed image. Do not repeat provider/setup questions.
 - The user explicitly prioritized live collaboration and moved separate scheduled project backups to the next update. Manual per-project JSON download/import already works and preserves local originals.
 - Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, project row locks, string revisions, per-account camera views and retry-safe project creation. Current schema requires migrations 001/002/003. Collaboration itself added no dependency or schema change; 003 stores profile photos.
@@ -51,7 +52,7 @@ Undo/redo records only local operations. It preserves unrelated remote changes a
 
 ## Verification
 
-- Latest turn intentionally tested only canvas/saving: 19 collaboration/save-queue checks; seven new two-browser canvas scenarios using `node tests/run-database-tests.mjs --canvas`, plus PostgreSQL restart durability; three local drawing/arrow/deletion regression scripts. All pass. The full suite was not rerun in this turn. The existing navigation test was updated for silent draft recovery.
+- Sharing search update: full `node tests/run-database-tests.mjs` passed (ten backend scenarios, thirteen account/browser scenarios, eleven collaboration scenarios, seven canvas/saving scenarios, plus PostgreSQL restart durability). New checks cover owner-only search, anonymous denial, literal queries, result bounds, stale responses, keyboard selection, explicit sharing, photos and selection reset when editing a name. Both name selection and sharing codes were exercised. Desktop/mobile dialog screenshots were inspected. An existing navigation test now waits for the save queue to initialize before reading its state.
 
 - All 38 unit tests pass, including two logging checks for credential exclusion and correlated HTTP/database failure diagnostics, and existing storage/config/validation/save-queue/collaboration coverage.
 - `node tests/run-database-tests.mjs` passes: disposable PostgreSQL; nine backend scenarios, eleven account/browser scenarios, and eleven live collaboration scenarios; separate PostgreSQL restart durability check. The additional browser scenario verifies sharing two projects with one account, list refresh, independent revocation and diagnostic logs. Existing browser tests target the edits route and deliberately pause their live stream when testing a stale save.
@@ -61,7 +62,7 @@ Undo/redo records only local operations. It preserves unrelated remote changes a
 
 ## Resume / next update
 
-1. Commit the Google profile photo change on `dev` when requested. Account UI changes are pushed as `bc15620`. Before deployment, explicitly note the required migration 003 and sign-out/in for existing users. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
+1. Commit the existing-account sharing search on `dev` when requested. Google photos and the borderless delete fix are already pushed; the user reports migration 003 is applied. This sharing update needs only an app redeployment. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
 2. After deployment, open a shared disposable board from two accounts on the test origin and verify cursors, live changes, viewer restrictions and reconnect behavior through the actual proxy.
 3. Next planned release: independent scheduled server project backups, private backup destination/retention configuration, pre-restore snapshots, isolated restoration and a restore drill. Manual JSON downloads do not replace automatic backups.
 4. Character-level text merging and multi-instance presence transport are possible later improvements, not part of this first collaboration release.
