@@ -41,7 +41,7 @@ The migration runs in one transaction, records its version and takes a transacti
 | `sessions` | Hashed session tokens, account IDs, CSRF tokens and expiry |
 | `login_flows` | Short-lived OAuth state hashes, nonce and PKCE verifier |
 
-The project row defines its owner. The API derives identity from a verified session and checks access on every project operation: owners manage sharing/deletion, editors may save and viewers may read/save their personal view. The SQL tables establish relationships and constraints; the runtime role itself can access all application records, so never expose it to browsers. The browser sharing dialog targets existing account IDs, presented as sharing codes. Invitations are pending.
+The project row defines its owner. The API derives identity from a verified session and checks access on every project operation: owners manage sharing/deletion, editors may save and viewers may read/save their personal view. The SQL tables establish relationships and constraints; the runtime role itself can access all application records, so never expose it to browsers. The browser sharing dialog accepts existing account IDs as sharing codes or lets owners find an existing account by display name. Search uses the current users table and needs no additional migration. Invitations for people who have never signed in are pending.
 
 The document format matches `BoardStorage.getDocument`: title, notes, connections, shapes, drawings and coordinate version. Personal view fields remain in `project_views`. SQL checks the outer document structure; the API additionally validates board fields and imposes a 16 MB JSON body limit. Project IDs use UUIDs; IDs inside documents retain their existing values. Migration 002 adds a unique owner/request ID pair for retry-safe creation/import.
 
@@ -52,7 +52,7 @@ The repository locks the project row, checks permission/revision in the same tra
 1. Apply migrations 001 and 002 to the test database.
 2. Apply them again; confirm they succeed without replacing data.
 3. Run `verify.sql`; expect the final success message and exit code 0.
-4. Inspect `visual_notes.schema_migrations`; expect versions 1 and 2.
+4. Inspect `visual_notes.schema_migrations`; expect versions 1, 2 and 3. Migration 003 adds the Google profile picture URL to users. Run migrations before starting the matching server version; existing users sign in again to populate their photo.
 
 The SQL script checks identity/membership uniqueness, roles, owner deletion protection, document structure, views, revisions and project deletion isolation. Both migrations, repeated application, SQL verification and runtime grants passed against temporary PostgreSQL 18.4. The integration suite also verifies API protection, concurrent saves, access revocation and persistence across backend/database restarts. Run it with `npm run test:database`; it uses an isolated local cluster, not your provisioned database. Automated Google-flow tests use a provider substitute; live sign-in remains a deployment check.
 

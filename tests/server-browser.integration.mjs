@@ -9,13 +9,15 @@ import { createPool } from '../server/database.mjs';
 import { createApp } from '../server/http.mjs';
 import { Projects } from '../server/projects.mjs';
 import { tokenHash } from '../server/auth.mjs';
+import { createLogger } from '../server/logger.mjs';
 
 test('browser account projects and server canvas', { timeout: 60000 }, async t => {
     const config = { databaseUrl: process.env.TEST_DATABASE_URL, origin: 'http://127.0.0.1', googleClientId: 'test', googleClientSecret: 'test' };
     assert.ok(config.databaseUrl, 'Run with npm run test:database.');
     const pool = createPool(config);
     const projects = new Projects(pool);
-    const app = createApp({ pool, config });
+    const logs = [];
+    const app = createApp({ pool, config, log: createLogger(line => logs.push(JSON.parse(line))) });
     app.listen(0, '127.0.0.1'); await once(app, 'listening');
     config.origin = `http://127.0.0.1:${app.address().port}`;
     const installedChrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -29,6 +31,8 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         const token = randomBytes(32).toString('base64url');
         await pool.query(`INSERT INTO visual_notes.sessions (token_hash, user_id, csrf_token, expires_at) VALUES ($1, $2, $3, now() + interval '1 day')`, [tokenHash(token), id, token]);
         const context = await browser.newContext();
+        await context.route('https://lh3.googleusercontent.com/test-avatar', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"><rect width="30" height="30" fill="#91bda0"/></svg>' }));
+        await pool.query('UPDATE visual_notes.users SET picture_url = $2 WHERE id = $1', [id, 'https://lh3.googleusercontent.com/test-avatar']);
         await context.addCookies([{ name: 'vn_session', value: token, url: config.origin }]);
         context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
         contexts.push(context); accounts.push(id);
@@ -38,7 +42,15 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
     let id;
     await t.test('gallery creates an account project and canvas edits reach PostgreSQL', async () => {
         await owner.goto(`${config.origin}/projects.html`);
-        await owner.waitForSelector('[data-account="code"]');
+        await owner.waitForSelector('.accountMenu summary');
+        assert.equal(await owner.locator('.appHeader #accountBar').count(), 1);
+        await owner.waitForSelector('.accountAvatar img');
+        assert.equal(await owner.locator('.accountAvatar img').evaluate(image => image.naturalWidth > 0), true);
+        await owner.locator('.accountMenu summary').press('Enter');
+        assert.equal(await owner.locator('[data-account="code"]').isVisible(), true);
+        await owner.keyboard.press('Escape');
+        assert.equal(await owner.locator('[data-account="code"]').isVisible(), false);
+        assert.equal(await owner.evaluate(() => document.activeElement.matches('.accountMenu summary')), true);
         owner.once('dialog', dialog => dialog.accept('Browser saved board'));
         await owner.click('#newProjectButton');
         await owner.waitForURL(/storage=server/);
@@ -64,12 +76,60 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         const content = await owner.evaluate(() => ({ image: VisualNotes.notes[0].imageSrc, drawings: VisualNotes.drawings.length, shapes: VisualNotes.shapes.length }));
         assert.ok(content.image.startsWith('data:image/png')); assert.equal(content.drawings, 1); assert.equal(content.shapes, 1);
     });
+    await t.test('name search selects an existing account and shares only after confirmation', async () => {
+        await owner.goto(`${config.origin}/projects.html`);
+        await owner.click(`[data-share="${id}"]`);
+        let releaseSearch;
+        const delayedSearch = new Promise(resolve => { releaseSearch = resolve; });
+        const stalePattern = '**/people?q=Delayed';
+        await owner.route(stalePattern, async route => {
+            await delayedSearch;
+            await route.fulfill({ json: { users: [{ id: accounts[1], displayName: 'Stale result', pictureUrl: null, role: null }] } });
+        });
+        const searching = owner.waitForRequest(stalePattern);
+        await owner.fill('[name="account"]', 'Delayed'); await searching;
+        await owner.fill('[name="account"]', 'No matching account');
+        await owner.waitForFunction(() => document.querySelector('#peopleHint').textContent.startsWith('No matching people'));
+        const staleResponse = owner.waitForResponse(stalePattern);
+        releaseSearch(); await staleResponse;
+        await owner.fill('[name="account"]', 'browser VIEW');
+        const person = owner.locator('.peopleResults button', { hasText: 'Browser viewer' });
+        await person.waitFor();
+        assert.equal(await owner.locator('.peopleResults button', { hasText: 'Stale result' }).count(), 0);
+        await owner.unroute(stalePattern);
+        await person.locator('img').waitFor();
+        assert.equal((await projects.members(accounts[0], id)).members.length, 0);
+        await owner.locator('#sharingForm [type="submit"]').click();
+        assert.match(await owner.locator('.sharingDialog [role="status"]').textContent(), /Select a person/);
+        await person.press('Enter');
+        assert.equal(await owner.inputValue('[name="account"]'), 'Browser viewer');
+        assert.equal((await projects.members(accounts[0], id)).members.length, 0);
+        await owner.locator('#sharingForm [type="submit"]').click();
+        await owner.waitForFunction(() => document.querySelector('.sharingDialog [role="status"]').textContent.includes('Shared with Browser viewer'));
+        assert.equal((await projects.get(accounts[1], id)).role, 'editor');
+        await owner.fill('[name="account"]', 'browser VIEW');
+        await person.waitFor();
+        assert.match(await person.textContent(), /Can edit/);
+        if (process.env.TEST_SCREENSHOT_DIR) {
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'sharing-search-desktop.png'), fullPage: true });
+            await owner.setViewportSize({ width: 390, height: 844 });
+            assert.equal(await owner.locator('.sharingDialog').evaluate(dialog => dialog.scrollWidth <= dialog.clientWidth), true);
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'sharing-search-mobile.png'), fullPage: true });
+            await owner.setViewportSize({ width: 1280, height: 850 });
+        }
+        // Editing a selected name must discard the previous recipient.
+        await person.click();
+        await owner.fill('[name="account"]', 'Nobody matches');
+        await owner.locator('#sharingForm [type="submit"]').click();
+        assert.match(await owner.locator('.sharingDialog [role="status"]').textContent(), /Select a person/);
+        await owner.locator('.dialogClose').click();
+    });
     await t.test('sharing UI grants viewer access; viewer cannot edit, but can pan/zoom', async () => {
         await owner.goto(`${config.origin}/projects.html`);
         await owner.click(`[data-share="${id}"]`);
         await owner.fill('[name="account"]', accounts[1]);
         await owner.selectOption('[name="role"]', 'viewer');
-        await owner.locator('#sharingForm button').click();
+        await owner.locator('#sharingForm [type="submit"]').click();
         await owner.waitForSelector('.sharedPeople [data-remove]');
         await viewer.goto(`${config.origin}/projects.html`);
         await viewer.click(`.project-card[data-id="${id}"] .openProjectButton`);
@@ -84,14 +144,63 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.equal((await projects.get(accounts[0], id)).revision, revision);
         assert.ok((await projects.get(accounts[1], id)).view.zoom < 1);
     });
-    await t.test('conflicting browser save keeps a draft and preserves the other edit', async () => {
+    await t.test('two projects shared with one friend both appear, refresh, open and revoke independently', async () => {
+        const document = (await projects.get(accounts[0], id)).document;
+        const second = await projects.create(accounts[0], { requestId: randomUUID(), document: { ...document, title: 'Second shared board' } });
+        const privateProject = await projects.create(accounts[0], { requestId: randomUUID(), document: { ...document, title: 'Keep private' } });
+        await viewer.goto(`${config.origin}/projects.html`);
+        await viewer.waitForSelector(`.project-card[data-id="${id}"]`);
+        assert.equal(await viewer.locator(`.project-card[data-id="${second.id}"]`).count(), 0);
+        await owner.goto(`${config.origin}/projects.html`);
+        await owner.click(`[data-share="${second.id}"]`);
+        await owner.fill('[name="account"]', accounts[1]);
+        await owner.locator('#sharingForm [type="submit"]').click();
+        await owner.waitForFunction(() => document.querySelector('.sharingDialog [role="status"]').textContent.includes('Shared with Browser viewer'));
+        await viewer.bringToFront();
+        await viewer.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await viewer.waitForSelector(`.project-card[data-id="${second.id}"]`);
+        assert.equal(await viewer.locator(`.project-card[data-id="${id}"]`).count(), 1);
+        assert.equal(await viewer.locator(`.project-card[data-id="${privateProject.id}"]`).count(), 0);
+        await viewer.reload();
+        await viewer.waitForSelector(`.project-card[data-id="${second.id}"]`);
+        assert.equal(await viewer.locator('.project-card').count(), 2);
+        await viewer.click(`.project-card[data-id="${second.id}"] .openProjectButton`);
+        await viewer.waitForFunction(() => window.ServerBoard?.queue);
+        assert.equal(await viewer.evaluate(() => ServerBoard.readonly), false);
+        await viewer.goto(`${config.origin}/projects.html`);
+        await owner.locator(`.sharedPeople [data-remove="${accounts[1]}"]`).click();
+        await owner.waitForFunction(() => !document.querySelector('.sharedPeople [data-remove]'));
+        await viewer.click('[data-account="refresh"]');
+        await viewer.waitForFunction(secondId => !document.querySelector(`.project-card[data-id="${secondId}"]`), second.id);
+        assert.equal(await viewer.locator(`.project-card[data-id="${id}"]`).count(), 1);
+        const sharing = logs.filter(entry => entry.event === 'project.sharing' && entry.status === 200 && entry.role !== 'removed');
+        assert.ok([id, second.id].every(projectId => sharing.some(entry => entry.projectId === projectId && entry.memberId === accounts[1])));
+        assert.ok(logs.some(entry => entry.event === 'projects.list' && entry.userId === accounts[1] && [id, second.id].every(projectId => entry.projectIds.includes(projectId))));
+        assert.ok(logs.every(entry => !JSON.stringify(entry).includes('Second shared board')));
+        await owner.fill('[name="account"]', randomUUID());
+        await owner.locator('#sharingForm [type="submit"]').click();
+        await owner.waitForFunction(() => document.querySelector('.sharingDialog [role="status"]').textContent.includes('Reference:'));
+        assert.ok(logs.some(entry => entry.event === 'project.sharing' && entry.status === 404 && entry.projectId === second.id));
+        await owner.locator('.dialogClose').click();
+        if (process.env.TEST_SCREENSHOT_DIR) {
+            await owner.locator('.accountMenu summary').click();
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'account-menu-desktop.png'), fullPage: true });
+            await owner.setViewportSize({ width: 390, height: 844 });
+            assert.equal(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'account-menu-mobile.png'), fullPage: true });
+            await owner.setViewportSize({ width: 1280, height: 850 });
+        }
+    });
+    await t.test('failed browser save keeps a recoverable draft while other users continue editing', async () => {
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
-        await owner.waitForFunction(() => window.ServerBoard?.queue);
+        await owner.waitForFunction(() => window.ServerBoard?.queue && !document.body.classList.contains('serverLoading') && !ServerBoard.queue.pending && !ServerBoard.queue.running);
+        await owner.evaluate(() => BoardCollaboration.source.close());
         const saved = await projects.get(accounts[0], id);
         await projects.save(accounts[0], id, { expectedRevision: saved.revision, document: { ...saved.document, title: 'Another editor won' } });
+        await owner.route('**/api/projects/*/edits', route => route.abort());
         await owner.fill('#projectTitleInput', 'My unsaved edit');
         await owner.locator('#projectTitleInput').blur();
-        await owner.waitForFunction(() => window.ServerBoard.queue.error?.status === 409);
+        await owner.waitForFunction(() => window.ServerBoard.queue.error?.status === 0);
         assert.equal(await owner.inputValue('#projectTitleInput'), 'My unsaved edit');
         assert.equal((await projects.get(accounts[0], id)).document.title, 'Another editor won');
         const draft = await owner.evaluate(() => JSON.parse(localStorage.getItem(ServerBoard.draftKey)));
@@ -99,12 +208,19 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         const copy = await owner.evaluate(() => ServerBoard.copy());
         assert.equal((await projects.get(accounts[0], copy.id)).document.title, 'My unsaved edit');
         await owner.evaluate(() => { ServerBoard.leaving = true; });
-        owner.once('dialog', dialog => dialog.accept());
+        const dialogs = [];
+        const recordDialog = dialog => { dialogs.push(dialog.message()); dialog.dismiss(); };
+        owner.on('dialog', recordDialog);
         await owner.reload();
-        await owner.waitForFunction(() => window.ServerBoard?.queue?.error?.status === 409);
+        await owner.waitForFunction(() => window.ServerBoard?.queue?.error?.status === 0);
         assert.equal(await owner.inputValue('#projectTitleInput'), 'My unsaved edit');
         const restored = await owner.evaluate(() => JSON.parse(localStorage.getItem(ServerBoard.draftKey)));
-        assert.equal(restored.revision, saved.revision);
+        assert.equal(restored.baseDocument.title, 'Another editor won');
+        assert.equal(await owner.locator('.serverNotice').isVisible(), false);
+        await owner.unroute('**/api/projects/*/edits');
+        await owner.waitForFunction(() => !ServerBoard.queue.pending && !ServerBoard.queue.error && !ServerBoard.queue.running);
+        assert.equal((await projects.get(accounts[0], id)).document.title, 'My unsaved edit');
+        assert.deepEqual(dialogs, []); owner.off('dialog', recordDialog);
         await owner.evaluate(() => { ServerBoard.leaving = true; });
     });
     await t.test('local project import keeps originals and repeated imports reuse the account copy', async () => {
@@ -122,21 +238,20 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.ok(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         if (process.env.TEST_SCREENSHOT_DIR) await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'account-mobile.png'), fullPage: true });
     });
-    await t.test('failed saving blocks navigation until retry, and navigation waits for persistence', async () => {
+    await t.test('failed saving preserves a draft without navigation popups, and navigation waits for persistence', async () => {
         await owner.setViewportSize({ width: 1280, height: 850 });
         await owner.evaluate(() => { for (const key of Object.keys(localStorage)) if (key.startsWith('visualDraft:')) localStorage.removeItem(key); });
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
         await owner.waitForFunction(() => window.ServerBoard?.queue);
-        await owner.route('**/api/projects/*', route => route.request().method() === 'PUT' ? route.abort() : route.continue());
+        await owner.route('**/api/projects/*/edits', route => route.abort());
         await owner.fill('#projectTitleInput', 'Offline draft'); await owner.locator('#projectTitleInput').blur();
         await owner.waitForFunction(() => window.ServerBoard.queue.error?.status === 0);
-        owner.once('dialog', dialog => dialog.dismiss());
         await owner.click('.workspaceBreadcrumb a[href="projects.html"]');
-        assert.ok(owner.url().includes('storage=server'));
-        assert.equal((await projects.get(accounts[0], id)).document.title, 'Another editor won');
-        await owner.unroute('**/api/projects/*');
-        await owner.locator('[data-action="retry"]').click();
-        await owner.waitForFunction(() => !window.ServerBoard.queue.pending && !window.ServerBoard.queue.running);
+        await owner.waitForURL('**/projects.html');
+        assert.equal((await projects.get(accounts[0], id)).document.title, 'My unsaved edit');
+        await owner.unroute('**/api/projects/*/edits');
+        await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
+        await owner.waitForFunction(() => window.ServerBoard?.queue && !document.body.classList.contains('serverLoading') && !ServerBoard.queue.pending && !ServerBoard.queue.running);
         await owner.fill('#projectTitleInput', 'Saved before leaving');
         await owner.click('.workspaceBreadcrumb a[href="projects.html"]');
         await owner.waitForURL('**/projects.html');
@@ -160,6 +275,35 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
             assert.equal(await page.locator('#newProjectButton').isDisabled(), false);
         } finally { await signedOut.close(); }
     });
+    await t.test('older drafts without a merge base stay downloadable without blocking the current board', async () => {
+        const fixture = await projects.create(accounts[0], { requestId: randomUUID(), document: { title: 'Current shared board', notes: [], connections: [], shapes: [], drawings: [], coordinateVersion: 2 } });
+        await projects.save(accounts[0], fixture.id, { expectedRevision: fixture.revision, document: { ...fixture.document, title: 'Latest shared version' } });
+        const page = await contexts[0].newPage();
+        const dialogs = []; page.on('dialog', dialog => { dialogs.push(dialog.message()); dialog.dismiss(); });
+        await page.goto(`${config.origin}/projects.html`);
+        const saved = JSON.stringify({ document: { ...fixture.document, title: 'Older unsaved draft' }, view: {}, revision: fixture.revision });
+        await page.evaluate(({ key, saved }) => localStorage.setItem(key, saved), { key: `visualDraft:${accounts[0]}:${fixture.id}`, saved });
+        await page.goto(`${config.origin}/visual-notes.html?projectId=${fixture.id}&storage=server`);
+        await page.waitForFunction(() => window.BoardCollaboration?.connected);
+        assert.equal(await page.inputValue('#projectTitleInput'), 'Latest shared version');
+        assert.equal(await page.evaluate(() => ServerBoard.recoveryDraft), saved);
+        assert.equal(await page.locator('.serverNotice').isVisible(), false);
+        assert.equal(await page.evaluate(() => ServerBoard.queue.error), null);
+        await page.reload(); await page.waitForFunction(() => window.BoardCollaboration?.connected);
+        assert.equal(await page.evaluate(() => ServerBoard.recoveryDraft), saved);
+        assert.deepEqual(dialogs, []);
+        await page.close();
+    });
+    await t.test('unavailable browser draft storage does not prevent opening a server board', async () => {
+        const context = await browser.newContext();
+        await context.addCookies(await contexts[0].cookies());
+        await context.addInitScript(() => Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage unavailable'); } }));
+        const page = await context.newPage();
+        await page.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
+        await page.waitForFunction(() => window.BoardCollaboration?.connected);
+        assert.equal(await page.locator('body').evaluate(body => body.classList.contains('serverLoading')), false);
+        await context.close();
+    });
     await t.test('failed board load never initializes an empty editable canvas', async () => {
         const page = await contexts[0].newPage();
         await page.goto(`${config.origin}/visual-notes.html?projectId=${randomUUID()}&storage=server`);
@@ -167,6 +311,27 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.equal(await page.evaluate(() => Boolean(ServerBoard.queue)), false);
         assert.equal(await page.locator('#editMenu').isVisible(), false);
         await page.close();
+    });
+    await t.test('profile menu copies the sharing code, closes outside and signs out', async () => {
+        await owner.goto(`${config.origin}/projects.html`);
+        await owner.locator('.accountMenu summary').click();
+        await owner.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async value => { window.copiedCode = value; } } }));
+        await owner.locator('[data-account="code"] svg').click();
+        assert.equal(await owner.evaluate(() => window.copiedCode), accounts[0]);
+        assert.equal(await owner.locator('.accountFeedback').textContent(), 'Copied. Send it to the project owner.');
+        assert.ok((await owner.locator('.accountDropdown [data-settings-link]').getAttribute('href')).includes('from=projects.html'));
+        await owner.click('#projectSearch');
+        assert.equal(await owner.locator('.accountMenu').getAttribute('open'), null);
+        await owner.locator('.accountMenu summary').click();
+        await owner.locator('[data-account="logout"]').click();
+        await owner.waitForSelector('.appHeader [data-account="login"]');
+        assert.equal(await owner.locator('.project-card').count(), 0);
+        assert.equal(await owner.evaluate(() => ServerAPI.user), null);
+        if (process.env.TEST_SCREENSHOT_DIR) {
+            await owner.setViewportSize({ width: 390, height: 844 });
+            assert.equal(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'account-signed-out-mobile.png'), fullPage: true });
+        }
     });
     assert.deepEqual(errors, []);
 });

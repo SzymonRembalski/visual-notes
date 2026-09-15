@@ -74,10 +74,17 @@ export class Auth {
             await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`google:${identity.sub}`]);
             let user = (await client.query(`SELECT user_id FROM visual_notes.identities WHERE provider = 'google' AND subject = $1`, [identity.sub])).rows[0]?.user_id;
             const name = String(identity.name || 'Visual Notes user').slice(0, 200);
+            let picture = null;
+            try {
+                const url = new URL(identity.picture);
+                if (url.protocol === 'https:' && !url.username && !url.password && url.href.length <= 2048
+                    && (url.hostname === 'googleusercontent.com' || url.hostname.endsWith('.googleusercontent.com'))) picture = url.href;
+            } catch { /* Profiles without a usable Google image keep the initials fallback. */ }
             if (!user) {
                 user = (await client.query('INSERT INTO visual_notes.users (display_name) VALUES ($1) RETURNING id', [name])).rows[0].id;
                 await client.query(`INSERT INTO visual_notes.identities (provider, subject, user_id) VALUES ('google', $1, $2)`, [identity.sub, user]);
             } else await client.query('UPDATE visual_notes.users SET display_name = $2 WHERE id = $1', [user, name]);
+            await client.query('UPDATE visual_notes.users SET picture_url = $2 WHERE id = $1', [user, picture]);
             if (previous) await client.query('DELETE FROM visual_notes.sessions WHERE token_hash = $1', [tokenHash(previous)]);
             await client.query(`INSERT INTO visual_notes.sessions (token_hash, user_id, csrf_token, expires_at)
                 VALUES ($1, $2, $3, now() + interval '7 days')`, [tokenHash(sessionToken), user, csrf]);
@@ -88,7 +95,7 @@ export class Auth {
     async session(req) {
         const sessionToken = this.readCookie(req, this.sessionCookie);
         if (!sessionToken) return null;
-        return (await this.pool.query(`SELECT u.id, u.display_name AS "displayName", s.csrf_token AS "csrfToken"
+        return (await this.pool.query(`SELECT u.id, u.display_name AS "displayName", u.picture_url AS "pictureUrl", s.csrf_token AS "csrfToken"
             FROM visual_notes.sessions s JOIN visual_notes.users u ON u.id = s.user_id
             WHERE s.token_hash = $1 AND s.expires_at > now()`, [tokenHash(sessionToken)])).rows[0] ?? null;
     }

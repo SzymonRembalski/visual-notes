@@ -32,7 +32,7 @@ export async function transaction(pool, work) {
 
 export async function checkDatabase(pool) {
     const result = await pool.query('SELECT version FROM visual_notes.schema_migrations ORDER BY version');
-    if (result.rows.map(row => row.version).join(',') !== '1,2') {
+    if (result.rows.map(row => row.version).join(',') !== '1,2,3') {
         throw new Error('Database schema does not match this server. Run the matching migrations.');
     }
 }

@@ -7,6 +7,7 @@ const DrawingLayer = {
     normalize(strokes) {
         if (!Array.isArray(strokes)) return [];
         return strokes.filter(stroke => stroke && Array.isArray(stroke.points)).map(stroke => ({
+            ...(stroke.id != null ? { id: stroke.id } : {}),
             color: /^#[0-9a-f]{6}$/i.test(stroke.color || "") ? stroke.color : "#91bda0",
             width: Number.isFinite(stroke.width) ? Math.max(1, Math.min(30, stroke.width)) : 4,
             points: stroke.points.filter(point => point && Number.isFinite(point.x) && Number.isFinite(point.y))
@@ -39,9 +40,19 @@ const DrawingLayer = {
     render() {
         const group = document.getElementById("drawingStrokes");
         if (!group) return;
-        group.replaceChildren();
-        this.elements.clear();
-        VisualNotes.drawings.forEach(stroke => this.addElement(stroke));
+        const present = new Set(VisualNotes.drawings);
+        for (const [stroke, element] of this.elements) {
+            if (!present.has(stroke)) { element.path.remove(); this.elements.delete(stroke); }
+        }
+        VisualNotes.drawings.forEach((stroke, index) => {
+            if (!this.elements.has(stroke)) this.addElement(stroke);
+            const element = this.elements.get(stroke);
+            element.path.setAttribute('d', this.path(stroke));
+            element.path.setAttribute('stroke', stroke.color);
+            element.path.setAttribute('stroke-width', stroke.width);
+            element.bounds = this.getBounds([stroke]);
+            if (group.children[index] !== element.path) group.insertBefore(element.path, group.children[index] || null);
+        });
         this.syncView();
     },
     syncView() {
@@ -107,6 +118,7 @@ const DrawingLayer = {
         event.currentTarget.setPointerCapture(event.pointerId);
         if (this.tool === "pen") {
             this.stroke = { color: document.getElementById("drawingColor").value,
+                ...(window.ServerBoard?.active ? { id: crypto.randomUUID() } : {}),
                 width: Number(document.getElementById("drawingSize").value), points: [this.previousPoint] };
             VisualNotes.drawings.push(this.stroke);
             this.addElement(this.stroke);
