@@ -540,7 +540,7 @@ body.projects-page .project-card h2 { margin: 0; overflow: hidden; text-overflow
 .projectOpenArrow { color: var(--muted); }
 .openProjectButton:hover .projectOpenArrow { color: var(--accent-focus); }
 .projectCardFooter { gap: 10px; margin: 0 20px; padding: 12px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
-body.projects-page .deleteProjectButton { display: flex; align-items: center; gap: 5px; padding: 4px 0 4px 7px; border-radius: 5px; background: transparent; color: var(--muted); font-size: 11px; }
+body.projects-page .deleteProjectButton { display: flex; align-items: center; gap: 5px; padding: 4px 0 4px 7px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); font-size: 11px; }
 body.projects-page .deleteProjectButton svg { width: 13px; height: 13px; }
 body.projects-page .deleteProjectButton:hover { color: #d57c7c; transform: none; filter: none; }
 .projectsEmpty { grid-column: 1 / -1; text-align: center; padding: 72px 24px; border: 1px dashed var(--border); border-radius: 14px; }
