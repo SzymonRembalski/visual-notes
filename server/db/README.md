@@ -52,7 +52,7 @@ The repository locks the project row, checks permission/revision in the same tra
 1. Apply migrations 001 and 002 to the test database.
 2. Apply them again; confirm they succeed without replacing data.
 3. Run `verify.sql`; expect the final success message and exit code 0.
-4. Inspect `visual_notes.schema_migrations`; expect versions 1 and 2.
+4. Inspect `visual_notes.schema_migrations`; expect versions 1, 2 and 3. Migration 003 adds the Google profile picture URL to users. Run migrations before starting the matching server version; existing users sign in again to populate their photo.
 
 The SQL script checks identity/membership uniqueness, roles, owner deletion protection, document structure, views, revisions and project deletion isolation. Both migrations, repeated application, SQL verification and runtime grants passed against temporary PostgreSQL 18.4. The integration suite also verifies API protection, concurrent saves, access revocation and persistence across backend/database restarts. Run it with `npm run test:database`; it uses an isolated local cluster, not your provisioned database. Automated Google-flow tests use a provider substitute; live sign-in remains a deployment check.
 

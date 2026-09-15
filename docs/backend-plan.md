@@ -4,10 +4,10 @@ Updated September 15, 2026.
 
 ## Current checkpoint
 
-- Work is on `dev`, based on pushed commit `54a37c2` (concurrent canvas/silent saving), following `0eb19fa` (sharing diagnostics) and `dc74c1c` (recovery and smoother movement). The account UI redesign is implemented but uncommitted. Account integration was committed as `b135071` and deployed. `main` received merge `2510536` and production Compose naming fix `5985646`; keep both branches and develop on `dev`.
+- Work is on `dev`, based on pushed commit `bc15620` (account menu), following `54a37c2` (concurrent canvas/silent saving). Google profile photos are implemented but uncommitted. Migration 003 adds `users.picture_url`; apply migrations with migration credentials before starting this version. Existing users must sign out/in to populate their photo. Verified Google HTTPS image URLs are exposed as session `pictureUrl`, with initials retained if missing or loading fails.
 - The user confirmed the server database and Google login are configured. Account controls and the initial Google redirect were verified on the test site after correcting an old deployed image. Do not repeat provider/setup questions.
 - The user explicitly prioritized live collaboration and moved separate scheduled project backups to the next update. Manual per-project JSON download/import already works and preserves local originals.
-- Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, project row locks, string revisions, per-account camera views and retry-safe project creation. Existing migrations 001/002 are sufficient; collaboration adds no dependency or schema change.
+- Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, project row locks, string revisions, per-account camera views and retry-safe project creation. Current schema requires migrations 001/002/003. Collaboration itself added no dependency or schema change; 003 stores profile photos.
 - Live collaboration: automatic shared edits, named cursors, selected-object outlines, distinct per-tab UUIDs, viewer updates, reconnect recovery and personal undo/redo. Different objects/fields merge. The user requested latest-save-wins on shared fields; simultaneous same-field edits now converge without separate versions or conflict prompts. Character-level simultaneous text merging is not implemented.
 - Live edits include pointer dragging, resizing, drawing strokes and title/body typing. Remote rendering keeps active input/drag objects, references and text selection. Camera position, zoom and drawing visibility stay personal. Account-board entity IDs use UUIDs; numeric connection-key assumptions were removed. Legacy stroke IDs are normalized deterministically.
 
@@ -61,7 +61,7 @@ Undo/redo records only local operations. It preserves unrelated remote changes a
 
 ## Resume / next update
 
-1. Commit the account UI redesign on `dev` when requested. Concurrent canvas/saving fixes are already pushed as `54a37c2`. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
+1. Commit the Google profile photo change on `dev` when requested. Account UI changes are pushed as `bc15620`. Before deployment, explicitly note the required migration 003 and sign-out/in for existing users. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
 2. After deployment, open a shared disposable board from two accounts on the test origin and verify cursors, live changes, viewer restrictions and reconnect behavior through the actual proxy.
 3. Next planned release: independent scheduled server project backups, private backup destination/retention configuration, pre-restore snapshots, isolated restoration and a restore drill. Manual JSON downloads do not replace automatic backups.
 4. Character-level text merging and multi-instance presence transport are possible later improvements, not part of this first collaboration release.

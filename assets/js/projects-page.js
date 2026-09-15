@@ -121,6 +121,12 @@ const ProjectsPage = {
         storageBar.innerHTML = `<div class="storageChoices" role="group" aria-label="Project location"><button data-storage="server" aria-pressed="${this.remote}">${AppIcons.icon('cloud')}Account projects</button><button data-storage="local" aria-pressed="${!this.remote}">On this device</button></div>
             ${user ? `<div class="projectStorageActions"><button data-account="file">${AppIcons.icon('upload')}Import project</button>${this.remote ? `<button data-account="refresh" aria-label="Refresh projects" title="Refresh projects">${AppIcons.icon('refresh')}</button>` : ''}</div>` : ''}`;
         const menu = bar.querySelector('.accountMenu');
+        if (user?.pictureUrl) {
+            const avatar = bar.querySelector('.accountAvatar');
+            const image = new Image(); image.alt = ''; image.referrerPolicy = 'no-referrer';
+            image.onload = () => avatar.replaceChildren(image);
+            image.src = user.pictureUrl;
+        }
         if (menu) menu.onfocusout = event => { if (event.relatedTarget && !menu.contains(event.relatedTarget)) menu.open = false; };
         const fileInput = bar.querySelector('input[type="file"]');
         if (fileInput) fileInput.onchange = () => this.run(async () => {

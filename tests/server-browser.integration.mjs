@@ -31,6 +31,8 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         const token = randomBytes(32).toString('base64url');
         await pool.query(`INSERT INTO visual_notes.sessions (token_hash, user_id, csrf_token, expires_at) VALUES ($1, $2, $3, now() + interval '1 day')`, [tokenHash(token), id, token]);
         const context = await browser.newContext();
+        await context.route('https://lh3.googleusercontent.com/test-avatar', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"><rect width="30" height="30" fill="#91bda0"/></svg>' }));
+        await pool.query('UPDATE visual_notes.users SET picture_url = $2 WHERE id = $1', [id, 'https://lh3.googleusercontent.com/test-avatar']);
         await context.addCookies([{ name: 'vn_session', value: token, url: config.origin }]);
         context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
         contexts.push(context); accounts.push(id);
@@ -42,6 +44,8 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         await owner.goto(`${config.origin}/projects.html`);
         await owner.waitForSelector('.accountMenu summary');
         assert.equal(await owner.locator('.appHeader #accountBar').count(), 1);
+        await owner.waitForSelector('.accountAvatar img');
+        assert.equal(await owner.locator('.accountAvatar img').evaluate(image => image.naturalWidth > 0), true);
         await owner.locator('.accountMenu summary').press('Enter');
         assert.equal(await owner.locator('[data-account="code"]').isVisible(), true);
         await owner.keyboard.press('Escape');
@@ -141,7 +145,7 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
     });
     await t.test('failed browser save keeps a recoverable draft while other users continue editing', async () => {
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
-        await owner.waitForFunction(() => window.ServerBoard?.queue);
+        await owner.waitForFunction(() => window.ServerBoard?.queue && !document.body.classList.contains('serverLoading') && !ServerBoard.queue.pending && !ServerBoard.queue.running);
         await owner.evaluate(() => BoardCollaboration.source.close());
         const saved = await projects.get(accounts[0], id);
         await projects.save(accounts[0], id, { expectedRevision: saved.revision, document: { ...saved.document, title: 'Another editor won' } });

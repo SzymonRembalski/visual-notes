@@ -1,5 +1,7 @@
 # Test-server backend
 
+Profile pictures require migration 003 (`node server/db/migrate.mjs` with the migration database credentials) before running this version. Existing users must sign out and sign in again to load their Google photo. The profile menu falls back to initials if no photo is available or it cannot load.
+
 The Node.js backend serves the frontend and a PostgreSQL-backed project API. The gallery and canvas support Google sign-in, account projects, editor/viewer sharing, live changes and cursors, per-account views and ordered server saving. Existing local projects remain available under **On this device**, including when opened directly through `file://`. Scheduled independent server backups are planned for the next update.
 
 ## Using account projects

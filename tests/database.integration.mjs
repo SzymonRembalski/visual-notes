@@ -119,7 +119,7 @@ test('database and API integration', async t => {
             generateCodeVerifierAsync: async () => ({ codeVerifier: 'verifier', codeChallenge: 'challenge' }),
             generateAuthUrl: options => { receivedNonce = options.nonce; return `https://accounts.google.com/?state=${options.state}`; },
             getToken: async options => { assert.equal(options.codeVerifier, 'verifier'); return { tokens: { id_token: 'provider-token' } }; },
-            verifyIdToken: async options => { receivedAudience = options.audience; return { getPayload: () => ({ sub: 'verified-google-sub', name: 'Account', nonce: failNonce ? 'wrong' : receivedNonce }) }; }
+            verifyIdToken: async options => { receivedAudience = options.audience; return { getPayload: () => ({ sub: 'verified-google-sub', name: 'Account', picture: 'https://lh3.googleusercontent.com/test-avatar', nonce: failNonce ? 'wrong' : receivedNonce }) }; }
         };
         const auth = new Auth(pool, config, provider);
         const first = await auth.begin({ headers: {} });
@@ -132,6 +132,7 @@ test('database and API integration', async t => {
         const signedIn = { headers: { cookie: cookies[0].split(';')[0] } };
         const session = await auth.session(signedIn);
         assert.equal(session.displayName, 'Account');
+        assert.equal(session.pictureUrl, 'https://lh3.googleusercontent.com/test-avatar');
         await denied(auth.finish(req, params), 400);
         const second = await auth.begin(signedIn);
         const secondCookies = await auth.finish({ headers: { cookie: `${signedIn.headers.cookie}; ${second.cookie.split(';')[0]}` } }, new URLSearchParams({ code: 'code', state: new URL(second.location).searchParams.get('state') }));

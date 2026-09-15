@@ -8,7 +8,7 @@ export async function migrate(pool) {
     const client = await pool.connect();
     let discard = false;
     try {
-        for (const name of ['001_accounts_projects.sql', '002_sessions_requests.sql']) {
+        for (const name of ['001_accounts_projects.sql', '002_sessions_requests.sql', '003_profile_picture.sql']) {
             await client.query(await readFile(new URL(`./migrations/${name}`, import.meta.url), 'utf8'));
         }
     } catch (error) {
