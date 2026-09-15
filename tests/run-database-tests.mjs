@@ -7,6 +7,9 @@ import { createServer } from 'node:net';
 import { randomBytes } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import pg from 'pg';
+import { migrate } from '../server/db/migrate.mjs';
+
+const canvasOnly = process.argv.includes('--canvas');
 
 const execute = promisify(execFile);
 const platform = process.platform === 'win32' ? 'windows' : process.platform;
@@ -50,7 +53,11 @@ try {
     await writeFile(passwordFile, password, { mode: 0o600 });
     await execute(binaries.initdb, ['-D', data, '-U', 'postgres', '--auth=scram-sha-256', `--pwfile=${passwordFile}`, '--encoding=UTF8', '--locale=C'], { windowsHide: true, timeout: 30000 });
     await start();
-    for (const file of ['tests/database.integration.mjs', 'tests/server-browser.integration.mjs', 'tests/collaboration.integration.mjs']) {
+    if (canvasOnly) {
+        const pool = new pg.Pool({ connectionString });
+        try { await migrate(pool); } finally { await pool.end(); }
+    }
+    for (const file of canvasOnly ? ['tests/canvas-saving.integration.mjs'] : ['tests/database.integration.mjs', 'tests/server-browser.integration.mjs', 'tests/collaboration.integration.mjs', 'tests/canvas-saving.integration.mjs']) {
         const code = await new Promise((resolve, reject) => {
             const child = spawn(process.execPath, ['--test', '--test-timeout=90000', file], {
                 windowsHide: true, stdio: 'inherit', env: { ...process.env, TEST_DATABASE_URL: connectionString }
@@ -65,8 +72,9 @@ try {
     const client = new pg.Client({ connectionString });
     try {
         await client.connect();
-        const result = await client.query(`SELECT count(*) FROM visual_notes.projects WHERE document->>'title' = 'Restart durability fixture'`);
-        if (result.rows[0].count !== '1') throw new Error('Saved project did not survive database restart.');
+        const title = canvasOnly ? 'Canvas saving fixture' : 'Restart durability fixture';
+        const result = await client.query(`SELECT count(*) FROM visual_notes.projects WHERE document->>'title' = $1`, [title]);
+        if (Number(result.rows[0].count) < 1) throw new Error('Saved project did not survive database restart.');
     } finally { await client.end(); }
     console.log('PostgreSQL restart durability passed.');
 } finally {

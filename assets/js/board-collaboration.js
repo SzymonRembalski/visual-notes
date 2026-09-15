@@ -57,7 +57,7 @@ const BoardCollaboration = {
             VisualNotes.saveBoard();
             return true;
         } catch {
-            ServerBoard.message('This edit has since changed. Undo was stopped to protect the other person’s work.', true);
+            ServerBoard.hint('Undo unavailable', 'This edit has since changed. Undo was stopped to protect the other person’s work.');
             return false;
         }
     },
@@ -68,8 +68,7 @@ const BoardCollaboration = {
         const changes = CollaborationDocument.diff(previous, next);
         const geometryOnly = changes.every(change => ['notes', 'shapes'].includes(change.collection)
             && ['x', 'y', 'width', 'height'].includes(change.field));
-        if (!geometryOnly) this.finishMotion();
-        const animate = geometryOnly && !document.onmousemove && !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const animate = !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches;
         // Move the transaction baseline with remote edits so undo records only local work.
         if (board.historyTransaction) {
             const baseline = CollaborationDocument.apply(this.historyDocument(board.historyTransaction), changes, true);
@@ -80,7 +79,8 @@ const BoardCollaboration = {
             board[name] = next[name].map(value => {
                 const item = byId.get(CollaborationDocument.key(name, value));
                 if (!item) return CollaborationDocument.clone(value);
-                if (animate && ['notes', 'shapes'].includes(name)
+                const localTarget = document.onmousemove && (name === 'notes' ? board.selectedNotes.includes(item.id) : board.selectedShapeId === item.id);
+                if (animate && !localTarget && ['notes', 'shapes'].includes(name)
                     && ['x', 'y', 'width', 'height'].every(field => Number.isFinite(item[field]) && Number.isFinite(value[field]))
                     && ['x', 'y', 'width', 'height'].some(field => item[field] !== value[field])) {
                     const from = { ...this.displayed(item) };
@@ -96,6 +96,12 @@ const BoardCollaboration = {
         document.getElementById('projectTitleInput').value = next.title;
         board.selectedNotes = board.selectedNotes.filter(id => board.notes.some(note => note.id === id));
         if (board.selectedShapeId && !board.shapes.some(shape => shape.id === board.selectedShapeId)) board.selectedShapeId = null;
+        for (const item of this.motion.keys()) if (!board.notes.includes(item) && !board.shapes.includes(item)) this.motion.delete(item);
+        if (DrawingLayer.stroke && !board.drawings.includes(DrawingLayer.stroke)) DrawingLayer.finish();
+        if ((board.resizingNote && !board.notes.includes(board.resizingNote))
+            || (board.selectedNote && document.onmousemove && !board.notes.includes(board.selectedNote))
+            || (board.movingShape && !board.shapes.includes(board.movingShape))
+            || (board.resizingShape && !board.shapes.includes(board.resizingShape))) document.onmouseup?.();
         const focused = document.activeElement;
         const item = focused.closest?.('[data-note-id], [data-shape-id]');
         if (item) {
@@ -111,13 +117,19 @@ const BoardCollaboration = {
         if (geometryOnly) {
             board.updateCanvasBounds();
             board.updateMovedConnections(board.notes.map(note => note.id));
-        } else board.render(true);
+        } else {
+            this.renderChanges = new Set(changes.filter(change => !['x', 'y', 'width', 'height'].includes(change.field))
+                .map(change => `${change.collection}:${change.id}`));
+            try { board.render(true); } finally { this.renderChanges = null; }
+            if (this.motion.size) this.paintMotion([...this.motion.keys()].map(item => item.id));
+        }
         board.applyTransform();
         this.renderPresence();
         this.animateMotion();
     },
     preserve(element) {
-        return element.contains(document.activeElement) || (document.onmousemove &&
+        const key = element.dataset.noteId ? `notes:${element.dataset.noteId}` : `shapes:${element.dataset.shapeId}`;
+        return (this.renderChanges && !this.renderChanges.has(key)) || element.contains(document.activeElement) || (document.onmousemove &&
             (element.dataset.noteId && VisualNotes.selectedNotes.some(id => String(id) === element.dataset.noteId)
                 || element.dataset.shapeId === String(VisualNotes.selectedShapeId)));
     },

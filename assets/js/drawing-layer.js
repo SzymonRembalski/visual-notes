@@ -40,9 +40,19 @@ const DrawingLayer = {
     render() {
         const group = document.getElementById("drawingStrokes");
         if (!group) return;
-        group.replaceChildren();
-        this.elements.clear();
-        VisualNotes.drawings.forEach(stroke => this.addElement(stroke));
+        const present = new Set(VisualNotes.drawings);
+        for (const [stroke, element] of this.elements) {
+            if (!present.has(stroke)) { element.path.remove(); this.elements.delete(stroke); }
+        }
+        VisualNotes.drawings.forEach((stroke, index) => {
+            if (!this.elements.has(stroke)) this.addElement(stroke);
+            const element = this.elements.get(stroke);
+            element.path.setAttribute('d', this.path(stroke));
+            element.path.setAttribute('stroke', stroke.color);
+            element.path.setAttribute('stroke-width', stroke.width);
+            element.bounds = this.getBounds([stroke]);
+            if (group.children[index] !== element.path) group.insertBefore(element.path, group.children[index] || null);
+        });
         this.syncView();
     },
     syncView() {

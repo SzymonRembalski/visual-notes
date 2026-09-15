@@ -172,7 +172,7 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.ok(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         if (process.env.TEST_SCREENSHOT_DIR) await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'account-mobile.png'), fullPage: true });
     });
-    await t.test('failed saving blocks navigation until retry, and navigation waits for persistence', async () => {
+    await t.test('failed saving preserves a draft without navigation popups, and navigation waits for persistence', async () => {
         await owner.setViewportSize({ width: 1280, height: 850 });
         await owner.evaluate(() => { for (const key of Object.keys(localStorage)) if (key.startsWith('visualDraft:')) localStorage.removeItem(key); });
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
@@ -180,12 +180,11 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         await owner.route('**/api/projects/*/edits', route => route.abort());
         await owner.fill('#projectTitleInput', 'Offline draft'); await owner.locator('#projectTitleInput').blur();
         await owner.waitForFunction(() => window.ServerBoard.queue.error?.status === 0);
-        owner.once('dialog', dialog => dialog.dismiss());
         await owner.click('.workspaceBreadcrumb a[href="projects.html"]');
-        assert.ok(owner.url().includes('storage=server'));
+        await owner.waitForURL('**/projects.html');
         assert.equal((await projects.get(accounts[0], id)).document.title, 'My unsaved edit');
         await owner.unroute('**/api/projects/*/edits');
-        await owner.locator('[data-action="retry"]').click();
+        await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
         await owner.waitForFunction(() => !window.ServerBoard.queue.pending && !window.ServerBoard.queue.running);
         await owner.fill('#projectTitleInput', 'Saved before leaving');
         await owner.click('.workspaceBreadcrumb a[href="projects.html"]');

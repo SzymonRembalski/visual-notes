@@ -128,6 +128,10 @@ const ServerBoard = {
         } finally { this.retrying = false; this.status(); }
     },
     showDetails() { this.detailsOpen = true; this.status(); },
+    hint(text, detail = text) {
+        const label = document.getElementById('workspaceSaveLabel');
+        label.textContent = text; label.parentElement.title = detail;
+    },
     save(document, view) {
         this.queue.enqueue(document, view);
         if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.queue.flush(); }, 150);
@@ -159,11 +163,11 @@ const ServerBoard = {
         VisualNotes.commitHistoryTransaction();
         VisualNotes.saveBoard();
         if (await this.flush() || !this.queue.dirtyDocument) { this.leaving = true; return true; }
-        this.message('Your edits have not reached the server yet. Saving will retry automatically, or you can download them.', true);
         const downloadedCurrentEdits = this.downloaded === JSON.stringify(this.snapshot());
-        if ((!this.draftError || downloadedCurrentEdits) && confirm('This project has not been saved to the server. Make sure you have the recovery draft or download before leaving. Leave anyway?')) {
+        if (!this.draftError || downloadedCurrentEdits) {
             this.leaving = true; return true;
         }
+        this.hint('Edits only in this tab', 'Keep this tab open until saving succeeds, or download your edits from Save.');
         return false;
     },
     snapshot() { return { ...BoardStorage.getDocument(VisualNotes), ...BoardStorage.getView(VisualNotes) }; },
@@ -206,10 +210,9 @@ const ServerBoard = {
         window.addEventListener('online', () => { if (this.queue.error) this.retrySave(); });
         document.addEventListener('visibilitychange', () => { if (document.hidden) { VisualNotes.saveBoard(); this.flush(); } });
         window.addEventListener('pagehide', () => { clearTimeout(this.retryTimer); this.retryTimer = null; });
-        window.addEventListener('beforeunload', event => {
+        window.addEventListener('beforeunload', () => {
             if (this.leaving) return;
             VisualNotes.saveBoard();
-            if (this.queue.dirtyDocument) { event.preventDefault(); event.returnValue = ''; }
         });
         window.addEventListener('pageshow', event => { if (event.persisted) this.leaving = false; });
         if (this.readonly) {

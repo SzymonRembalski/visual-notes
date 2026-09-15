@@ -106,3 +106,48 @@ test('camera-only changes do not count as unsaved shared edits', () => {
     queue.enqueue(board(), { zoom: 0.5 }); assert.equal(queue.dirtyDocument, false);
     const changed = board(); changed.title = 'Unsaved'; queue.enqueue(changed, { zoom: 0.5 }); assert.equal(queue.dirtyDocument, true);
 });
+
+test('a held save does not stall live updates, and its late reply cannot rewind newer state', async () => {
+    let current = board(), resolve;
+    const gate = new Promise(done => { resolve = done; });
+    const queue = new Queue({ document: board(), view: {}, revision: '1', readDocument: () => current, onDocument: doc => { current = doc; },
+        writeDocument: () => gate, writeView: async () => {}, persist: () => {}, onChange: () => {} });
+    current.title = 'Sent first'; queue.enqueue(current, {}); const saving = queue.flush();
+    const ownSave = D.clone(current);
+    const newest = board(); newest.title = 'Newer remote title'; newest.notes[1].x = 200;
+    queue.receive({ revision: '3', document: newest });
+    assert.equal(current.notes[1].x, 200, 'live movement must arrive before the HTTP save finishes');
+    resolve({ revision: '2', document: ownSave });
+    assert.equal(await saving, true);
+    assert.equal(current.title, 'Newer remote title'); assert.equal(current.notes[1].x, 200);
+    assert.equal(queue.revision, '3'); assert.equal(queue.pending, null);
+});
+
+test('edits after sending survive live updates and an out-of-order acknowledgment', async () => {
+    let current = board(), resolve, calls = 0, lastWrite;
+    const gate = new Promise(done => { resolve = done; });
+    const queue = new Queue({ document: board(), view: {}, revision: '1', readDocument: () => current, onDocument: doc => { current = doc; },
+        writeDocument: document => { lastWrite = D.clone(document); return ++calls === 1 ? gate : Promise.resolve({ revision: '4', document }); },
+        writeView: async () => {}, persist: () => {}, onChange: () => {} });
+    current.title = 'First'; queue.enqueue(current, {}); const saving = queue.flush();
+    const first = D.clone(current);
+    current.title = 'Kept typing'; current.notes[0].x = 125; queue.enqueue(current, {});
+    const remote = board(); remote.title = 'Their edit'; remote.notes[1].text = 'Remote text';
+    queue.receive({ revision: '3', document: remote });
+    assert.equal(current.notes[1].text, 'Remote text');
+    resolve({ revision: '2', document: first });
+    assert.equal(await saving, true); assert.equal(calls, 2);
+    assert.equal(lastWrite.title, 'Kept typing'); assert.equal(lastWrite.notes[0].x, 125);
+    assert.equal(lastWrite.notes[1].text, 'Remote text'); assert.equal(queue.revision, '4');
+});
+
+test('live confirmation wins over a failed HTTP reply without a false save error', async () => {
+    let current = board(), reject;
+    const gate = new Promise((resolve, fail) => { reject = fail; });
+    const queue = new Queue({ document: board(), view: {}, revision: '1', readDocument: () => current, onDocument: doc => { current = doc; },
+        writeDocument: () => gate, writeView: async () => {}, persist: () => {}, onChange: () => {} });
+    current.title = 'Saved already'; queue.enqueue(current, {}); const saving = queue.flush();
+    queue.receive({ revision: '2', document: D.clone(current) });
+    reject(Object.assign(new Error('Reply lost'), { status: 0 }));
+    assert.equal(await saving, true); assert.equal(queue.error, null); assert.equal(queue.pending, null);
+});

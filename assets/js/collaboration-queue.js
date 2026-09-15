@@ -26,8 +26,10 @@ class CollaborationQueue extends ServerSaveQueue {
     }
     receive(state) {
         if (!state.document || BigInt(state.revision) <= BigInt(this.revision)) return;
-        if (this.running) { this.incoming = state; return; }
         try {
+            // Keep the sent snapshot in the same remote context as the visible board.
+            // Its difference from current edits then contains only work done after sending.
+            if (this.writeBaseline) this.writeBaseline = CollaborationDocument.merge(JSON.parse(this.savedDocument), this.writeBaseline, state.document);
             this.adopt(JSON.parse(this.savedDocument), state.document, state.revision);
             if (this.pending && CollaborationDocument.equal(JSON.parse(this.pending.document), JSON.parse(this.savedDocument)) && this.pending.view === this.savedView) {
                 this.pending = this.error = null; this.checkpoint();
@@ -45,8 +47,11 @@ class CollaborationQueue extends ServerSaveQueue {
                 const snapshot = this.pending;
                 const document = JSON.parse(snapshot.document);
                 if (!this.readonly && !CollaborationDocument.equal(document, JSON.parse(this.savedDocument))) {
+                    this.writeBaseline = document;
                     const result = await this.writeDocument(document, this.revision, JSON.parse(this.savedDocument));
-                    this.adopt(document, result.document, result.revision);
+                    const newer = BigInt(result.revision) >= BigInt(this.revision);
+                    this.adopt(this.writeBaseline, newer ? result.document : JSON.parse(this.savedDocument), newer ? result.revision : this.revision);
+                    this.writeBaseline = null;
                 }
                 if (snapshot.view !== this.savedView) {
                     await this.writeView(JSON.parse(snapshot.view));
@@ -57,7 +62,9 @@ class CollaborationQueue extends ServerSaveQueue {
             }
             return true;
         } catch (error) {
-            this.error = error; this.checkpoint(); return false;
+            this.writeBaseline = null;
+            // The live stream may already have confirmed a write whose HTTP reply failed.
+            this.error = this.pending ? error : null; this.checkpoint(); return !this.error;
         }
     }
     flush() {
