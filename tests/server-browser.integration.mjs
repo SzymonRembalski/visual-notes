@@ -40,7 +40,13 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
     let id;
     await t.test('gallery creates an account project and canvas edits reach PostgreSQL', async () => {
         await owner.goto(`${config.origin}/projects.html`);
-        await owner.waitForSelector('[data-account="code"]');
+        await owner.waitForSelector('.accountMenu summary');
+        assert.equal(await owner.locator('.appHeader #accountBar').count(), 1);
+        await owner.locator('.accountMenu summary').press('Enter');
+        assert.equal(await owner.locator('[data-account="code"]').isVisible(), true);
+        await owner.keyboard.press('Escape');
+        assert.equal(await owner.locator('[data-account="code"]').isVisible(), false);
+        assert.equal(await owner.evaluate(() => document.activeElement.matches('.accountMenu summary')), true);
         owner.once('dialog', dialog => dialog.accept('Browser saved board'));
         await owner.click('#newProjectButton');
         await owner.waitForURL(/storage=server/);
@@ -124,6 +130,14 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         await owner.waitForFunction(() => document.querySelector('.sharingDialog [role="status"]').textContent.includes('Reference:'));
         assert.ok(logs.some(entry => entry.event === 'project.sharing' && entry.status === 404 && entry.projectId === second.id));
         await owner.locator('.dialogClose').click();
+        if (process.env.TEST_SCREENSHOT_DIR) {
+            await owner.locator('.accountMenu summary').click();
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'account-menu-desktop.png'), fullPage: true });
+            await owner.setViewportSize({ width: 390, height: 844 });
+            assert.equal(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'account-menu-mobile.png'), fullPage: true });
+            await owner.setViewportSize({ width: 1280, height: 850 });
+        }
     });
     await t.test('failed browser save keeps a recoverable draft while other users continue editing', async () => {
         await owner.goto(`${config.origin}/visual-notes.html?projectId=${id}&storage=server`);
@@ -245,6 +259,27 @@ test('browser account projects and server canvas', { timeout: 60000 }, async t =
         assert.equal(await page.evaluate(() => Boolean(ServerBoard.queue)), false);
         assert.equal(await page.locator('#editMenu').isVisible(), false);
         await page.close();
+    });
+    await t.test('profile menu copies the sharing code, closes outside and signs out', async () => {
+        await owner.goto(`${config.origin}/projects.html`);
+        await owner.locator('.accountMenu summary').click();
+        await owner.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async value => { window.copiedCode = value; } } }));
+        await owner.locator('[data-account="code"] svg').click();
+        assert.equal(await owner.evaluate(() => window.copiedCode), accounts[0]);
+        assert.equal(await owner.locator('.accountFeedback').textContent(), 'Copied. Send it to the project owner.');
+        assert.ok((await owner.locator('.accountDropdown [data-settings-link]').getAttribute('href')).includes('from=projects.html'));
+        await owner.click('#projectSearch');
+        assert.equal(await owner.locator('.accountMenu').getAttribute('open'), null);
+        await owner.locator('.accountMenu summary').click();
+        await owner.locator('[data-account="logout"]').click();
+        await owner.waitForSelector('.appHeader [data-account="login"]');
+        assert.equal(await owner.locator('.project-card').count(), 0);
+        assert.equal(await owner.evaluate(() => ServerAPI.user), null);
+        if (process.env.TEST_SCREENSHOT_DIR) {
+            await owner.setViewportSize({ width: 390, height: 844 });
+            assert.equal(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            await owner.screenshot({ path: join(process.env.TEST_SCREENSHOT_DIR, 'account-signed-out-mobile.png'), fullPage: true });
+        }
     });
     assert.deepEqual(errors, []);
 });

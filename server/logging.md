@@ -11,7 +11,7 @@ Rebuild and redeploy the updated image first. The Compose configuration rotates 
 
 ## Investigating a missing shared project
 
-1. Record the project link, recipient's sharing code and approximate time. Confirm both people are using the same server and the recipient has **My account** selected with the search cleared.
+1. Record the project link, recipient's sharing code (in their profile menu) and approximate time. Confirm both people are using the same server and the recipient has **Account projects** selected with the search cleared.
 2. Find `project.sharing` for the project ID. `userId` identifies the owner making the request; `memberId` identifies the recipient. Status `200` with role `editor` or `viewer` means the permission was saved. Role `removed` means access was revoked. A failed attempt records its HTTP status instead.
 3. Find `projects.list` for the recipient's `userId`. Its bounded `projectIds` array records the projects returned on that page; `offset` identifies pagination. This distinguishes a missing server result from a displayed list or account problem.
 4. If the friend opens the direct link, `project.open` records the result. `project.deleted` records deletion requests. An error in the sharing dialog shows a reference matching the log's `requestId`, also returned in the `X-Request-ID` response header.

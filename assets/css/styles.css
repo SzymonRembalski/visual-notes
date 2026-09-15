@@ -1548,12 +1548,39 @@ body.drawing-eraser-active #drawingLayer { cursor: cell; }
 .drawingControls input[type="color"] { width: 28px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: 6px; background: var(--header-bg); cursor: pointer; }
 .drawingControls select { padding: 6px; border-radius: 6px; background: var(--header-bg); font-size: 12px; }
 
-.accountBar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; }
-.accountBar[hidden], .serverNotice[hidden], .projectMessage[hidden] { display: none; }
-.accountBar > span { flex: 1; min-width: 160px; }
-.storageChoices { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--header-bg); }
-:is(.accountBar, .serverNotice, .sharingDialog, .projectCardFooter) button { padding: 8px 12px; font-size: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
-.storageChoices button[aria-pressed="true"] { background: var(--accent-color); color: var(--accent-contrast); }
+.accountBar { position: relative; font-size: 13px; }
+.accountBar[hidden], .projectStorage[hidden], .serverNotice[hidden], .projectMessage[hidden] { display: none; }
+:is(.accountBar, .projectStorage, .serverNotice, .sharingDialog, .projectCardFooter) button { padding: 8px 12px; font-size: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
+.accountMenu summary { display: flex; align-items: center; gap: 9px; padding: 4px 7px 4px 4px; border: 1px solid var(--border); border-radius: 30px; cursor: pointer; list-style: none; }
+.accountMenu summary::-webkit-details-marker { display: none; }
+.accountMenu summary:hover, .accountMenu[open] summary { background: var(--surface); border-color: var(--accent-soft); }
+.accountAvatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-contrast); font-size: 11px; font-weight: 650; }
+.accountName { max-width: 140px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
+.accountMenu summary > svg { width: 14px; height: 14px; color: var(--muted); }
+.accountDropdown { position: absolute; right: 0; top: calc(100% + 12px); z-index: 1100; width: min(280px, calc(100vw - 32px)); padding: 8px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 14px; background: var(--header-bg); box-shadow: 0 14px 40px #0003; }
+.accountIdentity { display: grid; gap: 5px; padding: 10px 12px 16px; overflow-wrap: anywhere; }
+.accountIdentity strong { color: var(--text); font-size: 14px; }
+.accountIdentity span { color: var(--muted); font-size: 11px; }
+.accountDropdown :is(button, a) { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 11px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--text); text-align: left; font-size: 12px; }
+.accountDropdown :is(button, a):hover { background: var(--surface); }
+.accountDropdown a svg { margin-left: auto; width: 16px; height: 16px; }
+.accountMenuDivider { height: 1px; margin: 6px 4px; background: var(--border); }
+.accountFeedback { margin: 4px 12px 10px; color: var(--accent-focus); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; user-select: text; }
+.accountBar .accountSignIn { display: flex; align-items: center; gap: 8px; border-radius: 20px; padding: 9px 14px; }
+.projectStorage { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+.storageChoices { display: flex; gap: 3px; padding: 4px; border: 1px solid var(--border); border-radius: 11px; background: var(--header-bg); }
+.storageChoices button, .projectStorageActions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; }
+.storageChoices button { border: 0; color: var(--muted); }
+.storageChoices button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px #0002; }
+.projectStorageActions { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 600px) {
+    .accountName, .accountMenu summary > svg { display: none; }
+    .accountMenu summary { padding: 3px; }
+    .projects-page .appHeader nav { gap: 10px; }
+    .projects-page .appHeader nav > a[href="index.html"] { display: none; }
+    .projectStorage { gap: 14px; }
+    .projectStorageActions { margin-left: auto; }
+}
 .projectMessage { padding: 12px 0; color: var(--accent-focus); }
 [data-error="true"] { color: var(--text); }
 .projectCardFooter { flex-wrap: wrap; gap: 8px; }

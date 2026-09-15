@@ -4,7 +4,7 @@ Updated September 15, 2026.
 
 ## Current checkpoint
 
-- Work is on `dev`, based on pushed commit `0eb19fa` (sharing/gallery refresh and server diagnostics), following `dc74c1c` (recovery and smoother movement). The concurrent canvas/saving follow-up is implemented but uncommitted. Account integration was committed as `b135071` and deployed. `main` received merge `2510536` and production Compose naming fix `5985646`; keep both branches and develop on `dev`.
+- Work is on `dev`, based on pushed commit `54a37c2` (concurrent canvas/silent saving), following `0eb19fa` (sharing diagnostics) and `dc74c1c` (recovery and smoother movement). The account UI redesign is implemented but uncommitted. Account integration was committed as `b135071` and deployed. `main` received merge `2510536` and production Compose naming fix `5985646`; keep both branches and develop on `dev`.
 - The user confirmed the server database and Google login are configured. Account controls and the initial Google redirect were verified on the test site after correcting an old deployed image. Do not repeat provider/setup questions.
 - The user explicitly prioritized live collaboration and moved separate scheduled project backups to the next update. Manual per-project JSON download/import already works and preserves local originals.
 - Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, project row locks, string revisions, per-account camera views and retry-safe project creation. Existing migrations 001/002 are sufficient; collaboration adds no dependency or schema change.
@@ -12,6 +12,8 @@ Updated September 15, 2026.
 - Live edits include pointer dragging, resizing, drawing strokes and title/body typing. Remote rendering keeps active input/drag objects, references and text selection. Camera position, zoom and drawing visibility stay personal. Account-board entity IDs use UUIDs; numeric connection-key assumptions were removed. Legacy stroke IDs are normalized deterministically.
 
 ## Implementation map
+
+Account UI: Projects now places sign-in or an avatar/name profile menu at the top right. The menu contains sharing-code copy with inline feedback, Settings (preserving the return URL) and Sign out. Separate Account projects / On this device tabs and import/refresh actions sit above the project filters. Native disclosure supports keyboard activation, Escape, focus exit and outside-click dismissal; mobile uses an avatar-only trigger. No account/saving/permissions API changes. Verified twelve browser scenarios with `node tests/run-database-tests.mjs --browser`, including copying, sign-out, sharing, imports and silent recovery; PostgreSQL restart and the local gallery regression also pass. Desktop and signed-in/out mobile screenshots were inspected.
 
 Sharing investigation: the user reported one of two shared projects missing even after refresh, then deleted both. The original incident cannot be confirmed. Fresh browser/PostgreSQL tests show both shares visible to the same recipient, independent viewer/editor access, reopening, revocation, and exclusion of private projects. No database sharing defect was reproduced. The gallery now refreshes on return/online and every 15 seconds while visible, avoids unchanged redraws, and offers manual refresh. Sharing confirms the stored member, names the project and offers a direct link. `server/logger.mjs` provides bounded JSON diagnostics and request IDs, with sharing/list/open/delete events and safe error codes; `server/logging.md` explains incident tracing. Container logs rotate at 10 MB with three files. No migrations or dependencies added.
 
@@ -59,7 +61,7 @@ Undo/redo records only local operations. It preserves unrelated remote changes a
 
 ## Resume / next update
 
-1. Commit the concurrent canvas/saving follow-up on `dev` when requested. The sharing diagnostics changes are already pushed as `0eb19fa`. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
+1. Commit the account UI redesign on `dev` when requested. Concurrent canvas/saving fixes are already pushed as `54a37c2`. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
 2. After deployment, open a shared disposable board from two accounts on the test origin and verify cursors, live changes, viewer restrictions and reconnect behavior through the actual proxy.
 3. Next planned release: independent scheduled server project backups, private backup destination/retention configuration, pre-restore snapshots, isolated restoration and a restore drill. Manual JSON downloads do not replace automatic backups.
 4. Character-level text merging and multi-instance presence transport are possible later improvements, not part of this first collaboration release.
