@@ -1579,6 +1579,7 @@ const VisualNotes = {
 
             const imgEl = div.querySelector('.noteImage img');
             if (imgEl) {
+                imgEl.draggable = false;
                 const syncImageDimensions = () => {
                     try {
                         const naturalW = imgEl.naturalWidth || imgEl.width;
