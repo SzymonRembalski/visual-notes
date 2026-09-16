@@ -1103,7 +1103,6 @@ const VisualNotes = {
                 "stroke-linejoin": "round"
             });
             bgLine.style.pointerEvents = "all";
-            bgLine.style.cursor = "pointer";
             bgLine.dataset.conn = connKey;
             bgLine.addEventListener("click", removeOnClick);
             const elements = { a, b, line, bgLine, gradient };
