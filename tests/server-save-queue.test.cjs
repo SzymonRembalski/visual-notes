@@ -5,6 +5,15 @@ const vm = require('node:vm');
 const context = vm.createContext({ window: {} });
 vm.runInContext(readFileSync(require('node:path').join(__dirname, '../assets/js/server-save-queue.js'), 'utf8'), context);
 const Queue = context.window.ServerSaveQueue;
+test('an unchanged save cannot delay a new action in the same turn', async () => {
+    const { instance, events } = queue();
+    const unchanged = instance.flush();
+    instance.enqueue({ title: 'Immediate action' }, {});
+    await instance.flush(); await unchanged;
+    assert.equal(events.writes.length, 1);
+    assert.equal(events.writes[0].document.title, 'Immediate action');
+    assert.equal(instance.pending, null);
+});
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 function queue(options = {}) {
     const events = { drafts: [], writes: [] };

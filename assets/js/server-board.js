@@ -134,11 +134,9 @@ const ServerBoard = {
     },
     save(document, view) {
         this.queue.enqueue(document, view);
-        if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.queue.flush(); }, 150);
+        return this.flush();
     },
     async flush() {
-        clearTimeout(this.timer);
-        this.timer = null;
         if (!this.queue) return false;
         return this.queue.flush();
     },
@@ -153,8 +151,6 @@ const ServerBoard = {
         DrawingLayer.finish();
         VisualNotes.commitHistoryTransaction();
         VisualNotes.saveBoard();
-        clearTimeout(this.timer);
-        this.timer = null;
         return this.retrySave();
     },
     async beforeLeave() {

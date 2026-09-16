@@ -210,7 +210,6 @@ const BoardCollaboration = {
             const queued = JSON.parse(ServerBoard.queue.pending?.document || ServerBoard.queue.savedDocument);
             if (!CollaborationDocument.equal(current, queued)) {
                 ServerBoard.save(current, BoardStorage.getView(VisualNotes));
-                ServerBoard.flush();
             }
         }
         if (!this.connected || this.sendingPresence) return;

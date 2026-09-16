@@ -303,6 +303,7 @@ const VisualNotes = {
         this.updateCanvasBounds();
         this.applyTransform();
         if (!this.shapeMode) this.updateMovedConnections(this.selectedNotes);
+        if (window.ServerBoard?.active) this.saveBoard();
         return true;
     },
     finishKeyboardMove() {

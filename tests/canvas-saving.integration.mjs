@@ -44,6 +44,50 @@ test('overlapping canvas actions and silent save recovery', { timeout: 90000 }, 
         return { project, url };
     };
 
+    await t.test('actions start saving immediately and reach PostgreSQL without manual saving or blur', async () => {
+        const { project } = await fresh();
+        await owner.evaluate(() => VisualNotes.saveBoard()); await idle(owner); // Persist the initial camera defaults first.
+        const immediate = await owner.evaluate(() => {
+            const queue = ServerBoard.queue, write = queue.writeDocument;
+            let started = false;
+            queue.writeDocument = (...args) => { started = true; return write(...args); };
+            try {
+                VisualNotes.saveBoard(); // An unchanged save must not block the following action.
+                VisualNotes.updateText('one', 'Saved as I type');
+                return started;
+            } finally { queue.writeDocument = write; }
+        });
+        assert.equal(immediate, true);
+        await idle(owner);
+        assert.equal((await projects.get(users[0], project.id)).document.notes[0].text, 'Saved as I type');
+        await owner.fill('#projectTitleInput', 'Saved while focused'); await idle(owner);
+        assert.equal(await owner.locator('#projectTitleInput').evaluate(input => input === document.activeElement), true);
+        assert.equal((await projects.get(users[0], project.id)).document.title, 'Saved while focused');
+        const noteId = await owner.evaluate(() => VisualNotes.createNoteAt(200, 300, { title: 'Immediate creation' }).id);
+        await idle(owner);
+        assert.ok((await projects.get(users[0], project.id)).document.notes.some(note => note.id === noteId));
+        await owner.evaluate(id => { VisualNotes.selectedNotes = [id]; VisualNotes.deleteSelectedNotes(); }, noteId);
+        await idle(owner);
+        assert.equal((await projects.get(users[0], project.id)).document.notes.some(note => note.id === noteId), false);
+    });
+
+    await t.test('held arrow keys save each movement before release and remain one undo action', async () => {
+        const { project } = await fresh();
+        await owner.evaluate(() => {
+            VisualNotes.selectedNotes = ['one']; VisualNotes.snappingEnabled = false; VisualNotes.render();
+        });
+        const before = (await projects.get(users[0], project.id)).document.notes[0].x;
+        try {
+            for (let step = 1; step <= 3; step++) {
+                await owner.keyboard.down('ArrowRight'); await idle(owner);
+                assert.equal(await owner.evaluate(() => VisualNotes.keyboardMoving), true);
+                assert.equal((await projects.get(users[0], project.id)).document.notes[0].x, before + step);
+            }
+        } finally { await owner.keyboard.up('ArrowRight'); }
+        await owner.keyboard.press('Control+z'); await idle(owner);
+        assert.equal((await projects.get(users[0], project.id)).document.notes[0].x, before);
+    });
+
     await t.test('a delayed save reply allows live edits during dragging and preserves later movement', async () => {
         const { project } = await fresh();
         let release, held = false;
