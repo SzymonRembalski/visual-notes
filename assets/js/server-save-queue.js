@@ -20,6 +20,7 @@ class ServerSaveQueue {
     flush() {
         if (this.running) return this.running;
         if (this.error) return Promise.resolve(false);
+        if (!this.pending) return Promise.resolve(true);
         this.running = this.run().finally(() => { this.running = null; this.onChange(); });
         this.onChange();
         return this.running;

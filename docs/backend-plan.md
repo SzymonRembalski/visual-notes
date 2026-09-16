@@ -1,11 +1,12 @@
 # Backend and collaboration handoff
 
-Updated September 15, 2026.
+Updated September 16, 2026.
 
 ## Current checkpoint
 
-- Work is on `dev`, based on pushed commit `fb60e2c` (borderless project delete button), following `73b3759` (Google profile photos). The user reports migration 003 has been applied. Existing users must sign out/in to populate their photo. Verified Google HTTPS image URLs are exposed as session `pictureUrl`, with initials retained if missing or loading fails.
-- Current uncommitted change: sharing accepts a name search or sharing code in the same field. Owners can search existing users through `GET /api/projects/:id/people?q=...`, choose a result (photo/name/code suffix), then save editor/viewer access through the existing members endpoint. Search is case-insensitive and literal, requires 2–200 characters, returns at most ten matches, excludes the owner, and exposes no email/provider identity. No new migration or dependency. Debouncing and request versions prevent stale results from replacing current searches; editing the name clears the selected recipient.
+- Work is on `dev`, based on pushed commit `6a8b3ed` (prevent native dragging of canvas images). Sharing and earlier collaboration work were merged/pushed to `main` as `9444211`; production Compose identity and workflow were preserved. The user reports migration 003 has been applied. Existing users must sign out/in to populate their Google photo.
+- Current uncommitted change: ordinary actions save immediately, removing the 150 ms timer; arrow movement saves before key release while keeping one undo action. The unchanged-save guard prevents an empty writer from delaying the next action. Active pointer gestures retain 100 ms sampling and a final save on release. No migration or dependency change.
+- Sharing search is committed: owners can search existing users through `GET /api/projects/:id/people?q=...`, select a photo/name/code suffix, then save editor/viewer access through the members endpoint. Share codes remain supported. Search requires 2–200 characters, returns at most ten matches, and exposes no email/provider identity.
 - The user confirmed the server database and Google login are configured. Account controls and the initial Google redirect were verified on the test site after correcting an old deployed image. Do not repeat provider/setup questions.
 - The user explicitly prioritized live collaboration and moved separate scheduled project backups to the next update. Manual per-project JSON download/import already works and preserves local originals.
 - Backend: Node.js 24, PostgreSQL, verified Google identities, hashed persistent sessions, CSRF protection, owner/editor/viewer permissions, project row locks, string revisions, per-account camera views and retry-safe project creation. Current schema requires migrations 001/002/003. Collaboration itself added no dependency or schema change; 003 stores profile photos.
@@ -31,7 +32,7 @@ Sharing investigation: the user reported one of two shared projects missing even
 
 ## Persistence and recovery contract
 
-`BoardStorage.getDocument/getView` return live references; the queue copies immediately. Ordinary saves coalesce for 150 ms. Active gestures and presence are sampled every 100 ms; gesture changes flush immediately without that extra delay, and idle tabs skip document sampling. Server broadcasts coalesce for 20 ms. Server acknowledgments never clear newer pending edits. Remote state is rebased while retaining pending local edits for the next save. Shared-field writes use server arrival order; simultaneous edits no longer pause for conflict recovery. Late field edits to deleted objects are ignored.
+`BoardStorage.getDocument/getView` return live references; the queue copies immediately. Ordinary actions flush immediately with no added timer, including each arrow-key movement while preserving one undo action for a held key. No-op flushes do not start a writer that could strand an immediately following action. Active gestures and presence are sampled every 100 ms; gesture changes flush immediately, and idle tabs skip document sampling. The single writer combines edits arriving during a request into its next snapshot; this saves current state, not an audit row for every input event. Server broadcasts coalesce for 20 ms. Server acknowledgments never clear newer pending edits. Remote state is rebased while retaining pending local edits for the next save. Shared-field writes use server arrival order; simultaneous edits no longer pause for conflict recovery. Late field edits to deleted objects are ignored.
 
 Geometry-only remote changes reuse note, shape and connection elements. A separate display map interpolates geometry for 100 ms; canonical document coordinates never contain animation frames. Connections and selection outlines follow the display geometry. Local pointer/keyboard input finishes animation immediately; reduced-motion preferences disable it. Peer cursor/outline elements persist between updates, allowing cursor transitions to work, and camera movement updates their positions immediately.
 
@@ -52,6 +53,7 @@ Undo/redo records only local operations. It preserves unrelated remote changes a
 
 ## Verification
 
+- Immediate-saving update: 20 queue/collaboration unit checks passed. The full integration run passed database, account/browser and collaboration suites; the new timing test needed its initial camera save settled before asserting immediate dispatch. All nine canvas/saving scenarios then passed with `--canvas`, including PostgreSQL restart durability. Tests directly inspect PostgreSQL before blur/key release and verify one-step undo for a held key.
 - Sharing search update: full `node tests/run-database-tests.mjs` passed (ten backend scenarios, thirteen account/browser scenarios, eleven collaboration scenarios, seven canvas/saving scenarios, plus PostgreSQL restart durability). New checks cover owner-only search, anonymous denial, literal queries, result bounds, stale responses, keyboard selection, explicit sharing, photos and selection reset when editing a name. Both name selection and sharing codes were exercised. Desktop/mobile dialog screenshots were inspected. An existing navigation test now waits for the save queue to initialize before reading its state.
 
 - All 38 unit tests pass, including two logging checks for credential exclusion and correlated HTTP/database failure diagnostics, and existing storage/config/validation/save-queue/collaboration coverage.
@@ -62,7 +64,7 @@ Undo/redo records only local operations. It preserves unrelated remote changes a
 
 ## Resume / next update
 
-1. Commit the existing-account sharing search on `dev` when requested. Google photos and the borderless delete fix are already pushed; the user reports migration 003 is applied. This sharing update needs only an app redeployment. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
+1. Commit the immediate-saving update on `dev` when requested. It needs only an app redeployment. The user normally pushes unless explicitly asking us to push. Do not automatically deploy or merge to `main`.
 2. After deployment, open a shared disposable board from two accounts on the test origin and verify cursors, live changes, viewer restrictions and reconnect behavior through the actual proxy.
 3. Next planned release: independent scheduled server project backups, private backup destination/retention configuration, pre-restore snapshots, isolated restoration and a restore drill. Manual JSON downloads do not replace automatic backups.
 4. Character-level text merging and multi-instance presence transport are possible later improvements, not part of this first collaboration release.

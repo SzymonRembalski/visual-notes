@@ -303,6 +303,7 @@ const VisualNotes = {
         this.updateCanvasBounds();
         this.applyTransform();
         if (!this.shapeMode) this.updateMovedConnections(this.selectedNotes);
+        if (window.ServerBoard?.active) this.saveBoard();
         return true;
     },
     finishKeyboardMove() {
@@ -1102,7 +1103,6 @@ const VisualNotes = {
                 "stroke-linejoin": "round"
             });
             bgLine.style.pointerEvents = "all";
-            bgLine.style.cursor = "pointer";
             bgLine.dataset.conn = connKey;
             bgLine.addEventListener("click", removeOnClick);
             const elements = { a, b, line, bgLine, gradient };
@@ -1579,6 +1579,7 @@ const VisualNotes = {
 
             const imgEl = div.querySelector('.noteImage img');
             if (imgEl) {
+                imgEl.draggable = false;
                 const syncImageDimensions = () => {
                     try {
                         const naturalW = imgEl.naturalWidth || imgEl.width;

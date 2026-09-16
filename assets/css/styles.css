@@ -566,6 +566,16 @@ body.projects-page .deleteProjectButton:hover { color: #d57c7c; transform: none;
     .appHeader nav { gap: 8px; font-size: 11px; }
 }
 
+body.canvas-page {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body.canvas-page :is(input, textarea) {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
 body.canvas-page :is(#canvas, #shapes, #connections) {
     position: absolute;
     left: 0;
@@ -681,8 +691,6 @@ body.shapes-mode-active {
 body.shapes-mode-active #toolbar,
 body.shapes-mode-active #toolbar * {
     cursor: auto;
-    user-select: auto;
-    -webkit-user-select: auto;
 }
 
 body.shapes-mode-active #toolbar button,
@@ -926,8 +934,6 @@ body.canvas-page :is(.noteTitle, .noteTitleInput) {
 body.canvas-page .noteTitle {
     flex: none;
     white-space: nowrap;
-    user-select: text;
-    -webkit-user-select: text;
     cursor: text;
 }
 
@@ -986,8 +992,6 @@ body.canvas-page .note textarea {
     border-top: 1px solid color-mix(in srgb, var(--note-text, var(--border)) 45%, transparent);
     padding: 10px 4px 0;
     font: 13px/1.5 "Segoe UI", Arial, sans-serif;
-    user-select: text;
-    -webkit-user-select: text;
     overflow: hidden;
 }
 
@@ -1132,7 +1136,6 @@ body.canvas-page .line {
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
-    cursor: pointer;
     pointer-events: all;
     transition: stroke 0.15s ease, stroke-width 0.15s ease;
 }
