@@ -195,9 +195,9 @@ body.task-page .workspaceBrand svg { width: 19px; height: 19px; }
 
 .taskMenu, .toolbarMenu { position: relative; }
 
-.taskMenu > summary, .toolbarMenu > summary { cursor: pointer; list-style: none; }
+.taskMenu > summary, .toolbarMenu > summary, .accountMenu summary { cursor: pointer; list-style: none; }
 
-.taskMenu > summary::-webkit-details-marker, .toolbarMenu > summary::-webkit-details-marker { display: none; }
+.taskMenu > summary::-webkit-details-marker, .toolbarMenu > summary::-webkit-details-marker, .accountMenu summary::-webkit-details-marker { display: none; }
 
 .taskMenuPanel, .toolbarMenuPanel { position: absolute; top: calc(100% + 8px); border: 1px solid var(--border); }
 
@@ -254,6 +254,8 @@ body.task-page .note textarea { display: block; width: 100%; padding: 10px 12px;
 
 body.canvas-page {
     transition: background-color 180ms ease;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 body.canvas-page.add-mode-active {
@@ -425,12 +427,12 @@ body.canvas-page #toolbar .button-link {
     min-width: 0;
 }
 
-.backupActions .connectBackup {
+.backupActions .connectBackup,
+.backupActions .restoreBackup {
     grid-column: 1 / -1;
 }
 
 .backupActions .restoreBackup {
-    grid-column: 1 / -1;
     background: var(--border);
     color: var(--text);
 }
@@ -566,11 +568,6 @@ body.projects-page .deleteProjectButton:hover { color: #d57c7c; transform: none;
     .appHeader nav { gap: 8px; font-size: 11px; }
 }
 
-body.canvas-page {
-    user-select: none;
-    -webkit-user-select: none;
-}
-
 body.canvas-page :is(input, textarea) {
     user-select: text;
     -webkit-user-select: text;
@@ -684,8 +681,6 @@ body.canvas-page .canvasShape.has-custom-color {
 
 body.shapes-mode-active {
     cursor: crosshair;
-    user-select: none;
-    -webkit-user-select: none;
 }
 
 body.shapes-mode-active #toolbar,
@@ -1286,7 +1281,8 @@ body.settings-page {
     font-size: clamp(2rem, 5vw, 3rem);
 }
 
-.settingsHeader p {
+.settingsHeader p,
+.settingsCardHeading p {
     margin: 0;
     color: var(--muted);
 }
@@ -1323,8 +1319,6 @@ body.settings-page {
 }
 
 .settingsCardHeading p {
-    margin: 0;
-    color: var(--muted);
     line-height: 1.45;
 }
 
@@ -1492,7 +1486,6 @@ body.canvas-page .toolbarSettings, .workspaceIconButton { background: transparen
 .quickTools button, .zoomControls button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .quickTools button[aria-pressed="true"] { color: var(--accent-soft); background: color-mix(in srgb, var(--accent-color) 12%, transparent); }
 .quickTools button:hover, .zoomControls button:hover { transform: none; background: var(--surface-hover); color: var(--text); }
-button:disabled { cursor: default; opacity: 0.4; transform: none; }
 .zoomControls { right: 28px; bottom: 30px; border-radius: 11px; padding: 2px; }
 .zoomControls button { width: 30px; height: 32px; padding: 5px; font-size: 18px; }
 .zoomControls output { min-width: 42px; font-size: 11px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -1554,18 +1547,17 @@ body.drawing-eraser-active #drawingLayer { cursor: cell; }
 .accountBar { position: relative; font-size: 13px; }
 .accountBar[hidden], .projectStorage[hidden], .serverNotice[hidden], .projectMessage[hidden] { display: none; }
 :is(.accountBar, .projectStorage, .serverNotice, .sharingDialog, .projectCardFooter) button { padding: 8px 12px; font-size: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
-.accountMenu summary { display: flex; align-items: center; gap: 9px; padding: 4px 7px 4px 4px; border: 1px solid var(--border); border-radius: 30px; cursor: pointer; list-style: none; }
-.accountMenu summary::-webkit-details-marker { display: none; }
+.accountMenu summary { display: flex; align-items: center; gap: 9px; padding: 4px 7px 4px 4px; border: 1px solid var(--border); border-radius: 30px; }
 .accountMenu summary:hover, .accountMenu[open] summary { background: var(--surface); border-color: var(--accent-soft); }
 .accountAvatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-contrast); font-size: 11px; font-weight: 650; }
 .accountAvatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .accountName { max-width: 140px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
 .accountMenu summary > svg { width: 14px; height: 14px; color: var(--muted); }
-.accountDropdown { position: absolute; right: 0; top: calc(100% + 12px); z-index: 1100; width: min(280px, calc(100vw - 32px)); padding: 8px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 14px; background: var(--header-bg); box-shadow: 0 14px 40px #0003; }
+.accountDropdown { position: absolute; right: 0; top: calc(100% + 12px); z-index: 1100; width: min(280px, calc(100vw - 32px)); padding: 8px; border: 1px solid var(--border); border-radius: 14px; background: var(--header-bg); box-shadow: 0 14px 40px #0003; }
 .accountIdentity { display: grid; gap: 5px; padding: 10px 12px 16px; overflow-wrap: anywhere; }
 .accountIdentity strong { color: var(--text); font-size: 14px; }
 .accountIdentity span { color: var(--muted); font-size: 11px; }
-.accountDropdown :is(button, a) { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 11px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--text); text-align: left; font-size: 12px; }
+.accountDropdown :is(button, a) { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--text); text-align: left; font-size: 12px; }
 .accountDropdown :is(button, a):hover { background: var(--surface); }
 .accountDropdown a svg { margin-left: auto; width: 16px; height: 16px; }
 .accountMenuDivider { height: 1px; margin: 6px 4px; background: var(--border); }
@@ -1589,20 +1581,20 @@ body.drawing-eraser-active #drawingLayer { cursor: cell; }
 [data-error="true"] { color: var(--text); }
 .projectCardFooter { flex-wrap: wrap; gap: 8px; }
 .projectCardFooter > span { flex: 1; }
-.serverNotice { position: fixed; z-index: 5000; bottom: 76px; right: 16px; width: min(360px, calc(100% - 32px)); box-sizing: border-box; padding: 14px; border: 1px solid var(--accent-color); border-radius: 12px; background: var(--header-bg); box-shadow: 0 8px 24px #0003; font-size: 13px; }
+.serverNotice { position: fixed; z-index: 5000; bottom: 76px; right: 16px; width: min(360px, calc(100% - 32px)); padding: 14px; border: 1px solid var(--accent-color); border-radius: 12px; background: var(--header-bg); box-shadow: 0 8px 24px #0003; font-size: 13px; }
 .serverNotice > span { display: block; padding-right: 24px; }
 .serverNotice .noticeClose { position: absolute; right: 6px; top: 5px; padding: 2px 7px; border: 0; background: transparent; font-size: 20px; }
 .workspaceSaveStatus[role="button"] { cursor: pointer; }
 .workspaceSaveStatus[role="button"]:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 4px; border-radius: 4px; }
 .serverNotice > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .serverNotice a, .projectMessage a { color: var(--accent-focus); }
-.sharingDialog { box-sizing: border-box; width: min(520px, calc(100% - 32px)); max-height: 85vh; overflow: auto; border: 1px solid var(--border); border-radius: 18px; padding: 24px; background: var(--header-bg); color: var(--text); }
+.sharingDialog { width: min(520px, calc(100% - 32px)); max-height: 85vh; overflow: auto; border: 1px solid var(--border); border-radius: 18px; padding: 24px; background: var(--header-bg); color: var(--text); }
 .sharingDialog::backdrop { background: #0008; }
 .sharingDialog h2 { margin-top: 0; }
 .sharingDialog p { color: var(--muted); line-height: 1.6; }
 .sharingDialog .dialogClose { float: right; }
 .sharingDialog label { display: grid; gap: 6px; margin: 14px 0; font-size: 13px; }
-.sharingDialog :is(input, select) { box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.sharingDialog :is(input, select) { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
 .peopleResults { display: grid; gap: 4px; max-height: 240px; overflow: auto; }
 .peopleResults button { display: flex; align-items: center; gap: 12px; border: 0; text-align: left; }
 .peopleResults button:hover, .peopleResults button:focus-visible { background: var(--accent-soft); }
@@ -1612,12 +1604,11 @@ body.drawing-eraser-active #drawingLayer { cursor: cell; }
 .sharedPeople > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
 .serverReadonly :is(#editMenu, #quickTools, .colorPanel, #drawingControls) { display: none !important; }
 .serverLoading :is(#canvas, #shapes, #drawingLayer, #toolbar input, #toolbar details, #quickTools, .zoomControls) { pointer-events: none; visibility: hidden; }
-button:disabled { cursor: default; opacity: 0.55; }
+button:disabled { cursor: default; opacity: 0.55; transform: none; }
 .collaborationLayer { position: fixed; inset: 0; z-index: 980; pointer-events: none; overflow: hidden; clip-path: inset(var(--toolbar-height) 0 0); }
 .collaborationStatus { position: fixed; top: calc(var(--toolbar-height) + 12px); right: 20px; z-index: 981; padding: 7px 12px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--muted); font-size: 12px; pointer-events: none; }
 .peerCursor { position: absolute; transition: left 100ms linear, top 100ms linear; }
-@media (prefers-reduced-motion: reduce) { .peerCursor { transition: none; } }
 .peerCursor::before { content: ''; position: absolute; width: 12px; height: 18px; background: var(--peer-color); clip-path: polygon(0 0, 100% 65%, 50% 70%, 30% 100%); }
 .peerCursor span { display: block; margin: 16px 0 0 10px; padding: 3px 7px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 5px; background: var(--peer-color); color: #111; font-size: 11px; }
-.peerSelection { position: absolute; border: 2px solid var(--peer-color); border-radius: 10px; box-sizing: border-box; }
+.peerSelection { position: absolute; border: 2px solid var(--peer-color); border-radius: 10px; }
 .serverAccessLost :is(#canvas, #shapes, #drawingLayer, #editMenu, #quickTools, #projectTitleInput) { pointer-events: none; }
