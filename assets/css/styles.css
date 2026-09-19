@@ -1580,6 +1580,7 @@ body.drawing-eraser-active #drawingLayer { cursor: cell; }
 .projectMessage { padding: 12px 0; color: var(--accent-focus); }
 [data-error="true"] { color: var(--text); }
 .projectCardFooter { flex-wrap: wrap; gap: 8px; }
+.projectCardFooter button[data-share] { border: 0; }
 .projectCardFooter > span { flex: 1; }
 .serverNotice { position: fixed; z-index: 5000; bottom: 76px; right: 16px; width: min(360px, calc(100% - 32px)); padding: 14px; border: 1px solid var(--accent-color); border-radius: 12px; background: var(--header-bg); box-shadow: 0 8px 24px #0003; font-size: 13px; }
 .serverNotice > span { display: block; padding-right: 24px; }
