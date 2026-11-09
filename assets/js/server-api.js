@@ -7,7 +7,7 @@ const ServerAPI = {
         if (body !== undefined) headers['Content-Type'] = 'application/json';
         let response;
         try {
-            response = await fetch(`/api/${path}`, { method, headers, credentials: 'same-origin',
+            response = await fetch(new URL(`/api/${path}`, location.origin), { method, headers, credentials: 'same-origin',
                 signal: AbortSignal.timeout(20000), ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
         } catch { throw Object.assign(new Error('Cannot reach the server. Your unsaved edits are still here.'), { status: 0 }); }
         let data;
