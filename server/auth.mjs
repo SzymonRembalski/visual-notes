@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { transaction } from './database.mjs';
 import { HttpError } from './validation.mjs';
+import { requestOrigin } from './config.mjs';
 
 const token = () => randomBytes(32).toString('base64url');
 export const tokenHash = value => createHash('sha256').update(value).digest('hex');
@@ -22,6 +23,8 @@ export class Auth {
             transporterOptions: { timeout: 10000, retry: false }
         });
     }
+
+    callback(req) { return `${requestOrigin(this.config, req)}/auth/google/callback`; }
 
     cookie(name, value, seconds) {
         return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${seconds}${this.secure ? '; Secure' : ''}`;
@@ -44,7 +47,7 @@ export class Auth {
             VALUES ($1, $2, $3, now() + interval '10 minutes')`, [tokenHash(state), nonce, codeVerifier]);
         return {
             cookie: this.cookie(this.loginCookie, state, 600),
-            location: this.provider.generateAuthUrl({ scope: ['openid', 'profile'], state, nonce,
+            location: this.provider.generateAuthUrl({ scope: ['openid', 'profile'], state, nonce, redirect_uri: this.callback(req),
                 code_challenge: codeChallenge, code_challenge_method: 'S256', prompt: 'select_account' })
         };
     }
@@ -59,7 +62,7 @@ export class Auth {
         if (!flow || !params.get('code') || params.has('error')) throw new HttpError(400, 'Sign-in was cancelled or expired. Please try again.');
         let identity;
         try {
-            const { tokens } = await this.provider.getToken({ code: params.get('code'), codeVerifier: flow.verifier });
+            const { tokens } = await this.provider.getToken({ code: params.get('code'), codeVerifier: flow.verifier, redirect_uri: this.callback(req) });
             const ticket = await this.provider.verifyIdToken({ idToken: tokens.id_token, audience: this.config.googleClientId });
             identity = ticket.getPayload();
             if (!identity?.sub || !matches(identity.nonce, flow.nonce)) throw new Error();
@@ -101,7 +104,7 @@ export class Auth {
     }
 
     checkWrite(req, session) {
-        if (req.headers.origin !== this.config.origin || !matches(req.headers['x-csrf-token'], session.csrfToken)) {
+        if (req.headers.origin !== requestOrigin(this.config, req) || !matches(req.headers['x-csrf-token'], session.csrfToken)) {
             throw new HttpError(403, 'Request could not be verified. Reload and try again.');
         }
     }
