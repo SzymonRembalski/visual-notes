@@ -3,6 +3,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Auth } from './auth.mjs';
+import { requestOrigin } from './config.mjs';
 import { Projects } from './projects.mjs';
 import { Collaboration } from './collaboration.mjs';
 import { checkDatabase } from './database.mjs';
@@ -125,7 +126,7 @@ export function createApp({ pool, config, provider, onError = () => {}, log = cr
                     const [, id, action, member] = route;
                     if (action === 'people' && !member && method === 'GET') return json(200, await projects.people(session.id, id, url.searchParams.get('q')));
                     if (action === 'live' && !member && method === 'GET') {
-                        if (req.headers.origin && req.headers.origin !== config.origin) throw new HttpError(403, 'Invalid live connection origin.');
+                        if (req.headers.origin && req.headers.origin !== requestOrigin(config, req)) throw new HttpError(403, 'Invalid live connection origin.');
                         return await collaboration.open(req, res, session, id, url.searchParams.get('clientId'));
                     }
                     if (action === 'presence' && !member && method === 'POST') return json(200, await collaboration.presence(session, id, await body(req)));
