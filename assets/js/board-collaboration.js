@@ -161,7 +161,7 @@ const BoardCollaboration = {
         if (this.blocked) return;
         this.source?.close();
         this.label.textContent = 'Connecting live…';
-        const source = this.source = new EventSource(`/api/projects/${ServerBoard.id}/live?clientId=${this.clientId}`);
+        const source = this.source = new EventSource(new URL(`/api/projects/${ServerBoard.id}/live?clientId=${this.clientId}`, location.origin));
         source.addEventListener('document', event => {
             const state = JSON.parse(event.data);
             if ((state.role === 'viewer') !== ServerBoard.readonly) return this.unavailable(403, 'Your project access changed. Reload to use the updated permissions.');

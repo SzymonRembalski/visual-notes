@@ -243,7 +243,7 @@ const ProjectsPage = {
         const status = dialog.querySelector('[role="status"]');
         const link = document.createElement('button'); link.textContent = 'Copy project link';
         link.onclick = async () => {
-            const url = new URL(ServerAPI.boardURL(id), location.href).href;
+            const linkUrl = new URL(ServerAPI.boardURL(id), location.href); linkUrl.username = ''; linkUrl.password = ''; const url = linkUrl.href;
             try { await navigator.clipboard.writeText(url); status.textContent = 'Link copied. Only accounts with access can open it.'; }
             catch { prompt('Project link:', url); }
         };
