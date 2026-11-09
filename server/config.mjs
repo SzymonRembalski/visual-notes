@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { parseArgs, parseEnv } from 'node:util';
 
+export const allowedOrigins = config => config.origins ?? [config.origin];
+// Picks the configured origin matching the request's Host header (forwarded by the proxy).
+export const requestOrigin = (config, req) => {
+    const origins = allowedOrigins(config);
+    return origins.find(origin => new URL(origin).host === req.headers.host) ?? origins[0];
+};
+
 export const configHelp = `Usage: node <server command> [options]
 Commands: server/check-config.mjs, server/index.mjs, server/db/migrate.mjs
   --env-file PATH  Read a server-only configuration file
@@ -67,18 +74,23 @@ export function loadConfig({ args = process.argv.slice(2), env = process.env, se
 
     const config = { mode, host, port: Number(portText), databaseUrl };
     if (server) {
-        const origin = value('APP_ORIGIN');
+        // APP_ORIGIN may list several comma-separated origins; the first one is the default.
+        const origins = String(value('APP_ORIGIN') ?? '').split(',').map(part => part.trim()).filter(Boolean);
         try {
-            const url = new URL(origin);
-            if (url.origin !== origin || url.username || url.password ||
-                (url.protocol !== 'https:' && !(mode !== 'production' && url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error();
+            if (!origins.length) throw new Error();
+            for (const origin of origins) {
+                const url = new URL(origin);
+                if (url.origin !== origin || url.username || url.password ||
+                    (url.protocol !== 'https:' && !(mode !== 'production' && url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error();
+            }
         } catch {
-            throw new Error('APP_ORIGIN must be an HTTPS origin without a trailing slash (HTTP localhost is allowed outside production).');
+            throw new Error('APP_ORIGIN must be one or more comma-separated HTTPS origins without a trailing slash (HTTP localhost is allowed outside production).');
         }
+        const origin = origins[0];
         const googleClientId = value('GOOGLE_CLIENT_ID');
         const googleClientSecret = value('GOOGLE_CLIENT_SECRET');
         if (!googleClientId || !googleClientSecret) throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required to run the server.');
-        Object.assign(config, { origin, googleClientId, googleClientSecret });
+        Object.assign(config, { origin, origins, googleClientId, googleClientSecret });
     }
     return Object.freeze(config);
 }
